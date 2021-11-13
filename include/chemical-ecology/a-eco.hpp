@@ -114,6 +114,10 @@ class AEcoWorld { //: public emp::World<Particle> {
         next_world[right][i] +=  avail / 4;
         next_world[up][i] +=  avail / 4;
         next_world[down][i] +=  avail / 4;
+        
+        if (rnd.P(config->SEEDING_PROB())) {
+          next_world[pos][i]++;
+        }
       }
     }
 
