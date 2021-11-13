@@ -56,8 +56,8 @@ void DrawWorldCanvas() {
   // UI::Canvas canvas = doc.Canvas("world_canvas");
   canvas.Clear("gray");
 
-  const size_t world_x = sqrt(cfg.WORLD_SIZE());
-  const size_t world_y = sqrt(cfg.WORLD_SIZE());
+  const size_t world_x = cfg.WORLD_X();
+  const size_t world_y = cfg.WORLD_Y();
   const double canvas_x = (double) canvas.GetWidth();
   const double canvas_y = (double) canvas.GetHeight();
   const double n_type_sqrt = sqrt(cfg.N_TYPES());
@@ -71,7 +71,7 @@ void DrawWorldCanvas() {
   for (size_t y = 0; y < world_y; y++) {
     for (size_t x = 0; x < world_x; x++) {
       const size_t org_id = y * world_x + x;
-      if (org_id >= cfg.WORLD_SIZE()) {
+      if (org_id >= cfg.WORLD_X() * cfg.WORLD_Y()) {
         break;
       }
       const size_t cur_x = org_x * (0.5 + (double) x);

@@ -8,10 +8,12 @@ namespace chemical_ecology {
     GROUP(GLOBAL_SETTINGS, "Global settings"),
     VALUE(SEED, int, -1, "Seed for a simulation"),
     VALUE(N_TYPES, int, 100, "Number of types"),
-    VALUE(WORLD_SIZE, int, 100, "Number of positions in world"),
+    VALUE(WORLD_X, int, 10, "Width world"),
+    VALUE(WORLD_Y, int, 10, "Height world"),
     VALUE(UPDATES, int, 1000, "Number of time steps to run for"),
     VALUE(MAX_POP, int, 10000, "Maximum population size for one type in one cell"),
     VALUE(INTERACTION_MAGNITUDE, double, 1, "Range of interaction intensities (from negative of this value to positive of this value"),
+    VALUE(DIFFUSION, double, .01, "Proportion of each population that diffuses to adjacent cells"),
 
     // GROUP(OTHER_SETTINGS, "Miscellaneous settings"),
     // VALUE(LUNCH_ORDER, std::string, "ham on five", "What's for lunch today"),

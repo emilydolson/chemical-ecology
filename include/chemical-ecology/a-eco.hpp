@@ -31,12 +31,12 @@ class AEcoWorld { //: public emp::World<Particle> {
   void Setup(chemical_ecology::Config & cfg) {
     config = &cfg;
 
-    N_TYPES = cfg.N_TYPES();
-    MAX_POP = cfg.MAX_POP();
+    N_TYPES = config->N_TYPES();
+    MAX_POP = config->MAX_POP();
 
-    rnd.ResetSeed(cfg.SEED());
+    rnd.ResetSeed(config->SEED());
 
-    world.resize(cfg.WORLD_SIZE());
+    world.resize(config->WORLD_X() * config->WORLD_Y());
     for (emp::vector<int> & v : world) {
       v.resize(N_TYPES);
       for (int & count : v) {
@@ -49,7 +49,7 @@ class AEcoWorld { //: public emp::World<Particle> {
       interactions[i].resize(N_TYPES);
       for (int j = 0; j < N_TYPES; j++) {
         if (i != j ){
-          interactions[i][j] = rnd.GetDouble(cfg.INTERACTION_MAGNITUDE() * -1, cfg.INTERACTION_MAGNITUDE());
+          interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
         }
       }
       std::cout << emp::to_string(interactions[i]) << std::endl;
@@ -65,24 +65,59 @@ class AEcoWorld { //: public emp::World<Particle> {
     //   }      
     // }
 
-    for (emp::vector<int> & pos : world) {
-      emp::vector<int> new_counts(N_TYPES);
+    emp::vector<emp::vector<int> > next_world;
+    next_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<int> & v : next_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    for (int pos = 0; pos < world.size(); pos++) {
       for (int i = 0; i < N_TYPES; i++) {
         double modifier = 0;
         for (int j = 0; j < N_TYPES; j++) {
-          modifier += interactions[i][j] * pos[j];
+          modifier += interactions[i][j] * world[pos][j];
         }
   
         // Logistic growth
-        int new_pop = ceil((r+modifier)*pos[i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+        int new_pop = ceil((r+modifier)*world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
         // std::cout << pos[i] << " " << new_pop << " " << modifier << " " << ((double)(MAX_POP - pos[i])/MAX_POP) <<  std::endl;
-        new_counts[i] = std::max(pos[i] + new_pop, 0);
-        new_counts[i] = std::min(new_counts[i], MAX_POP);
+        next_world[pos][i] = std::max(world[pos][i] + new_pop, 0);
+        next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
       }
       // std::cout << emp::to_string(pos) << std::endl;
-      std::swap(pos, new_counts);
-      std::cout << emp::to_string(pos) << std::endl;
     }
+
+    for (int pos = 0; pos < world.size(); pos++) {
+      int x = pos % config->WORLD_X();
+      int y = pos / config->WORLD_Y();
+      int left = pos - 1;     
+      int right = pos + 1;
+
+      if (x == 0) {
+        left += config->WORLD_X(); 
+      } else if (x == config->WORLD_X() - 1) {
+        right -= config->WORLD_X();
+      }
+ 
+      int up = pos - config->WORLD_X();
+      int down = pos + config->WORLD_X();
+
+      if (y == 0) {
+        up += config->WORLD_X() * (config->WORLD_Y());
+      } else if (y == config->WORLD_Y() - 1) {
+        down -= config->WORLD_X() * (config->WORLD_Y());
+      }
+
+      for (int i = 0; i < N_TYPES; i++) {
+        double avail = world[pos][i] * config->DIFFUSION();
+        next_world[left][i] +=  avail / 4;
+        next_world[right][i] +=  avail / 4;
+        next_world[up][i] +=  avail / 4;
+        next_world[down][i] +=  avail / 4;
+      }
+    }
+
+    std::swap(world, next_world);
 
   }
 
