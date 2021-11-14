@@ -31,6 +31,7 @@ D3::LinearScale edge_color;
 chemical_ecology::Config cfg;
 AEcoWorld world;
 emp::WeightedGraph interactions;
+D3::Selection heatmap;
 
 void ResetScales() {
   EM_ASM({
@@ -188,6 +189,64 @@ void DrawGraph(emp::WeightedGraph g, std::string canvas_id, double radius = 150)
 
 }
 
+struct InteractionNode {
+  EMP_BUILD_INTROSPECTIVE_TUPLE(
+    int, x,
+    int, y,
+    double, w
+  )
+};
+
+
+EM_JS(double, GetNewWeight, (double old), {
+  var new_weight = prompt("New weight:", old);
+  if (new_weight == null || new_weight == "") {
+    return old;
+  }
+  return +new_weight;
+});
+
+void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int width = 50) {
+    emp::vector<InteractionNode> interaction_vec;
+    interaction_vec.resize(cfg.N_TYPES()*cfg.N_TYPES());
+
+    for (int x = 0; x < cfg.N_TYPES(); x++) {
+      for (int y = 0; y < cfg.N_TYPES(); y++) {
+        InteractionNode & n = interaction_vec[y + x * cfg.N_TYPES()];
+        n.x(x);
+        n.y(y);
+        n.w(g.GetWeight(x,y));
+      }
+    }
+    
+    D3::Selection s = D3::Select(canvas_id);
+    D3::Selection enter = s.SelectAll("rect")
+     .Data(interaction_vec)
+     .EnterAppend("rect");
+
+    heatmap = enter.Merge(heatmap);
+
+    heatmap
+     .SetAttr("x", [width](InteractionNode n){return n.x()*width;})
+     .SetAttr("y", [width](InteractionNode n){return n.y()*width;})
+     .SetAttr("width", [width](InteractionNode n){return width;})
+     .SetAttr("height", [width](InteractionNode n){return width;})
+     .SetStyle("fill", [](InteractionNode n){return edge_color.ApplyScale<std::string>(n.w());})
+     .On("click", [&g, canvas_id, width](InteractionNode n, int id){
+       double new_weight = GetNewWeight(n.w());
+       g.AddEdge(n.x(), n.y(), new_weight);
+       world.SetInteraction(n.x(), n.y(), new_weight);
+       std::cout << g.GetWeight(n.x(), n.y()) << std::endl;
+      //  EM_ASM({
+      //    var d = .datum();
+      //    d.w = $1;
+      //    emp_d3.objects[$0].datum(d);
+      //    emp_d3.objects[$0].style("fill", emp_d3.objects[$1]($0));
+      //  }, id, new_weight, edge_color.GetID());
+      DrawInteractionMatrix(g, canvas_id, width);
+     });
+}
+
 emp::WeightedGraph MakeGraph() {
   emp::WeightedGraph interaction_graph;
 
@@ -240,4 +299,5 @@ int main()
   DrawWorldCanvas();
   interactions = MakeGraph();
   DrawGraph(interactions, "#interaction_network");
+  DrawInteractionMatrix(interactions, "#interaction_matrix");
 }

@@ -15,6 +15,7 @@ namespace chemical_ecology {
     VALUE(INTERACTION_MAGNITUDE, double, 1, "Range of interaction intensities (from negative of this value to positive of this value"),
     VALUE(DIFFUSION, double, .01, "Proportion of each population that diffuses to adjacent cells"),
     VALUE(SEEDING_PROB, double, .01, "Probability that a member of a given species will randomly be introduced to a cell"),
+    VALUE(REPRO_THRESHOLD, double, 5, "Total population required for reproduction; expressed as a multiplier on MAX_POP"),
 
     // GROUP(OTHER_SETTINGS, "Miscellaneous settings"),
     // VALUE(LUNCH_ORDER, std::string, "ham on five", "What's for lunch today"),

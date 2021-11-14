@@ -14,7 +14,7 @@ struct Particle {
 class AEcoWorld { //: public emp::World<Particle> {
   private:
     emp::vector<emp::vector<double> > interactions;
-    double r = 1;
+    emp::vector<double> rs;
     emp::Random rnd;
     chemical_ecology::Config * config = nullptr;
     int N_TYPES;
@@ -26,6 +26,10 @@ class AEcoWorld { //: public emp::World<Particle> {
 
   emp::vector<emp::vector<double> > GetInteractions() {
     return interactions;
+  }
+
+  void SetInteraction(int x, int y, double w) {
+    interactions[x][y] = w;
   }
 
   void Setup(chemical_ecology::Config & cfg) {
@@ -45,7 +49,9 @@ class AEcoWorld { //: public emp::World<Particle> {
     }
 
     interactions.resize(N_TYPES);
+    rs.resize(N_TYPES);
     for (int i = 0; i < N_TYPES; i++) {
+      rs[i] = rnd.GetDouble(0,2);
       interactions[i].resize(N_TYPES);
       for (int j = 0; j < N_TYPES; j++) {
         if (i != j ){
@@ -79,7 +85,7 @@ class AEcoWorld { //: public emp::World<Particle> {
         }
   
         // Logistic growth
-        int new_pop = ceil((r+modifier)*world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+        int new_pop = ceil((rs[i]+modifier)*world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
         // std::cout << pos[i] << " " << new_pop << " " << modifier << " " << ((double)(MAX_POP - pos[i])/MAX_POP) <<  std::endl;
         next_world[pos][i] = std::max(world[pos][i] + new_pop, 0);
         next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
@@ -108,13 +114,48 @@ class AEcoWorld { //: public emp::World<Particle> {
         down -= config->WORLD_X() * (config->WORLD_Y());
       }
 
+      if (emp::Sum(world[pos]) > config->MAX_POP()*(config->REPRO_THRESHOLD())) {
+        switch (rnd.GetInt(4)) {
+          case 0:
+            for (int i = 0; i < N_TYPES; i++) {
+              next_world[up][i] = world[pos][i]/10;
+            }
+            break;
+          case 1:
+            for (int i = 0; i < N_TYPES; i++) {
+              next_world[down][i] = world[pos][i]/10;              
+            }
+            break;
+          case 2:
+            for (int i = 0; i < N_TYPES; i++) {
+              next_world[left][i] = world[pos][i]/10;
+            }
+            break;
+          case 3:
+            for (int i = 0; i < N_TYPES; i++) {
+              next_world[right][i] = world[pos][i]/10;
+            }
+            break;
+        }
+      }
+
       for (int i = 0; i < N_TYPES; i++) {
         double avail = world[pos][i] * config->DIFFUSION();
         next_world[left][i] +=  avail / 4;
         next_world[right][i] +=  avail / 4;
         next_world[up][i] +=  avail / 4;
         next_world[down][i] +=  avail / 4;
-        
+
+        next_world[up][i] = std::min(next_world[up][i], MAX_POP);
+        next_world[down][i] = std::min(next_world[down][i], MAX_POP);
+        next_world[left][i] = std::min(next_world[left][i], MAX_POP);
+        next_world[right][i] = std::min(next_world[right][i], MAX_POP);
+        next_world[up][i] = std::max(next_world[up][i], 0);
+        next_world[down][i] = std::max(next_world[down][i], 0);
+        next_world[left][i] = std::max(next_world[left][i], 0);
+        next_world[right][i] = std::max(next_world[right][i], 0);
+
+
         if (rnd.P(config->SEEDING_PROB())) {
           next_world[pos][i]++;
         }
