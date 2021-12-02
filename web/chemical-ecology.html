@@ -35,20 +35,27 @@
     </h1>
   </div>
 
-<div class="container">
-  <div class="row">
-    <div class="col">
-      <svg width=600 height=1000>
-        <g id="interaction_network" transform="translate(20,20)"></g>DrawGraph(interactions, "#interaction_network");<g id="interaction_network" transform="translate(20,20)"></g>DrawGraph(interactions, "#interaction_network");
-        <g id="interaction_matrix" transform="translate(20,400)"></g>DrawGraph(interactions, "#interaction_network");<g id="interaction_network" transform="translate(20,20)"></g>DrawGraph(interactions, "#interaction_network");
+<div class="container-fluid">
+  <div class="row justify-content-md-center">
+    <div class="col-auto">
+      <svg width=400 height=400>
+        <g id="interaction_network" transform="translate(20,20)"></g>DrawGraph(interactions, "#interaction_network");<g id="interaction_network" transform="translate(20,20)"></g>
       </svg>
     </div>
-    <div class="col">
-      <div id="emp_base" width=600 height=600></div>
+    <div class="col-auto">
+      <svg width=1000 height=1000>
+        <g id="interaction_matrix" transform="translate(20,20)"></g>DrawGraph(interactions, "#interaction_network");<g id="interaction_network" transform="translate(20,20)"></g>
+      </svg>
+    </div>
+    <div class="col-auto">
+      <div id="grid_visualization" width=600 height=600></div>
+    </div>
+    <div class="col-auto">
+      <div id="emp_base" width=1000 height=1000></div>
     </div>
   </div>
-  <div class="row">
-    <div class="col">
+  <div class="row justify-content-md-center">
+    <div class="col-auto">
       <br>
       <div id="config_panel_div"></div>
     </div>

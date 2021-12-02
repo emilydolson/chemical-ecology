@@ -22,16 +22,23 @@ namespace UI = emp::web;
 
 UI::Document doc("emp_base");
 UI::Document cfg_doc("config_panel_div");
+UI::Document viz_doc("grid_visualization");
 UI::Canvas canvas;
+UI::Canvas viz_canvas;
 
 emp::vector<D3::LinearScale> square_colors;
 emp::vector<std::string> colors;
 D3::LinearScale edge_color;
+D3::SequentialScale fitness_scale;
+D3::SequentialPowScale heredity_scale;
+
 
 chemical_ecology::Config cfg;
 AEcoWorld world;
 emp::WeightedGraph interactions;
 D3::Selection heatmap;
+
+double max_fitness = 500000;
 
 void ResetScales() {
   EM_ASM({
@@ -51,6 +58,14 @@ void ResetScales() {
   edge_color.SetDomain(emp::array<double, 3>({cfg.INTERACTION_MAGNITUDE() * -1, 0, cfg.INTERACTION_MAGNITUDE()}));
   edge_color.SetInterpolate("interpolateLab");
   edge_color.SetRange(emp::array<std::string, 3>({"red", "grey", "blue"}));
+
+  fitness_scale.SetDomain(emp::array<double, 2>({0, max_fitness}));
+  fitness_scale.SetInterpolator("interpolateViridis");
+  // fitness_scale.SetRange(emp::array<std::string, 2>({"red", "grey", "blue"}));
+  heredity_scale.SetDomain(emp::array<double, 2>({(double)(cfg.N_TYPES()*cfg.MAX_POP()/10), 0}));
+  heredity_scale.SetInterpolator("interpolateViridis");
+  heredity_scale.SetExponent(1.5);
+  
 }
 
 void DrawWorldCanvas() {
@@ -62,7 +77,7 @@ void DrawWorldCanvas() {
   const double canvas_x = (double) canvas.GetWidth();
   const double canvas_y = (double) canvas.GetHeight();
   const double n_type_sqrt = sqrt(cfg.N_TYPES());
-  std::cout << "x: " << world_x << " y: " << world_y << std::endl;
+  // std::cout << "x: " << world_x << " y: " << world_y << std::endl;
   const double org_x = canvas_x / (double) world_x;
   const double org_y = canvas_y / (double) world_y;
   const double org_r = emp::Min(org_x, org_y) / 2.0;
@@ -89,6 +104,47 @@ void DrawWorldCanvas() {
       }
      }
   }
+}
+
+void DrawWorldViz() {
+  // UI::Canvas canvas = doc.Canvas("world_canvas");
+  viz_canvas.Clear("gray");
+
+  const size_t world_x = cfg.WORLD_X();
+  const size_t world_y = cfg.WORLD_Y();
+  const double viz_canvas_x = (double) viz_canvas.GetWidth();
+  const double viz_canvas_y = (double) viz_canvas.GetHeight();
+  const double n_type_sqrt = sqrt(cfg.N_TYPES());
+  // std::cout << "x: " << world_x << " y: " << world_y << std::endl;
+  const double org_x = viz_canvas_x / (double) world_x;
+  const double org_y = viz_canvas_y / (double) world_y;
+  const double org_r = emp::Min(org_x, org_y) / 2.0;
+  const double type_x = org_x/n_type_sqrt;
+  const double type_y = org_y/n_type_sqrt;
+
+  for (size_t y = 0; y < world_y; y++) {
+    for (size_t x = 0; x < world_x; x++) {
+      const size_t org_id = y * world_x + x;
+      if (org_id >= cfg.WORLD_X() * cfg.WORLD_Y()) {
+        break;
+      }
+      const size_t cur_x = org_x * (0.5 + (double) x);
+      const size_t cur_y = org_y * (0.5 + (double) y);
+      CellData data = world.GetFitness(org_id);
+      if (data.equilib_growth_rate > max_fitness) {
+        max_fitness = data.equilib_growth_rate;
+        fitness_scale.SetDomain(emp::array<double, 2>({0, max_fitness}));
+      }
+      // std::cout << data.heredity << std::endl;
+      viz_canvas.Rect(x*org_x, y*org_y, org_x/2, org_y, fitness_scale.ApplyScale<std::string>(data.equilib_growth_rate), "black", 5);
+      viz_canvas.Rect(x*org_x + org_x/2, y*org_y, org_x/2, org_y, heredity_scale.ApplyScale<std::string>(data.heredity), "black", 5);      
+
+      
+      // std::cout << org_id << ": " << data.fitness << std::endl;
+      // viz_canvas.CenterText({x*org_x + org_x/2, y*org_y + org_y/2}, emp::to_string(data.equilib_growth_rate) + "\n" + emp::to_string((int)data.heredity), "black");
+     }
+  }
+
 
   // Add a plus sign in the middle.
   // const double mid_x = org_x * world_x / 2.0;
@@ -142,25 +198,27 @@ void DrawGraph(emp::WeightedGraph g, std::string canvas_id, double radius = 150)
 
     double theta = 0;
     double inc = 2*3.14 / g.GetNodes().size();
+    s.SelectAll("circle").Remove();
     for (emp::Graph::Node n : g.GetNodes()) {
         double cx = radius + cos(theta) * radius;
         double cy = radius + sin(theta) * radius;
         theta += inc;
-        D3::Selection new_node = s.Append("circle");
-        new_node.SetAttr("r", 10)
-                .SetAttr("cx", cx)
-                .SetAttr("cy", cy);
-                // .BindToolTipMouseover(node_tool_tip);
+        D3::Selection new_circle = s.Append("circle");
+        new_circle.SetAttr("r", 10)
+                  .SetAttr("cx", cx)
+                  .SetAttr("cy", cy);
+                  // .BindToolTipMouseover(node_tool_tip);
         // std::cout << n.GetLabel() << std::endl;
-        EM_ASM_ARGS({emp_d3.objects[$0].datum(UTF8ToString($1));}, new_node.GetID(), n.GetLabel().c_str());
+        EM_ASM_ARGS({emp_d3.objects[$0].datum(UTF8ToString($1));}, new_circle.GetID(), n.GetLabel().c_str());
     }
 
     D3::LineGenerator l;
+    s.SelectAll("path").Remove();
     auto weights = g.GetWeights();
     for (int i = 0; i < weights.size(); ++i) {
         for (int j = 0; j < weights[i].size(); ++j) {
             // std::cout << weights[i][j] << std::endl;
-            if (weights[i][j]) {
+            if (abs(weights[i][j]) > .0001) {
                 double cxi = radius + cos(i*inc) * radius;
                 double cxj = radius + cos(j*inc) * radius;
                 double cyi = radius + sin(i*inc) * radius;
@@ -206,7 +264,23 @@ EM_JS(double, GetNewWeight, (double old), {
   return +new_weight;
 });
 
-void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int width = 50) {
+emp::WeightedGraph MakeGraph() {
+  emp::WeightedGraph interaction_graph;
+
+  interaction_graph.Resize(cfg.N_TYPES());
+  emp::vector<emp::vector<double> > int_matrix = world.GetInteractions();
+
+  for (int i = 0; i < cfg.N_TYPES(); i++) {
+    for (int j = 0; j < cfg.N_TYPES(); j++) {
+      interaction_graph.AddEdge(i, j, int_matrix[i][j]);
+    }
+  }
+
+  return interaction_graph;
+}
+
+
+void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int width = 35) {
     emp::vector<InteractionNode> interaction_vec;
     interaction_vec.resize(cfg.N_TYPES()*cfg.N_TYPES());
 
@@ -244,22 +318,9 @@ void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int wi
       //    emp_d3.objects[$0].style("fill", emp_d3.objects[$1]($0));
       //  }, id, new_weight, edge_color.GetID());
       DrawInteractionMatrix(g, canvas_id, width);
+      interactions = MakeGraph();
+      DrawGraph(interactions, "#interaction_network");
      });
-}
-
-emp::WeightedGraph MakeGraph() {
-  emp::WeightedGraph interaction_graph;
-
-  interaction_graph.Resize(cfg.N_TYPES());
-  emp::vector<emp::vector<double> > int_matrix = world.GetInteractions();
-
-  for (int i = 0; i < cfg.N_TYPES(); i++) {
-    for (int j = 0; j < cfg.N_TYPES(); j++) {
-      interaction_graph.AddEdge(i, j, int_matrix[i][j]);
-    }
-  }
-
-  return interaction_graph;
 }
 
 emp::Ptr<UI::Animate> anim;
@@ -269,12 +330,17 @@ int main()
 {
   // n_objects;
   // doc << "<h1>Hello, browser!</h1>";
-  canvas = doc.AddCanvas(600, 600, "world_canvas");
-  canvas.SetHeight(600);
-  canvas.SetWidth(600);
+  canvas = doc.AddCanvas(800, 800, "world_canvas");
+  canvas.SetHeight(800);
+  canvas.SetWidth(800);
   // doc << canvas;
 
-  anim.New([](){ world.Update(); DrawWorldCanvas(); }, canvas );
+  viz_canvas = viz_doc.AddCanvas(600, 600, "world_viz");
+  viz_canvas.SetHeight(600);
+  viz_canvas.SetWidth(600);
+
+
+  anim.New([](){ world.Update(); DrawWorldCanvas(); DrawWorldViz(); }, canvas );
 
   // Set up a configuration panel for web application
   setup_config_web(cfg);
@@ -284,6 +350,7 @@ int main()
   // example_config_panel.SetRange("SEED", "-1", "100", "1");
   cfg_doc << example_config_panel;
   cfg_doc << anim->GetToggleButton("but_toggle");
+  // cfg_doc << UI::Button([](){DrawWorldCanvas(true);}, "Calculate fitness");
 
   // An example to show how the Config Panel could be used
   // to control the color of text in an HTML text area
@@ -297,6 +364,7 @@ int main()
   // world.Run();
   ResetScales();
   DrawWorldCanvas();
+  DrawWorldViz();
   interactions = MakeGraph();
   DrawGraph(interactions, "#interaction_network");
   DrawInteractionMatrix(interactions, "#interaction_matrix");
