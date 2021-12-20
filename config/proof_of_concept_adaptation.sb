@@ -26,6 +26,7 @@
 ## 990, 991, 992, 993, 994, 995, 996, 997, 998, and 999.
 #SBATCH --array=1-50
 
+module load GNU/8.2.0-2.31.1
 
 ## We're running this on scratch because that's what ICER prefers
 ## Remember to copy your results to your home directory once they're
