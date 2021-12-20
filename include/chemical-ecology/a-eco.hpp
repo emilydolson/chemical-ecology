@@ -307,11 +307,15 @@ class AEcoWorld { //: public emp::World<Particle> {
     }
 
     data.fitness = time;
-    data.heredity = 1 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
+    data.heredity = 1.0 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
 
     heredity_node.Add(data.heredity);
 
     return data;
+  }
+
+  int GetTime() {
+    return curr_update;
   }
 
 };

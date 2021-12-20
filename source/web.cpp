@@ -62,7 +62,7 @@ void ResetScales() {
   fitness_scale.SetDomain(emp::array<double, 2>({0, max_fitness}));
   fitness_scale.SetInterpolator("interpolateViridis");
   // fitness_scale.SetRange(emp::array<std::string, 2>({"red", "grey", "blue"}));
-  heredity_scale.SetDomain(emp::array<double, 2>({(double)(cfg.N_TYPES()*cfg.MAX_POP()/10), 0}));
+  heredity_scale.SetDomain(emp::array<double, 2>({0.0, 1.0}));
   heredity_scale.SetInterpolator("interpolateViridis");
   heredity_scale.SetExponent(1.5);
   
@@ -340,7 +340,7 @@ int main()
   viz_canvas.SetWidth(600);
 
 
-  anim.New([](){ world.Update(); DrawWorldCanvas(); DrawWorldViz(); }, canvas );
+  anim.New([](){ world.Update(world.GetTime()); DrawWorldCanvas(); DrawWorldViz(); }, canvas );
 
   // Set up a configuration panel for web application
   setup_config_web(cfg);
