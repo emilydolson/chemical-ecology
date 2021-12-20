@@ -3,6 +3,7 @@
 #include <iostream>
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
+#include "emp/data/DataNode.hpp"
 #include "chemical-ecology/config_setup.hpp"
 
 struct Particle {
@@ -16,6 +17,7 @@ struct CellData {
   double heredity;
   double growth_rate;
   double equilib_growth_rate;
+  int count = 1;
 };
 
 class AEcoWorld { //: public emp::World<Particle> {
@@ -27,9 +29,15 @@ class AEcoWorld { //: public emp::World<Particle> {
     chemical_ecology::Config * config = nullptr;
     int N_TYPES;
     int MAX_POP;
+    int curr_update;
+
+    emp::DataFile data_file;
+    emp::DataNode<double, emp::data::Stats> fitness_node;
+    emp::DataNode<double, emp::data::Stats> heredity_node;
+    std::map<double, CellData> dom_map;
 
   public:
-  AEcoWorld(){;}
+  AEcoWorld() : data_file("a-eco_data.csv") {;}
   world_t world;
 
   emp::vector<emp::vector<double> > GetInteractions() {
@@ -39,6 +47,48 @@ class AEcoWorld { //: public emp::World<Particle> {
   void SetInteraction(int x, int y, double w) {
     interactions[x][y] = w;
   }
+
+  void SetupRandomInteractions() {
+    interactions.resize(N_TYPES);
+    // rs.resize(N_TYPES);
+    for (int i = 0; i < N_TYPES; i++) {
+      // rs[i] = rnd.GetDouble(0,2);
+      interactions[i].resize(N_TYPES);
+      for (int j = 0; j < N_TYPES; j++) {
+        if (rnd.P(config->PROB_INTERACTION())){
+          interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
+        }
+      }
+      std::cout << emp::to_string(interactions[i]) << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  void LoadInteractionMatrix(std::string filename) {
+    emp::File infile(filename);
+    emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
+
+    interactions.resize(N_TYPES);
+    for (int i = 0; i < N_TYPES; i++) {
+      interactions[i].resize(N_TYPES);
+      for (int j = 0; j < N_TYPES; j++) {
+        interactions[i][j] = interaction_data[i][j];
+      }
+      std::cout << emp::to_string(interactions[i]) << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  void WriteInteractionMatrix(std::string filename) {
+    emp::File outfile;
+    
+    for (int i = 0; i < N_TYPES; i++) {
+      outfile += emp::join(interactions[i], ",");
+    }
+    
+    outfile.Write(filename);
+  }
+
 
   void Setup(chemical_ecology::Config & cfg) {
     config = &cfg;
@@ -56,22 +106,24 @@ class AEcoWorld { //: public emp::World<Particle> {
       }
     }
 
-    interactions.resize(N_TYPES);
-    // rs.resize(N_TYPES);
-    for (int i = 0; i < N_TYPES; i++) {
-      // rs[i] = rnd.GetDouble(0,2);
-      interactions[i].resize(N_TYPES);
-      for (int j = 0; j < N_TYPES; j++) {
-        if (rnd.P(config->PROB_INTERACTION())){
-          interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
-        }
-      }
-      std::cout << emp::to_string(interactions[i]) << std::endl;
+    if (config->INTERACTION_SOURCE() == "") {
+      SetupRandomInteractions();
+    } else {
+      LoadInteractionMatrix(config->INTERACTION_SOURCE());
     }
-    std::cout << std::endl;
+
+    data_file.AddVar(curr_update, "Time", "Time");
+    data_file.AddStats(fitness_node, "Fitness", "Fitness", true);
+    data_file.AddStats(heredity_node, "Heredity", "Heredity", true);
+    data_file.AddFun((std::function<int()>)[this](){return dom_map[fitness_node.GetMax()].count;}, "dominant_count", "dominant_count");
+    data_file.AddFun((std::function<int()>)[this](){return dom_map[fitness_node.GetMax()].heredity;}, "dominant_heredity", "dominant_heredity");
+    data_file.AddPreFun([this](){CalcAllFitness();});
+    data_file.SetTimingRepeat(10);
+    data_file.PrintHeaderKeys();
+
   }
 
-  void Update() {
+  void Update(int ud) {
 
     world_t next_world;
     next_world.resize(config->WORLD_X() * config->WORLD_Y());
@@ -79,11 +131,11 @@ class AEcoWorld { //: public emp::World<Particle> {
       v.resize(N_TYPES, 0);
     }
 
-    for (int pos = 0; pos < world.size(); pos++) {
+    for (size_t pos = 0; pos < world.size(); pos++) {
       DoGrowth(pos, world, next_world);
     }
 
-    for (int pos = 0; pos < world.size(); pos++) {
+    for (int pos = 0; pos < (int)world.size(); pos++) {
       int x = pos % config->WORLD_X();
       int y = pos / config->WORLD_Y();
       int left = pos - 1;     
@@ -106,22 +158,25 @@ class AEcoWorld { //: public emp::World<Particle> {
 
       emp::vector<int> adj = {up, down, left, right};
       DoRepro(pos, adj, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR());
-
+      curr_update = ud;
     }
-
+    data_file.Update(curr_update);
     std::swap(world, next_world);
+    dom_map.clear();
 
   }
 
   void Run() {
     for (int i = 0; i < config->UPDATES(); i++) {
-      Update();
-      std::cout << std::endl;
+      Update(i);
+      std::cout << i << std::endl;
     }
 
     for (auto & v : world) {
       std::cout << emp::to_string(v) << std::endl;
     }
+
+    WriteInteractionMatrix("interaction_matrix.dat");
   }
 
   double CalcGrowthRate(size_t pos, world_t & curr_world) {
@@ -132,7 +187,7 @@ class AEcoWorld { //: public emp::World<Particle> {
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
-      growth_rate += ceil((interactions[i][i]+modifier)*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      growth_rate += ceil((interactions[i][i]+modifier)*((double)curr_world[pos][i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
     }
     return growth_rate;
   }
@@ -188,6 +243,17 @@ class AEcoWorld { //: public emp::World<Particle> {
     }
   }
 
+  void CalcAllFitness() {
+    for (size_t pos = 0; pos < world.size(); pos++) {
+      CellData res = GetFitness(pos);
+      if (emp::Has(dom_map, res.equilib_growth_rate)) {
+        dom_map[res.equilib_growth_rate].count++;
+      } else {
+        dom_map[res.equilib_growth_rate] = res;
+      }
+    }
+  }
+
   CellData GetFitness(size_t orig_pos) {
     CellData data;
     int num_cells = 5;
@@ -215,6 +281,8 @@ class AEcoWorld { //: public emp::World<Particle> {
     data.growth_rate = CalcGrowthRate(orig_pos, world);
     data.equilib_growth_rate = CalcGrowthRate(0, test_world);
 
+    fitness_node.Add(data.equilib_growth_rate);
+
     int time = 0;
     while (!IsReproReady(num_cells - 1, test_world) && time < time_limit) {
 
@@ -239,7 +307,9 @@ class AEcoWorld { //: public emp::World<Particle> {
     }
 
     data.fitness = time;
-    data.heredity = emp::EuclideanDistance(test_world[num_cells - 1], starting_point);
+    data.heredity = 1 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
+
+    heredity_node.Add(data.heredity);
 
     return data;
   }
