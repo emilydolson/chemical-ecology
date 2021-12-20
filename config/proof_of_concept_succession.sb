@@ -9,7 +9,7 @@
 
 ## Job name settings
 #SBATCH --job-name=succession
-#SBATCH -o chemical_ecology_adaptation_%A_%a.out
+#SBATCH -o chemical-ecology_adaptation_%A_%a.out
 
 ## Time requirement in hours and minutes. You might need to make this
 ## longer, but try to keep it under 4 hours if possible
@@ -31,7 +31,7 @@ module load GNU/8.2.0-2.31.1
 ## We're running this on scratch because that's what ICER prefers
 ## Remember to copy your results to your home directory once they're
 ## done so that they don't get deleted
-cd /mnt/scratch/dolsonem/chemical_ecology/data
+cd /mnt/scratch/dolsonem/chemical-ecology/data
 
 ## Make a directory for this condition
 ## (this line will throw an error once the directory exists, but
@@ -50,11 +50,11 @@ cd ${SLURM_ARRAY_TASK_ID}
 ## executable over the course of this project it's okay to have a single
 ## copy of it that you always reference.
 ## Really, though, what are the odds you're never going to change it?
-cp /mnt/scratch/dolsonem/chemical_ecology/chemical_ecology .
-cp -r /mnt/scratch/dolsonem/chemical_ecology/config .
+cp /mnt/scratch/dolsonem/chemical-ecology/chemical-ecology .
+cp -r /mnt/scratch/dolsonem/chemical-ecology/config .
 
 ## Actually run your program. Set the random seed to the array id
 ## and make sure to set whatever other command-line arguments are necessary
-./chemical_ecology -SEED ${SLURM_ARRAY_TASK_ID} -REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -SEEDING_PROB .0001 -DIFFUSION 1 -PROB_CLEAR 0 -INTERACTION_SOURCE config/interaction_matrix.dat -WORLD_X 10 -WORLD_Y 10 > run.log
+./chemical-ecology -SEED ${SLURM_ARRAY_TASK_ID} -REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -SEEDING_PROB .0001 -DIFFUSION 1 -PROB_CLEAR 0 -INTERACTION_SOURCE config/interaction_matrix.dat -WORLD_X 10 -WORLD_Y 10 > run.log
 
 ## If you need to do anything after your run, it can go here.
