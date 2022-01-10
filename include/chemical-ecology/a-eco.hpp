@@ -16,8 +16,10 @@ struct CellData {
   double fitness;
   double heredity;
   double growth_rate;
+  double synergy;
   double equilib_growth_rate;
   int count = 1;
+  emp::vector<int> species;
 };
 
 class AEcoWorld { //: public emp::World<Particle> {
@@ -33,8 +35,11 @@ class AEcoWorld { //: public emp::World<Particle> {
 
     emp::DataFile data_file;
     emp::DataNode<double, emp::data::Stats> fitness_node;
+    emp::DataNode<double, emp::data::Stats> synergy_node;
     emp::DataNode<double, emp::data::Stats> heredity_node;
-    std::map<double, CellData> dom_map;
+    std::map<emp::vector<int>, CellData> dom_map;
+    emp::vector<int> fittest;
+    emp::vector<int> dominant;
 
   public:
   AEcoWorld() : data_file("a-eco_data.csv") {;}
@@ -96,13 +101,15 @@ class AEcoWorld { //: public emp::World<Particle> {
     N_TYPES = config->N_TYPES();
     MAX_POP = config->MAX_POP();
 
-    rnd.ResetSeed(config->SEED());
+    // std::cout << config->SEED() << std::endl;
 
+    rnd.ResetSeed(config->SEED());
+    // exit(0);
     world.resize(config->WORLD_X() * config->WORLD_Y());
     for (emp::vector<int> & v : world) {
       v.resize(N_TYPES);
       for (int & count : v) {
-        count = rnd.GetInt(100);
+        count = rnd.P(config->SEEDING_PROB());
       }
     }
 
@@ -114,9 +121,14 @@ class AEcoWorld { //: public emp::World<Particle> {
 
     data_file.AddVar(curr_update, "Time", "Time");
     data_file.AddStats(fitness_node, "Fitness", "Fitness", true);
+    data_file.AddStats(synergy_node, "Synergy", "Synergy", true);
     data_file.AddStats(heredity_node, "Heredity", "Heredity", true);
-    data_file.AddFun((std::function<int()>)[this](){return dom_map[fitness_node.GetMax()].count;}, "dominant_count", "dominant_count");
-    data_file.AddFun((std::function<int()>)[this](){return dom_map[fitness_node.GetMax()].heredity;}, "dominant_heredity", "dominant_heredity");
+    data_file.AddFun((std::function<int()>)[this](){return dom_map[fittest].count;}, "fittest_count", "fittest_count");
+    data_file.AddFun((std::function<int()>)[this](){return dom_map[fittest].heredity;}, "fittest_heredity", "fittest_heredity");
+    data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(fittest);}, "fittestCommunity", "fittest community");
+     data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].count;}, "dominant_count", "dominant_count");
+    data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].heredity;}, "dominant_heredity", "dominant_heredity");
+    data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(dominant);}, "dominantCommunity", "dominant community");
     data_file.AddPreFun([this](){CalcAllFitness();});
     data_file.SetTimingRepeat(10);
     data_file.PrintHeaderKeys();
@@ -163,6 +175,8 @@ class AEcoWorld { //: public emp::World<Particle> {
     data_file.Update(curr_update);
     std::swap(world, next_world);
     dom_map.clear();
+    fittest.clear();
+    dominant.clear();
 
   }
 
@@ -187,10 +201,27 @@ class AEcoWorld { //: public emp::World<Particle> {
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
-      growth_rate += ceil((interactions[i][i]+modifier)*((double)curr_world[pos][i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      growth_rate += ceil(modifier*((double)curr_world[pos][i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
     }
     return growth_rate;
   }
+
+  double CalcSynergy(size_t pos, world_t & curr_world) {
+    double growth_rate = 0;
+    for (int i = 0; i < N_TYPES; i++) {
+      double modifier = 0;
+      for (int j = 0; j < N_TYPES; j++) {
+        if (i != j) {
+          modifier += interactions[i][j] * curr_world[pos][j];
+        }
+      }
+
+      growth_rate += modifier;
+      // growth_rate += ceil(modifier*((double)curr_world[pos][i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+    }
+    return growth_rate;
+  }
+
 
   void DoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
     for (int i = 0; i < N_TYPES; i++) {
@@ -200,7 +231,7 @@ class AEcoWorld { //: public emp::World<Particle> {
       }
 
       // Logistic growth
-      int new_pop = ceil((interactions[i][i]+modifier)*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      int new_pop = ceil(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // std::cout << pos[i] << " " << new_pop << " " << modifier << " " << ((double)(MAX_POP - pos[i])/MAX_POP) <<  std::endl;
       next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0);
       next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
@@ -215,6 +246,7 @@ class AEcoWorld { //: public emp::World<Particle> {
   void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear) {
 
     if (IsReproReady(pos, curr_world)) {
+      std::cout << "group repro" << std::endl;
       int direction = adj[rnd.GetInt(adj.size())];
       for (int i = 0; i < N_TYPES; i++) {
         next_world[direction][i] += curr_world[pos][i] * config->REPRO_DILUTION();
@@ -230,28 +262,41 @@ class AEcoWorld { //: public emp::World<Particle> {
     for (int direction : adj) {
       for (int i = 0; i < N_TYPES; i++) {
         double avail = curr_world[pos][i] * config->DIFFUSION();
+        
         next_world[direction][i] +=  avail / 4;
-
+        // if (avail/4 > 0 && adj.size() == 4) {
+        //   std::cout << pos <<  " " << i << " Diffusing: " << next_world[direction][i] << " " << avail/4 << std::endl;
+        // }
         next_world[direction][i] = std::min(next_world[direction][i], MAX_POP);
         next_world[direction][i] = std::max(next_world[direction][i], 0);
-
-
-        if (rnd.P(seed_prob)) {
-          next_world[pos][i]++;
-        }
       }
     }
+
+    for (int i = 0; i < N_TYPES; i++) {
+      next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
+      next_world[pos][i] = std::max(next_world[pos][i], 0);
+      if (rnd.P(seed_prob)) {
+        next_world[pos][i]++;
+      }
+    }
+
   }
 
   void CalcAllFitness() {
     for (size_t pos = 0; pos < world.size(); pos++) {
       CellData res = GetFitness(pos);
-      if (emp::Has(dom_map, res.equilib_growth_rate)) {
-        dom_map[res.equilib_growth_rate].count++;
+      if (emp::Has(dom_map, res.species)) {
+        dom_map[res.species].count++;
       } else {
-        dom_map[res.equilib_growth_rate] = res;
+        dom_map[res.species] = res;
+      }
+      if (fittest.size() == 0 || dom_map[res.species].equilib_growth_rate > dom_map[fittest].equilib_growth_rate) {
+        fittest = res.species;
       }
     }
+
+    dominant = (*std::max_element(dom_map.begin(), dom_map.end(), 
+                [](const std::pair<emp::vector<int>, CellData> & v1, const std::pair<emp::vector<int>, CellData> & v2 ){return v1.second.count < v2.second.count;})).first;
   }
 
   CellData GetFitness(size_t orig_pos) {
@@ -279,9 +324,12 @@ class AEcoWorld { //: public emp::World<Particle> {
 
     emp::vector<int> starting_point = test_world[0];
     data.growth_rate = CalcGrowthRate(orig_pos, world);
+    data.synergy = CalcSynergy(0, test_world);
     data.equilib_growth_rate = CalcGrowthRate(0, test_world);
+    data.species = starting_point;
 
     fitness_node.Add(data.equilib_growth_rate);
+    synergy_node.Add(data.synergy);
 
     int time = 0;
     while (!IsReproReady(num_cells - 1, test_world) && time < time_limit) {

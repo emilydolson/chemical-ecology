@@ -225,7 +225,7 @@ void DrawGraph(emp::WeightedGraph g, std::string canvas_id, double radius = 150)
                 double cyj = radius + sin(j*inc) * radius;
                 std::string color = edge_color.ApplyScale<std::string>(weights[i][j]);
                 // std::cout << color << std::endl;
-                emp::array<emp::array<double, 2>, 2> data({emp::array<double, 2>({cxi, cyi}), emp::array<double, 2>({cxj, cyj})});
+                emp::array<emp::array<double, 2>, 2> data({emp::array<double, 2>({cxj, cyj}), emp::array<double, 2>({cxi, cyi})});
                 D3::Selection n = s.Append("path");
                 // n.SetAttr("d", l.Generate(data))
                 n.SetAttr("d", GetLinkArc(data))
@@ -321,6 +321,13 @@ void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int wi
       interactions = MakeGraph();
       DrawGraph(interactions, "#interaction_network");
      });
+
+    emp::vector<emp::vector<double> > ints = world.GetInteractions();
+
+    for (int i = 0; i < cfg.N_TYPES(); i++) {
+      std::cout << emp::join(ints[i], ",") << std::endl;
+    }
+
 }
 
 emp::Ptr<UI::Animate> anim;
