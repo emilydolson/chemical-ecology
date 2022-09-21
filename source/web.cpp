@@ -22,9 +22,9 @@ namespace UI = emp::web;
 
 UI::Document doc("emp_base");
 UI::Document cfg_doc("config_panel_div");
-UI::Document viz_doc("grid_visualization");
+// UI::Document viz_doc("grid_visualization");
 UI::Canvas canvas;
-UI::Canvas viz_canvas;
+// UI::Canvas viz_canvas;
 
 emp::vector<D3::LinearScale> square_colors;
 emp::vector<std::string> colors;
@@ -106,44 +106,44 @@ void DrawWorldCanvas() {
   }
 }
 
-void DrawWorldViz() {
-  // UI::Canvas canvas = doc.Canvas("world_canvas");
-  viz_canvas.Clear("gray");
+// void DrawWorldViz() {
+//   // UI::Canvas canvas = doc.Canvas("world_canvas");
+//   viz_canvas.Clear("gray");
 
-  const size_t world_x = cfg.WORLD_X();
-  const size_t world_y = cfg.WORLD_Y();
-  const double viz_canvas_x = (double) viz_canvas.GetWidth();
-  const double viz_canvas_y = (double) viz_canvas.GetHeight();
-  const double n_type_sqrt = sqrt(cfg.N_TYPES());
-  // std::cout << "x: " << world_x << " y: " << world_y << std::endl;
-  const double org_x = viz_canvas_x / (double) world_x;
-  const double org_y = viz_canvas_y / (double) world_y;
-  const double org_r = emp::Min(org_x, org_y) / 2.0;
-  const double type_x = org_x/n_type_sqrt;
-  const double type_y = org_y/n_type_sqrt;
+//   const size_t world_x = cfg.WORLD_X();
+//   const size_t world_y = cfg.WORLD_Y();
+//   const double viz_canvas_x = (double) viz_canvas.GetWidth();
+//   const double viz_canvas_y = (double) viz_canvas.GetHeight();
+//   const double n_type_sqrt = sqrt(cfg.N_TYPES());
 
-  for (size_t y = 0; y < world_y; y++) {
-    for (size_t x = 0; x < world_x; x++) {
-      const size_t org_id = y * world_x + x;
-      if (org_id >= cfg.WORLD_X() * cfg.WORLD_Y()) {
-        break;
-      }
-      const size_t cur_x = org_x * (0.5 + (double) x);
-      const size_t cur_y = org_y * (0.5 + (double) y);
-      CellData data = world.GetFitness(org_id);
-      if (data.equilib_growth_rate > max_fitness) {
-        max_fitness = data.equilib_growth_rate;
-        fitness_scale.SetDomain(emp::array<double, 2>({0, max_fitness}));
-      }
-      // std::cout << data.heredity << std::endl;
-      viz_canvas.Rect(x*org_x, y*org_y, org_x/2, org_y, fitness_scale.ApplyScale<std::string>(data.equilib_growth_rate), "black", 5);
-      viz_canvas.Rect(x*org_x + org_x/2, y*org_y, org_x/2, org_y, heredity_scale.ApplyScale<std::string>(data.heredity), "black", 5);      
+//   const double org_x = viz_canvas_x / (double) world_x;
+//   const double org_y = viz_canvas_y / (double) world_y;
+//   const double org_r = emp::Min(org_x, org_y) / 2.0;
+//   const double type_x = org_x/n_type_sqrt;
+//   const double type_y = org_y/n_type_sqrt;
+
+//   for (size_t y = 0; y < world_y; y++) {
+//     for (size_t x = 0; x < world_x; x++) {
+//       const size_t org_id = y * world_x + x;
+//       if (org_id >= cfg.WORLD_X() * cfg.WORLD_Y()) {
+//         break;
+//       }
+//       const size_t cur_x = org_x * (0.5 + (double) x);
+//       const size_t cur_y = org_y * (0.5 + (double) y);
+//       CellData data = world.GetFitness(org_id);
+//       if (data.equilib_growth_rate > max_fitness) {
+//         max_fitness = data.equilib_growth_rate;
+//         fitness_scale.SetDomain(emp::array<double, 2>({0, max_fitness}));
+//       }
+//       // std::cout << data.heredity << std::endl;
+//       viz_canvas.Rect(x*org_x, y*org_y, org_x/2, org_y, fitness_scale.ApplyScale<std::string>(data.equilib_growth_rate), "black", 5);
+//       viz_canvas.Rect(x*org_x + org_x/2, y*org_y, org_x/2, org_y, heredity_scale.ApplyScale<std::string>(data.heredity), "black", 5);      
 
       
-      // std::cout << org_id << ": " << data.fitness << std::endl;
-      // viz_canvas.CenterText({x*org_x + org_x/2, y*org_y + org_y/2}, emp::to_string(data.equilib_growth_rate) + "\n" + emp::to_string((int)data.heredity), "black");
-     }
-  }
+//       // std::cout << org_id << ": " << data.fitness << std::endl;
+//       // viz_canvas.CenterText({x*org_x + org_x/2, y*org_y + org_y/2}, emp::to_string(data.equilib_growth_rate) + "\n" + emp::to_string((int)data.heredity), "black");
+//      }
+//   }
 
 
   // Add a plus sign in the middle.
@@ -154,7 +154,7 @@ void DrawWorldViz() {
   // canvas.Line(mid_x-plus_bar, mid_y, mid_x+plus_bar, mid_y, "#8888FF");
 
   // doc.Text("ud_text").Redraw();
-}
+// }
 
 EM_JS(void, LinkArc, (), {
   d = emp_i.__incoming_array;
@@ -307,10 +307,11 @@ void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int wi
      .SetAttr("height", [width](InteractionNode n){return width;})
      .SetStyle("fill", [](InteractionNode n){return edge_color.ApplyScale<std::string>(n.w());})
      .On("click", [&g, canvas_id, width](InteractionNode n, int id){
+      //  std::cout << "Clicked" << std::endl;
        double new_weight = GetNewWeight(n.w());
        g.AddEdge(n.x(), n.y(), new_weight);
        world.SetInteraction(n.x(), n.y(), new_weight);
-       std::cout << g.GetWeight(n.x(), n.y()) << std::endl;
+      //  std::cout << g.GetWeight(n.x(), n.y()) << std::endl;
       //  EM_ASM({
       //    var d = .datum();
       //    d.w = $1;
@@ -342,12 +343,12 @@ int main()
   canvas.SetWidth(800);
   // doc << canvas;
 
-  viz_canvas = viz_doc.AddCanvas(600, 600, "world_viz");
-  viz_canvas.SetHeight(600);
-  viz_canvas.SetWidth(600);
+  // viz_canvas = viz_doc.AddCanvas(600, 600, "world_viz");
+  // viz_canvas.SetHeight(600);
+  // viz_canvas.SetWidth(600);
 
 
-  anim.New([](){ world.Update(world.GetTime()); DrawWorldCanvas(); DrawWorldViz(); }, canvas );
+  anim.New([](){ world.Update(world.GetTime()); DrawWorldCanvas(); /*DrawWorldViz();*/ }, canvas );
 
   // Set up a configuration panel for web application
   setup_config_web(cfg);
@@ -371,7 +372,7 @@ int main()
   // world.Run();
   ResetScales();
   DrawWorldCanvas();
-  DrawWorldViz();
+  // DrawWorldViz();
   interactions = MakeGraph();
   DrawGraph(interactions, "#interaction_network");
   DrawInteractionMatrix(interactions, "#interaction_matrix");
