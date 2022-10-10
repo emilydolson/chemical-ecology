@@ -36,8 +36,8 @@ cd /mnt/scratch/$USER/chemical-ecology/data
 ## Make a directory for this condition
 ## (this line will throw an error once the directory exists, but
 ## that's harmless)
-mkdir adaptation
-cd adaptation
+mkdir $2
+cd $2
 
 ## Make a directory for this random seed
 mkdir ${SLURM_ARRAY_TASK_ID}
