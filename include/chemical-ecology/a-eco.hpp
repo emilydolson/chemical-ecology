@@ -6,11 +6,11 @@
 #include "emp/data/DataNode.hpp"
 #include "chemical-ecology/config_setup.hpp"
 
-struct Particle {
-  int type;
-  double r = 1;
-  int position;
-};
+// struct Particle {
+//   int type;
+//   double r = 1;
+//   int position;
+// };
 
 struct CellData {
   double fitness;
