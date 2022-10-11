@@ -64,6 +64,7 @@ class AEcoWorld { //: public emp::World<Particle> {
           interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
         }
       }
+      std::cout << "Vector in interaction matrix at pos " << i << " in SetupRandomInteractions():" << std::endl;
       std::cout << emp::to_string(interactions[i]) << std::endl;
     }
     std::cout << std::endl;
@@ -79,6 +80,7 @@ class AEcoWorld { //: public emp::World<Particle> {
       for (int j = 0; j < N_TYPES; j++) {
         interactions[i][j] = interaction_data[i][j];
       }
+      std::cout << "Vector in interaction matrix at pos " << i << " in LoadInteractionMatrix():" << std::endl;
       std::cout << emp::to_string(interactions[i]) << std::endl;
     }
     std::cout << std::endl;
@@ -183,9 +185,10 @@ class AEcoWorld { //: public emp::World<Particle> {
   void Run() {
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
-      std::cout << i << std::endl;
+      //std::cout << i << std::endl;
     }
 
+    std::cout << "World Vectors:" << std::endl;
     for (auto & v : world) {
       std::cout << emp::to_string(v) << std::endl;
     }
@@ -246,7 +249,7 @@ class AEcoWorld { //: public emp::World<Particle> {
   void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear) {
 
     if (IsReproReady(pos, curr_world)) {
-      std::cout << "group repro" << std::endl;
+      //std::cout << "group repro" << std::endl;
       int direction = adj[rnd.GetInt(adj.size())];
       for (int i = 0; i < N_TYPES; i++) {
         next_world[direction][i] += curr_world[pos][i] * config->REPRO_DILUTION();

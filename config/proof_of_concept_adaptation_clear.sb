@@ -31,13 +31,13 @@ module load GNU/8.2.0-2.31.1
 ## We're running this on scratch because that's what ICER prefers
 ## Remember to copy your results to your home directory once they're
 ## done so that they don't get deleted
-cd /mnt/scratch/dolsonem/chemical-ecology/data
+cd /mnt/scratch/$USER/chemical-ecology/data
 
 ## Make a directory for this condition
 ## (this line will throw an error once the directory exists, but
 ## that's harmless)
-mkdir adaptation
-cd adaptation
+mkdir $2
+cd $2
 
 ## Make a directory for this random seed
 mkdir ${SLURM_ARRAY_TASK_ID}
@@ -50,8 +50,8 @@ cd ${SLURM_ARRAY_TASK_ID}
 ## executable over the course of this project it's okay to have a single
 ## copy of it that you always reference.
 ## Really, though, what are the odds you're never going to change it?
-cp /mnt/scratch/dolsonem/chemical-ecology/chemical-ecology .
-cp -r /mnt/scratch/dolsonem/chemical-ecology/config .
+cp $1/chemical-ecology .
+cp -r $1/config .
 
 ## Actually run your program. Set the random seed to the array id
 ## and make sure to set whatever other command-line arguments are necessary

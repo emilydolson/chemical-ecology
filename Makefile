@@ -44,7 +44,7 @@ docs:
 	cd docs && make html
 
 serve:
-	python3 -m http.server
+	cd web && python3 -m http.server
 
 docs/_build/doc-coverage.json:
 	cd docs && make coverage

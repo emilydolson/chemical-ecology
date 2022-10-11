@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#arguments: name of sbatch script, name of condition
+#This will automatically run the sbatch script passed in as an argument to this file, munge the data, and visualize the best linage
+#Create all sbatch scripts following the templates in /config
+#For example, run this script using "./run_experiment config/proof_of_concept_adaptation.sb adaptation"
+#TODO make sure chemical-ecology/data exists in your scratch (/mnt/scratch/$USER/chemical-ecology/data)
+
+sbatch --wait $1 /mnt/home/$USER/grant/chemical-ecology $2 #TODO CHANGE THIS TO WHERE YOUR CHEMICAL-ECOLOGY CODE IS SAVED
+rm *.out
+python3 scripts/munge_data.py "/mnt/scratch/$USER/chemical-ecology/data/$2/*" all_data
+#run all_data.csv through adaptation calculator script once it's written

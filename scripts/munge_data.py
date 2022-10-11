@@ -20,11 +20,8 @@ def main():
     trait_frames = []
     rep = 0
 
-    # print(glob_pattern, glob.glob(glob_pattern))
-    print(glob.glob(glob_pattern))
     for dirname in glob.glob(glob_pattern):
         run_log = dirname + "/run.log"
-        print(dirname, run_log) 
         if not (os.path.exists(run_log)):
             print("run log not found")
             continue
