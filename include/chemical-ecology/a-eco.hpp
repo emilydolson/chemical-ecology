@@ -6,33 +6,58 @@
 #include "emp/data/DataNode.hpp"
 #include "chemical-ecology/config_setup.hpp"
 
-// struct Particle {
-//   int type;
-//   double r = 1;
-//   int position;
-// };
+// TERMINOLOGY NOTES:
+//
+// - Cell = location in the world grid
+// - Type = a type of thing that can live in a cell
+//          (e.g. a chemical or a species)
+// - ??? = a set of types that commonly co-occur
+//         (don't currently have word for this but need one)
+//          I'm going to use the word "community" for now,
+//          but I don't love that one
 
+// A struct to hold data about individual cells 
 struct CellData {
-  double fitness;
-  double heredity;
-  double growth_rate;
-  double synergy;
-  double equilib_growth_rate;
-  int count = 1;
-  emp::vector<int> species;
+  double fitness;  // Fitness of this cell
+  double heredity; // Extent to which offspring cells look same
+  double growth_rate;  // How fast this cell produces biomass
+  double synergy;  // Attempt at measuring facilitation in cell
+  double equilib_growth_rate;  // How fast cell produces biomass
+                              // after growing to equilibrium
+  int count = 1;  // For counting the number of cells occupied by the same community
+  emp::vector<int> species; // The counts of each type in this cell
 };
 
-class AEcoWorld { //: public emp::World<Particle> {
+// A class to handle running the simple ecology
+class AEcoWorld {
   private:
+    // The world is a vector of cells (where each cell is
+    // represented as a vector ints representing the count of
+    // each type in each cell). 
+    
+    // Although the world is stored as a flat vector of cells
+    // it represents a grid of cells
     using world_t = emp::vector<emp::vector<int> >;
+
+    // The matrix of interactions between types
+    // The diagonal of this matrix represents the 
+    // intrinsic growth rate (r) of each type
     emp::vector<emp::vector<double> > interactions;
-    // emp::vector<double> rs;
+
+    // A random number generator for all our random number
+    // generating needs
     emp::Random rnd;
+
+    // All configuration information is stored in config
     chemical_ecology::Config * config = nullptr;
+
+    // These values are set in the config but we have local
+    // copies for efficiency in accessing their values
     int N_TYPES;
     int MAX_POP;
     int curr_update;
 
+    // Set up data tracking
     emp::DataFile data_file;
     emp::DataNode<double, emp::data::Stats> fitness_node;
     emp::DataNode<double, emp::data::Stats> synergy_node;
@@ -42,35 +67,49 @@ class AEcoWorld { //: public emp::World<Particle> {
     emp::vector<int> dominant;
 
   public:
+  // Default constructor just has to set name of output file
   AEcoWorld() : data_file("a-eco_data.csv") {;}
+
+  // Initialize vector that keeps track of grid
   world_t world;
 
+  // Getter for interaction matrix
   emp::vector<emp::vector<double> > GetInteractions() {
     return interactions;
   }
 
+  // Set interaction value between types x and y to w
   void SetInteraction(int x, int y, double w) {
     interactions[x][y] = w;
   }
 
+  // Set the interaction matrix to contain random values
+  // (with probabilities determined by configs)
   void SetupRandomInteractions() {
+    // interaction matrix will ultimately have size
+    // N_TYPES x N_TYPES
     interactions.resize(N_TYPES);
-    // rs.resize(N_TYPES);
+
     for (int i = 0; i < N_TYPES; i++) {
-      // rs[i] = rnd.GetDouble(0,2);
       interactions[i].resize(N_TYPES);
       for (int j = 0; j < N_TYPES; j++) {
+        // PROB_INTERACTION determines probability of there being
+        // an interaction between a given pair of types.
+        // Controls sparsity of interaction matrix
         if (rnd.P(config->PROB_INTERACTION())){
+          // If there's an interaction, it is a random double
+          // between -INTERACTION_MAGNITUDE and INTERACTION_MAGNITUDE
           interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
         }
       }
-      std::cout << "Vector in interaction matrix at pos " << i << " in SetupRandomInteractions():" << std::endl;
-      std::cout << emp::to_string(interactions[i]) << std::endl;
+      // std::cout << "Vector in interaction matrix at pos " << i << " in SetupRandomInteractions():" << std::endl;
+      // std::cout << emp::to_string(interactions[i]) << std::endl;
     }
-    std::cout << std::endl;
+    // std::cout << std::endl;
   }
 
-  void LoadInteractionMatrix(std::string filename) {
+  // Load an interaction matrix from the specified file
+  void LoadInteractionMatrix(std::string filename) {    
     emp::File infile(filename);
     emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
 
@@ -80,12 +119,13 @@ class AEcoWorld { //: public emp::World<Particle> {
       for (int j = 0; j < N_TYPES; j++) {
         interactions[i][j] = interaction_data[i][j];
       }
-      std::cout << "Vector in interaction matrix at pos " << i << " in LoadInteractionMatrix():" << std::endl;
-      std::cout << emp::to_string(interactions[i]) << std::endl;
+      // std::cout << "Vector in interaction matrix at pos " << i << " in LoadInteractionMatrix():" << std::endl;
+      // std::cout << emp::to_string(interactions[i]) << std::endl;
     }
-    std::cout << std::endl;
+    // std::cout << std::endl;
   }
 
+  // Store the current interaction matrix in a file
   void WriteInteractionMatrix(std::string filename) {
     emp::File outfile;
     
@@ -96,125 +136,189 @@ class AEcoWorld { //: public emp::World<Particle> {
     outfile.Write(filename);
   }
 
-
+  // Setup the world according to the specified configuration
   void Setup(chemical_ecology::Config & cfg) {
+    // Store cfg for future reference
     config = &cfg;
 
+    // Set local config variables based on given configuration
     N_TYPES = config->N_TYPES();
     MAX_POP = config->MAX_POP();
 
-    // std::cout << config->SEED() << std::endl;
-
+    // Set seed to configured value for reproducibility
     rnd.ResetSeed(config->SEED());
-    // exit(0);
+
+    // world vector needs a spot for each cell in the grid
     world.resize(config->WORLD_X() * config->WORLD_Y());
+    // Initialize world vector
     for (emp::vector<int> & v : world) {
       v.resize(N_TYPES);
       for (int & count : v) {
+        // The quantity of each type in each cell is either 0 or 1
+        // The probability of it being 1 is controlled by SEEDING_PROB
         count = rnd.P(config->SEEDING_PROB());
       }
     }
 
+    // Setup interaction matrix based on the method
+    // specified in the configuration file
     if (config->INTERACTION_SOURCE() == "") {
       SetupRandomInteractions();
     } else {
       LoadInteractionMatrix(config->INTERACTION_SOURCE());
     }
 
+    // Add columns to data file
+    // Time column will print contents of curr_update
     data_file.AddVar(curr_update, "Time", "Time");
+    // Add columns for stats (mean, variance, etc.) from the 
+    // three data nodes. Clear data from nodes.
     data_file.AddStats(fitness_node, "Fitness", "Fitness", true);
     data_file.AddStats(synergy_node, "Synergy", "Synergy", true);
     data_file.AddStats(heredity_node, "Heredity", "Heredity", true);
+    // Add columns calculated by running functions that look up values
+    // in dom_map
     data_file.AddFun((std::function<int()>)[this](){return dom_map[fittest].count;}, "fittest_count", "fittest_count");
     data_file.AddFun((std::function<int()>)[this](){return dom_map[fittest].heredity;}, "fittest_heredity", "fittest_heredity");
     data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(fittest);}, "fittestCommunity", "fittest community");
-     data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].count;}, "dominant_count", "dominant_count");
+    data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].count;}, "dominant_count", "dominant_count");
     data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].heredity;}, "dominant_heredity", "dominant_heredity");
     data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(dominant);}, "dominantCommunity", "dominant community");
+    // Add function that runs before each row is printed in the datafile
+    // to ensure fitnesses have been calculated (it's expensive so we don't
+    // want to do it every update if we aren't going to use that data)
     data_file.AddPreFun([this](){CalcAllFitness();});
+    // Set data_file to print a new row every 10 time steps
     data_file.SetTimingRepeat(10);
+    // Print column names to data_file
     data_file.PrintHeaderKeys();
 
   }
 
+  // Handle an individual time step
+  // ud = which time step we're on
   void Update(int ud) {
 
+    // Create a new world object to store the values 
+    // for the next time step
     world_t next_world;
     next_world.resize(config->WORLD_X() * config->WORLD_Y());
     for (emp::vector<int> & v : next_world) {
       v.resize(N_TYPES, 0);
     }
 
+    // Handle population growth for each cell
     for (size_t pos = 0; pos < world.size(); pos++) {
       DoGrowth(pos, world, next_world);
     }
 
+    // Handle everything that allows biomass to move from
+    // one cell to another. Do so for each cell
     for (int pos = 0; pos < (int)world.size(); pos++) {
-      int x = pos % config->WORLD_X();
-      int y = pos / config->WORLD_Y();
-      int left = pos - 1;     
-      int right = pos + 1;
 
+      // Figure out which cells are above, below, left
+      // and right of the focal cell.
+      // This process is a little arduous because it
+      // needs to handle toroidal wraparound
+      int x = pos % config->WORLD_X(); // x coordinate
+      int y = pos / config->WORLD_Y(); // y coordinate
+      int left = pos - 1;  // Assuming no wraparound    
+      int right = pos + 1; // Assuming no wraparound
+
+      // Check whether we need to adjust left and right
+      // cell ids for wraparound
       if (x == 0) {
         left += config->WORLD_X(); 
       } else if (x == config->WORLD_X() - 1) {
         right -= config->WORLD_X();
       }
  
+      // Calculate up and down assuming no wraparound
       int up = pos - config->WORLD_X();
       int down = pos + config->WORLD_X();
 
+      // Adjust for wraparound if necessary
       if (y == 0) {
         up += config->WORLD_X() * (config->WORLD_Y());
       } else if (y == config->WORLD_Y() - 1) {
         down -= config->WORLD_X() * (config->WORLD_Y());
       }
 
+      // Actually call function that handles between-cell
+      // movement
       emp::vector<int> adj = {up, down, left, right};
       DoRepro(pos, adj, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR());
-      curr_update = ud;
     }
+
+    // Update our time tracker
+    curr_update = ud;
+    
+    // Give data_file the opportunity to write to the file
     data_file.Update(curr_update);
+
+    // We're done calculating the type counts for the next
+    // time step. We can now swap our counts for the next
+    // time step into the main world variable 
     std::swap(world, next_world);
+
+    // Clean-up data trackers
     dom_map.clear();
     fittest.clear();
     dominant.clear();
 
   }
 
+  // Handle the process of running the program through
+  // all time steps
   void Run() {
+    // Call update the specified number of times
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
       //std::cout << i << std::endl;
     }
 
+    // Print out final state
     std::cout << "World Vectors:" << std::endl;
     for (auto & v : world) {
       std::cout << emp::to_string(v) << std::endl;
     }
 
+    // Store interaction matrix in a file in case we
+    // want to do stuff with it later
     WriteInteractionMatrix("interaction_matrix.dat");
   }
 
+  // Calculate the growth rate (one measurement of fitness)
+  // for a given cell
   double CalcGrowthRate(size_t pos, world_t & curr_world) {
     double growth_rate = 0;
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
       for (int j = 0; j < N_TYPES; j++) {
+        // Each type contributes to the growth rate modifier
+        // of each other type based on the product of its
+        // interaction value with that type and its population size
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
+      // Add this type's overall growth rate to the cell-level
+      // growth-rate
       growth_rate += ceil(modifier*((double)curr_world[pos][i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
     }
     return growth_rate;
   }
 
+  // Calculate the amount of cell-level growth that is due to 
+  // facilitation (i.e. beneficial interactions)
   double CalcSynergy(size_t pos, world_t & curr_world) {
     double growth_rate = 0;
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
       for (int j = 0; j < N_TYPES; j++) {
         if (i != j) {
+          // Calculate is same as growth rate except we exclude
+          // the type's interaction with itself (i.e. intrinsic
+          // growth rate)
           modifier += interactions[i][j] * curr_world[pos][j];
         }
       }
@@ -225,43 +329,59 @@ class AEcoWorld { //: public emp::World<Particle> {
     return growth_rate;
   }
 
-
+  // Handles population growth of each type within a cell
   void DoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
       for (int j = 0; j < N_TYPES; j++) {
+        // Sum up growth rate modifier for current type 
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
-      // Logistic growth
+      // Grow linearly until we hit the cap
       int new_pop = ceil(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // std::cout << pos[i] << " " << new_pop << " " << modifier << " " << ((double)(MAX_POP - pos[i])/MAX_POP) <<  std::endl;
+      // Population size cannot be negative
       next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0);
+      // Population size capped at MAX_POP
       next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
     }
     // std::cout << emp::to_string(pos) << std::endl;
   }
 
+  // Check whether the total population of a cell is large enough
+  // for group level replication
   bool IsReproReady(size_t pos, world_t & w) {
     return emp::Sum(w[pos]) > config->MAX_POP()*(config->REPRO_THRESHOLD());
   }
 
+  // Handle movement of biomass between cells
   void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear) {
 
+    // Check whether conditions for group-level replication are met
     if (IsReproReady(pos, curr_world)) {
       //std::cout << "group repro" << std::endl;
+      // Choose a random cell out of those that are adjacent
+      // to replicate into
       int direction = adj[rnd.GetInt(adj.size())];
       for (int i = 0; i < N_TYPES; i++) {
+        // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
+        // in the focal cell to the cell we're replicating into
+        //
+        // NOTE: An important decision here is whether to clear the cell first.
+        // We have chosen not to, but can revisit that choice
         next_world[direction][i] += curr_world[pos][i] * config->REPRO_DILUTION();
       }
     }
 
+    // Each cell has a chance of being cleared on every time step
     if (rnd.P(prob_clear)) {
       for (int i = 0; i < N_TYPES; i++) {
         next_world[pos][i] = 0;
       }
     }
 
+    // Handle diffusion
     for (int direction : adj) {
       for (int i = 0; i < N_TYPES; i++) {
         double avail = curr_world[pos][i] * config->DIFFUSION();
