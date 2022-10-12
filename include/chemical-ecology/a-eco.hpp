@@ -384,20 +384,33 @@ class AEcoWorld {
     // Handle diffusion
     for (int direction : adj) {
       for (int i = 0; i < N_TYPES; i++) {
+        // Calculate amount diffusing
         double avail = curr_world[pos][i] * config->DIFFUSION();
         
+        // Send 1/4 of it in the direction we're currently processing
         next_world[direction][i] +=  avail / 4;
         // if (avail/4 > 0 && adj.size() == 4) {
         //   std::cout << pos <<  " " << i << " Diffusing: " << next_world[direction][i] << " " << avail/4 << std::endl;
         // }
+
+        // make sure final value is legal number
         next_world[direction][i] = std::min(next_world[direction][i], MAX_POP);
         next_world[direction][i] = std::max(next_world[direction][i], 0);
       }
     }
 
+    // Subtract material that diffused away from the current cell
     for (int i = 0; i < N_TYPES; i++) {
       next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
+      // We can't have negative population sizes
       next_world[pos][i] = std::max(next_world[pos][i], 0);
+      // Check whether we should randomly add one individual
+      // of this type
+      // From the community level perspective this is basically
+      // a mutation
+      // Note that this means we don't have mutations that remove
+      // a member from a community, which is why PROB_CLEAR
+      // is such an important parameter
       if (rnd.P(seed_prob)) {
         next_world[pos][i]++;
       }
@@ -405,63 +418,100 @@ class AEcoWorld {
 
   }
 
+  // Calculate the fitnesses of all cells
+  // (useful for preparing to print data)
   void CalcAllFitness() {
     for (size_t pos = 0; pos < world.size(); pos++) {
+      // Calculate fitness
       CellData res = GetFitness(pos);
+      // Keep track of counts of each community
       if (emp::Has(dom_map, res.species)) {
         dom_map[res.species].count++;
       } else {
         dom_map[res.species] = res;
       }
+      // Keep track of fittest cell we've seen so far
       if (fittest.size() == 0 || dom_map[res.species].equilib_growth_rate > dom_map[fittest].equilib_growth_rate) {
         fittest = res.species;
       }
     }
 
+    // Track most populus community
     dominant = (*std::max_element(dom_map.begin(), dom_map.end(), 
                 [](const std::pair<emp::vector<int>, CellData> & v1, const std::pair<emp::vector<int>, CellData> & v2 ){return v1.second.count < v2.second.count;})).first;
   }
 
+  // Calculate fitness of individual cell
   CellData GetFitness(size_t orig_pos) {
     CellData data;
+    // Size of test world 
+    // Test world is a num_cells x 1 grid
+    // (i.e. a strip of cells)
     int num_cells = 5;
+    // Number of time steps to run test world for
     int time_limit = 250;
     world_t test_world;
     test_world.resize(num_cells);
+    // Initialize empty test world
     for (emp::vector<int> & v : test_world) {
       v.resize(config->N_TYPES(), 0);
     }
 
+    // Put contents of cell being evaluated
+    // in left-most spot in test world
     test_world[0] = world[orig_pos];
 
+    // Make a next_world for the test world to
+    // handle simulated updates in our test environment
     world_t next_world;
     next_world.resize(num_cells);
     for (emp::vector<int> & v : next_world) {
       v.resize(config->N_TYPES(), 0);
     }
 
+    // Run DoGrowth for 20 time steps to hopefully
+    // get cell to equilibrium
+    // (if cell is an organism, this is analogous to 
+    // development)
     for (int i = 0; i < 20; i++) {
       DoGrowth(0, test_world, next_world);
       std::swap(test_world, next_world);
     }
 
+    // Record equilibrium community
     emp::vector<int> starting_point = test_world[0];
+    // Calculate pure-math growth rate
     data.growth_rate = CalcGrowthRate(orig_pos, world);
+    // Calculate synergy
     data.synergy = CalcSynergy(0, test_world);
+    // Calculate equilibrium growth rate
     data.equilib_growth_rate = CalcGrowthRate(0, test_world);
+    // Record community composition
     data.species = starting_point;
 
+    // Add equilibrium growth rate to fitness data node
     fitness_node.Add(data.equilib_growth_rate);
+    // Add synergy to synergy data node
     synergy_node.Add(data.synergy);
 
+    // Now we're going to simulate up to time_limit number
+    // of time steps to measure heredity and 
+    // propogation-based fitness
     int time = 0;
+    // Stop if hit the time limit or if the right-most cell is
+    // able to do group-level reproduction (meaning the community
+    // has spread across the entire test world and could keep going)
     while (!IsReproReady(num_cells - 1, test_world) && time < time_limit) {
 
+      // Handle within cell growth for each cell in test world
       for (int pos = 0; pos < num_cells; pos++) {
         DoGrowth(pos, test_world, next_world);
       }
 
+      // Handle movement of biomass between cells
       for (int pos = 0; pos < num_cells; pos++) {
+        // Because world is a non-toroidal rectangle
+        // calculating adjacent positions is easier
         emp::vector<int> adj;
         if (pos > 0) {
           adj.push_back(pos - 1);
@@ -470,21 +520,35 @@ class AEcoWorld {
           adj.push_back(pos + 1);
         }
 
+        // DoRepro works as normal except that we don't
+        // allow seeding or clearing because the goal is
+        // to evaluate this cell's community in a clean
+        // environment
         DoRepro(pos, adj, test_world, next_world, 0, 0);
       }
-
+      // We've finished calculating next_world so we can swap it
+      // into test_world
       std::swap(test_world, next_world);
+      // Track time
       time++;
     }
-
+    // Lower fitness is better by this metric - indicates
+    // ability to spread from one end of the world to the other
+    // more quickly
+    // Note that even though this is called "fitness" it is currently
+    // not the main fitness metric that we are using
     data.fitness = time;
+    // Heredity is how similar the community in the final cell is to 
+    // the equilibrium community
     data.heredity = 1.0 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
 
+    // Keep track of the heredity values we've seen
     heredity_node.Add(data.heredity);
 
     return data;
   }
 
+  // Getter for current update/time step
   int GetTime() {
     return curr_update;
   }
