@@ -3,6 +3,8 @@
 ## This file runs one experimental condition (i.e. a group of jobs
 ## that are the same except for their random seed)
 
+#SBATCH -A ecode
+
 ## Email settings
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=$USER@msu.edu
