@@ -8,9 +8,9 @@ def main():
 
     df = pd.read_csv(f'{file_location}/all_data.csv')
     df = df.groupby('Time').mean()
-    plt.plot(df.index, df['mean_Fitness'])
+    plt.plot(df.index, df['mean_Fitness']/max(df['mean_Fitness']))
     plt.xlabel('Time')
-    plt.ylabel('Mean Growth Rate')
+    plt.ylabel('Mean Growth Rate (normalized)')
     plt.savefig(f'{file_location}/graph.png')
 
 

@@ -13,9 +13,7 @@ def main():
     cmap = plt.get_cmap('PuOr')
     cmaplist = [cmap(i) for i in range(cmap.N)]
     cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
-    bounds = np.arange(-1, 1.01, 0.1)
-    idx = np.searchsorted(bounds,0)
-    bounds=np.insert(bounds,idx,0)
+    bounds = [-1, -0.75, -0.5, -0.25, -.0001, .0001, 0.25, 0.5, 0.75, 1]
     norm = BoundaryNorm(bounds, cmap.N)
 
     plt.imshow(matrix, cmap=cmap, interpolation='none', norm=norm)
