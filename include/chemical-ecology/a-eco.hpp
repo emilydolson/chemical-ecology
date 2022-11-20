@@ -18,7 +18,7 @@
 
 // A struct to hold data about individual cells 
 struct CellData {
-  double fitness;  // Fitness of this cell
+  double invasion_ability;  // Ability of this cell to move across an empty world
   double heredity; // Extent to which offspring cells look same
   double growth_rate;  // How fast this cell produces biomass
   double synergy;  // Attempt at measuring facilitation in cell
@@ -59,9 +59,10 @@ class AEcoWorld {
 
     // Set up data tracking
     emp::DataFile data_file;
-    emp::DataNode<double, emp::data::Stats> fitness_node;
+    emp::DataNode<double, emp::data::Stats> growth_rate_node;
     emp::DataNode<double, emp::data::Stats> synergy_node;
     emp::DataNode<double, emp::data::Stats> heredity_node;
+    emp::DataNode<double, emp::data::Stats> biomass_node;
     std::map<emp::vector<int>, CellData> dom_map;
     emp::vector<int> fittest;
     emp::vector<int> dominant;
@@ -102,10 +103,7 @@ class AEcoWorld {
           interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
         }
       }
-      // std::cout << "Vector in interaction matrix at pos " << i << " in SetupRandomInteractions():" << std::endl;
-      // std::cout << emp::to_string(interactions[i]) << std::endl;
     }
-    // std::cout << std::endl;
   }
 
   // Load an interaction matrix from the specified file
@@ -119,10 +117,7 @@ class AEcoWorld {
       for (int j = 0; j < N_TYPES; j++) {
         interactions[i][j] = interaction_data[i][j];
       }
-      // std::cout << "Vector in interaction matrix at pos " << i << " in LoadInteractionMatrix():" << std::endl;
-      // std::cout << emp::to_string(interactions[i]) << std::endl;
     }
-    // std::cout << std::endl;
   }
 
   // Store the current interaction matrix in a file
@@ -173,9 +168,10 @@ class AEcoWorld {
     data_file.AddVar(curr_update, "Time", "Time");
     // Add columns for stats (mean, variance, etc.) from the 
     // three data nodes. Clear data from nodes.
-    data_file.AddStats(fitness_node, "Fitness", "Fitness", true);
+    data_file.AddStats(growth_rate_node, "Growth_Rate", "Growth_Rate", true);
     data_file.AddStats(synergy_node, "Synergy", "Synergy", true);
     data_file.AddStats(heredity_node, "Heredity", "Heredity", true);
+    data_file.AddStats(biomass_node, "Biomass", "Biomass", true);
     // Add columns calculated by running functions that look up values
     // in dom_map
     data_file.AddFun((std::function<int()>)[this](){return dom_map[fittest].count;}, "fittest_count", "fittest_count");
@@ -489,10 +485,12 @@ class AEcoWorld {
     // Record community composition
     data.species = starting_point;
 
-    // Add equilibrium growth rate to fitness data node
-    fitness_node.Add(data.equilib_growth_rate);
+    // Add equilibrium growth rate to growth_rate data node
+    growth_rate_node.Add(data.equilib_growth_rate);
     // Add synergy to synergy data node
     synergy_node.Add(data.synergy);
+    //Add biomass to biomass data node
+    biomass_node.Add(accumulate(data.species.begin(), data.species.end(), 0.0));
 
     // Now we're going to simulate up to time_limit number
     // of time steps to measure heredity and 
@@ -532,12 +530,8 @@ class AEcoWorld {
       // Track time
       time++;
     }
-    // Lower fitness is better by this metric - indicates
-    // ability to spread from one end of the world to the other
-    // more quickly
-    // Note that even though this is called "fitness" it is currently
-    // not the main fitness metric that we are using
-    data.fitness = time;
+    // Set invasion ability equal to number of time steps taken to traverse world
+    data.invasion_ability = time;
     // Heredity is how similar the community in the final cell is to 
     // the equilibrium community
     data.heredity = 1.0 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
