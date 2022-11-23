@@ -62,6 +62,7 @@ class AEcoWorld {
     emp::DataNode<double, emp::data::Stats> growth_rate_node;
     emp::DataNode<double, emp::data::Stats> synergy_node;
     emp::DataNode<double, emp::data::Stats> heredity_node;
+    emp::DataNode<double, emp::data::Stats> invasion_node;
     emp::DataNode<double, emp::data::Stats> biomass_node;
     std::map<emp::vector<int>, CellData> dom_map;
     emp::vector<int> fittest;
@@ -171,6 +172,7 @@ class AEcoWorld {
     data_file.AddStats(growth_rate_node, "Growth_Rate", "Growth_Rate", true);
     data_file.AddStats(synergy_node, "Synergy", "Synergy", true);
     data_file.AddStats(heredity_node, "Heredity", "Heredity", true);
+    data_file.AddStats(invasion_node, "Invasion_Ability", "Invasion_Ability", true);
     data_file.AddStats(biomass_node, "Biomass", "Biomass", true);
     // Add columns calculated by running functions that look up values
     // in dom_map
@@ -270,18 +272,17 @@ class AEcoWorld {
     // Call update the specified number of times
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
-      //std::cout << i << std::endl;
     }
 
     // Print out final state
-    std::cout << "World Vectors:" << std::endl;
-    for (auto & v : world) {
-      std::cout << emp::to_string(v) << std::endl;
-    }
+    //std::cout << "World Vectors:" << std::endl;
+    //for (auto & v : world) {
+      //std::cout << emp::to_string(v) << std::endl;
+    //}
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
-    WriteInteractionMatrix("interaction_matrix.dat");
+    //WriteInteractionMatrix("interaction_matrix.dat");
   }
 
   // Calculate the growth rate (one measurement of fitness)
@@ -336,13 +337,11 @@ class AEcoWorld {
 
       // Grow linearly until we hit the cap
       int new_pop = ceil(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
-      // std::cout << pos[i] << " " << new_pop << " " << modifier << " " << ((double)(MAX_POP - pos[i])/MAX_POP) <<  std::endl;
       // Population size cannot be negative
       next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0);
       // Population size capped at MAX_POP
       next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
     }
-    // std::cout << emp::to_string(pos) << std::endl;
   }
 
   // Check whether the total population of a cell is large enough
@@ -356,7 +355,6 @@ class AEcoWorld {
 
     // Check whether conditions for group-level replication are met
     if (IsReproReady(pos, curr_world)) {
-      //std::cout << "group repro" << std::endl;
       // Choose a random cell out of those that are adjacent
       // to replicate into
       int direction = adj[rnd.GetInt(adj.size())];
@@ -530,8 +528,9 @@ class AEcoWorld {
       // Track time
       time++;
     }
-    // Set invasion ability equal to number of time steps taken to traverse world
-    data.invasion_ability = time;
+    // Set invasion ability equal to number of time steps taken to traverse world, inverted, so that higher is better
+    data.invasion_ability = 1/(double)time;
+    invasion_node.Add(data.invasion_ability);
     // Heredity is how similar the community in the final cell is to 
     // the equilibrium community
     data.heredity = 1.0 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
