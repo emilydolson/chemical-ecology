@@ -1,6 +1,9 @@
 import subprocess
 import pandas as pd
 import random
+import sys
+import csv
+from klemm_eguiliuz import create_matrix
 
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
@@ -9,7 +12,7 @@ WORLD_X = 10
 WORLD_Y = 10
 UPDATES = 1000
 MAX_POP = 10000
-REPRO_THRESHOLD = 5
+REPRO_THRESHOLD = 10000000000
 
 def create_pop(size):
     pop = []
@@ -17,8 +20,9 @@ def create_pop(size):
         diffusion = round(random.random(), 3)
         seeding = round(random.random(), 3)
         clear = round(random.random(), 3)
-        # Insert matrix generation logic here, and append to the end of the genome
-        genome = [diffusion, seeding, clear]
+        clique_size = random.randint(1,8)
+        clique_linkage = round(random.random(), 3)
+        genome = [diffusion, seeding, clear, clique_size, clique_linkage]
         pop.append(genome)
     return pop
 
@@ -30,13 +34,17 @@ def calc_all_fitness(population):
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        interaction_matrix = 'proof_of_concept_interaction_matrix.dat' #temporary
+        interaction_matrix = create_matrix(N_TYPES, genome[3], genome[4])
+        interaction_matrix_file = 'interaction_matrix.dat'
+        with open(interaction_matrix_file, 'w') as f:
+            wr = csv.writer(f)
+            wr.writerows(interaction_matrix)
         chem_eco = subprocess.Popen(
             [(f'../chemical-ecology '
             f'-DIFFUSION {diffusion} '
             f'-SEEDING_PROB {seeding} '
             f'-PROB_CLEAR {clear} ' 
-            f'-INTERACTION_SOURCE ../{interaction_matrix} '
+            f'-INTERACTION_SOURCE {interaction_matrix_file} '
             f'-REPRO_THRESHOLD {REPRO_THRESHOLD} '
             f'-MAX_POP {MAX_POP} '
             f'-WORLD_X {WORLD_X} '
@@ -45,15 +53,19 @@ def calc_all_fitness(population):
             shell=True, 
             stdout=subprocess.DEVNULL)
         return_code = chem_eco.wait()
-        print("a-eco return code", return_code)
+        if return_code != 0:
+            print("Error in a-eco, return code:", return_code)
+            sys.stdout.flush()
         df = pd.read_csv('a-eco_data.csv')
         biomasses = df['mean_Biomass'].values
         growth_rates = df['mean_Growth_Rate'].values
         heredities = df['mean_Heredity'].values
         new_fitness = {
+            # TODO this is redundant -- should we be averaging first 5(?) runs and then subtracting?
             'Biomass': biomasses[-1] - biomasses[0],
             'Growth_Rate': growth_rates[-1] - growth_rates[0],
-            'Heredity': -(heredities[-1] - heredities[0])
+            # Heredity always starts at 1 and goes down. Just take the final heredity value
+            'Heredity': heredities[-1]
         }
         fitness_lst.append(new_fitness)
     return fitness_lst
@@ -81,7 +93,7 @@ def lexicase_select(pop, all_fitness, test_cases):
             winner = pop[winner_index]
             pop.pop(winner_index)
             all_fitness.pop(winner_index)
-            # Return the parent, and a pop and fitness list without the pwinner
+            # Return the parent, and a pop and fitness list without the winner
             return (winner, pop, all_fitness)
         # If we only have one test case left choose randomly from the ties
         if len(test_cases) == 1:
@@ -97,6 +109,7 @@ def lexicase_select(pop, all_fitness, test_cases):
 
 
 def crossover(genome1, genome2):
+    # If we mutate, swap the world parameters and matrix parameters
     if (random.random() < .9):
         child1 = genome1[0:3] + genome2[3:]
         child2 = genome2[0:3] + genome1[3:]
@@ -107,7 +120,6 @@ def crossover(genome1, genome2):
 
 # https://github.com/DEAP/deap/blob/master/deap/tools/mutation.py
 def mutate(pop):
-    print("pop", pop)
     for genome in pop:
         params = genome[0:3]
         for param in params:
@@ -124,11 +136,11 @@ def mutate(pop):
 
 
 def run():
-    pop_size = 5
-    generations = 10
+    pop_size = 200
+    generations = 100
     population = create_pop(pop_size)
     test_cases = ['Biomass', 'Growth_Rate', 'Heredity']
-    for _ in range(generations):
+    for gen in range(generations):
         all_fitness = calc_all_fitness(population)
         parent_tuple = (None, population, all_fitness)
         parents = []
@@ -144,10 +156,12 @@ def run():
         #Mutation
         new_population = mutate(new_population)
         population = new_population
+        print("Finished generation", gen)
+        sys.stdout.flush()
     final_fitness = calc_all_fitness(population)
     f = open("final_population", "w")
     for i in range(len(final_fitness)):
-        f.write(str(final_fitness[i]) + '  ' + str(population[i]))
+        f.write(str(final_fitness[i]) + '  ' + str(population[i]) + '\n')
     f.close()
 
 
