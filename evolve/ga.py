@@ -30,7 +30,7 @@ def calc_all_fitness(population):
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        interaction_matrix = 'config/proof_of_concept_interaction_matrix.dat' #temporary
+        interaction_matrix = 'proof_of_concept_interaction_matrix.dat' #temporary
         chem_eco = subprocess.Popen(
             [(f'../chemical-ecology '
             f'-DIFFUSION {diffusion} '
@@ -124,7 +124,7 @@ def mutate(pop):
 
 
 def run():
-    pop_size = 100
+    pop_size = 5
     generations = 10
     population = create_pop(pop_size)
     test_cases = ['Biomass', 'Growth_Rate', 'Heredity']
@@ -145,8 +145,10 @@ def run():
         new_population = mutate(new_population)
         population = new_population
     final_fitness = calc_all_fitness(population)
+    f = open("final_population", "w")
     for i in range(len(final_fitness)):
-        print(final_fitness[i], population[i])
+        f.write(str(final_fitness[i]) + '  ' + str(population[i]))
+    f.close()
 
 
 if __name__ == '__main__':
