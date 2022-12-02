@@ -13,6 +13,7 @@ def add_edges(interactions, node_degrees, i, j):
 
 
 def create_matrix(num_nodes, clique_size, clique_linkage):
+    random.seed(0)
     m = clique_size
     n = num_nodes
     u = clique_linkage #probability new edge will be connected to non-active nodes

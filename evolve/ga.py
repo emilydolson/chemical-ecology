@@ -8,8 +8,8 @@ from klemm_eguiliuz import create_matrix
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
 N_TYPES = 9
-WORLD_X = 10
-WORLD_Y = 10
+WORLD_X = 30
+WORLD_Y = 30
 UPDATES = 1000
 MAX_POP = 10000
 REPRO_THRESHOLD = 10000000000
@@ -20,21 +20,21 @@ def create_pop(size):
         diffusion = round(random.random(), 3)
         seeding = round(random.random(), 3)
         clear = round(random.random(), 3)
-        clique_size = random.randint(1,8)
         clique_linkage = round(random.random(), 3)
-        genome = [diffusion, seeding, clear, clique_size, clique_linkage]
+        clique_size = random.randint(1,8)
+        genome = [diffusion, seeding, clear, clique_linkage, clique_size]
         pop.append(genome)
     return pop
 
 
 #todo remove print statements from chemical-ecology, remove output of debug_file and interaction_matrix.dat
-def calc_all_fitness(population):
+def calc_all_fitness(population, final=False):
     fitness_lst = []
     for genome in population:
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        interaction_matrix = create_matrix(N_TYPES, genome[3], genome[4])
+        interaction_matrix = create_matrix(N_TYPES, genome[4], genome[3])
         interaction_matrix_file = 'interaction_matrix.dat'
         with open(interaction_matrix_file, 'w') as f:
             wr = csv.writer(f)
@@ -67,6 +67,8 @@ def calc_all_fitness(population):
             # Heredity always starts at 1 and goes down. Just take the final heredity value
             'Heredity': heredities[-1]
         }
+        if final:
+            new_fitness['Matrix'] = interaction_matrix
         fitness_lst.append(new_fitness)
     return fitness_lst
 
@@ -77,7 +79,7 @@ def lexicase_select(pop, all_fitness, test_cases):
         # Select which test case to use 
         first = test_cases[0]
         # Initialize best to a negative value so it will lose the first comparison
-        best = -999
+        best = -9999999
         candidates = []
         for index, fitness in enumerate(all_fitness):
             if fitness[first] > best:
@@ -109,7 +111,7 @@ def lexicase_select(pop, all_fitness, test_cases):
 
 
 def crossover(genome1, genome2):
-    # If we mutate, swap the world parameters and matrix parameters
+    # If we crossover, swap the world parameters and matrix parameters
     if (random.random() < .9):
         child1 = genome1[0:3] + genome2[3:]
         child2 = genome2[0:3] + genome1[3:]
@@ -121,7 +123,7 @@ def crossover(genome1, genome2):
 # https://github.com/DEAP/deap/blob/master/deap/tools/mutation.py
 def mutate(pop):
     for genome in pop:
-        params = genome[0:3]
+        params = genome[0:4] 
         for param in params:
             if random.random() < 1/len(params):
                 param += random.gauss(0, .1)
@@ -158,10 +160,13 @@ def run():
         population = new_population
         print("Finished generation", gen)
         sys.stdout.flush()
-    final_fitness = calc_all_fitness(population)
+    # This call will append the matricies to the fitness dicts
+    final_fitness = calc_all_fitness(population, True)
     f = open("final_population", "w")
+    f.write("types: " + str(N_TYPES) + "\nworld size: " + str(WORLD_X) + "\nupdates: " + str(UPDATES) + "\nmax pop: " + str(MAX_POP) + "\nrepro threshold: " + str(REPRO_THRESHOLD) + "\n")
+    f.write("pop size: " + str(pop_size) + "\ngenerations: " + str(generations) + "\n")
     for i in range(len(final_fitness)):
-        f.write(str(final_fitness[i]) + '  ' + str(population[i]) + '\n')
+        f.write(str(final_fitness[i]) + '  ' + str(population[i]) + '\n\n')
     f.close()
 
 
