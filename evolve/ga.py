@@ -5,7 +5,6 @@ import sys
 import csv
 from klemm_eguiliuz import create_matrix
 
-
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
 N_TYPES = 9
 WORLD_X = 30
@@ -21,20 +20,22 @@ def create_pop(size):
         seeding = round(random.random(), 3)
         clear = round(random.random(), 3)
         clique_linkage = round(random.random(), 3)
-        clique_size = random.randint(1,8)
-        genome = [diffusion, seeding, clear, clique_linkage, clique_size]
+        mu = round(random.uniform(-0.5, 0.5), 3)
+        sigma = round(random.uniform(0, 0.5), 3)
+        clique_size = random.randint(1, N_TYPES-1)
+        seed = random.randint(1, N_TYPES-1)
+        genome = [diffusion, seeding, clear, clique_linkage, mu, sigma, clique_size, seed]
         pop.append(genome)
     return pop
 
 
-#todo remove print statements from chemical-ecology, remove output of debug_file and interaction_matrix.dat
-def calc_all_fitness(population, final=False):
+def calc_all_fitness(population):
     fitness_lst = []
     for genome in population:
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        interaction_matrix = create_matrix(N_TYPES, genome[4], genome[3])
+        interaction_matrix = create_matrix(num_nodes=N_TYPES, clique_size=genome[6], clique_linkage=genome[3], mu=genome[4], sigma=genome[5], seed=genome[7])
         interaction_matrix_file = 'interaction_matrix.dat'
         with open(interaction_matrix_file, 'w') as f:
             wr = csv.writer(f)
@@ -67,8 +68,6 @@ def calc_all_fitness(population, final=False):
             # Heredity always starts at 1 and goes down. Just take the final heredity value
             'Heredity': heredities[-1]
         }
-        if final:
-            new_fitness['Matrix'] = interaction_matrix
         fitness_lst.append(new_fitness)
     return fitness_lst
 
@@ -123,22 +122,38 @@ def crossover(genome1, genome2):
 # https://github.com/DEAP/deap/blob/master/deap/tools/mutation.py
 def mutate(pop):
     for genome in pop:
-        params = genome[0:4] 
-        for param in params:
-            if random.random() < 1/len(params):
-                param += random.gauss(0, .1)
-                # Temp error checking
-                if param < 0:
-                    param = 0
-                if param > 1:
-                    param = 1
-        for i, param in enumerate(params):
+        for i, param in enumerate(genome):
+            if random.random() < 1/len(genome):
+                if i < 4: #diffusion, seeding, clear, clique_linkage
+                    param += random.gauss(0, 0.1)
+                    if param < 0:
+                        param = 0
+                    if param > 1:
+                        param = 1
+                if i == 4: #mu
+                    param += random.gauss(0, 0.1)
+                    if param < -0.5:
+                        param = -0.5
+                    if param > 0.5:
+                        param = 0.5
+                if i == 5: #sigma
+                    param += random.gauss(0, 0.1)
+                    if param < 0:
+                        param = 0
+                    if param > 0.5:
+                        param = 0.5
+                if i >= 6: #clique_size, seed
+                    param += random.choice([-1, 1])
+                    if param < 1:
+                        param = 1
+                    if param > N_TYPES-1:
+                        param = N_TYPES-1
             genome[i] = param
     return pop
 
 
 def run():
-    pop_size = 200
+    pop_size = 100
     generations = 100
     population = create_pop(pop_size)
     test_cases = ['Biomass', 'Growth_Rate', 'Heredity']
@@ -161,7 +176,7 @@ def run():
         print("Finished generation", gen)
         sys.stdout.flush()
     # This call will append the matricies to the fitness dicts
-    final_fitness = calc_all_fitness(population, True)
+    final_fitness = calc_all_fitness(population)
     f = open("final_population", "w")
     f.write("types: " + str(N_TYPES) + "\nworld size: " + str(WORLD_X) + "\nupdates: " + str(UPDATES) + "\nmax pop: " + str(MAX_POP) + "\nrepro threshold: " + str(REPRO_THRESHOLD) + "\n")
     f.write("pop size: " + str(pop_size) + "\ngenerations: " + str(generations) + "\n")
