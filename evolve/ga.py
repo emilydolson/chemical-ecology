@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import sys
 import csv
+import numpy as np
 from klemm_eguiliuz import create_matrix
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
@@ -29,7 +30,7 @@ def create_pop(size):
     return pop
 
 
-def calc_all_fitness(population):
+def calc_all_fitness(population, niched=False):
     fitness_lst = []
     for genome in population:
         diffusion = genome[0]
@@ -69,6 +70,24 @@ def calc_all_fitness(population):
             'Heredity': heredities[-1]
         }
         fitness_lst.append(new_fitness)
+    #niching / fitness sharing
+    #based on formula in https://www.sciencedirect.com/science/article/pii/S0304397518304882
+    if niched:
+        niched_fitness_lst = []
+        sigma = len(population)/2
+        alpha = 1
+        for i in range(len(population)):
+            genome_x = population[i]
+            fitnesses = fitness_lst[i]
+            sharing = sum([max(0, 1 - (np.linalg.norm(np.array(genome_x[0:6] + [b/10 for b in genome_x[6:]]) - np.array(genome_y[0:6] + [b/10 for b in genome_y[6:]]))/sigma)**(alpha)) for genome_y in population])
+            new_fitness = {
+                'Biomass': fitnesses['Biomass'] / sharing,
+                'Growth_Rate': fitnesses['Growth_Rate'] / sharing,
+                'Heredity': fitnesses['Heredity'] / sharing
+            }
+            niched_fitness_lst.append(new_fitness)
+            #print('niche: ', new_fitness, 'sharing: ', sharing, 'member: ', genome_x)
+        return niched_fitness_lst
     return fitness_lst
 
 
@@ -148,7 +167,7 @@ def mutate(pop):
                         param = 1
                     if param > N_TYPES-1:
                         param = N_TYPES-1
-            genome[i] = param
+            genome[i] = round(param, 3)
     return pop
 
 
@@ -158,7 +177,7 @@ def run():
     population = create_pop(pop_size)
     test_cases = ['Biomass', 'Growth_Rate', 'Heredity']
     for gen in range(generations):
-        all_fitness = calc_all_fitness(population)
+        all_fitness = calc_all_fitness(population, True)
         parent_tuple = (None, population, all_fitness)
         parents = []
         for _ in range(pop_size//2):
@@ -175,8 +194,7 @@ def run():
         population = new_population
         print("Finished generation", gen)
         sys.stdout.flush()
-    # This call will append the matricies to the fitness dicts
-    final_fitness = calc_all_fitness(population)
+    final_fitness = calc_all_fitness(population, False)
     f = open("final_population", "w")
     f.write("types: " + str(N_TYPES) + "\nworld size: " + str(WORLD_X) + "\nupdates: " + str(UPDATES) + "\nmax pop: " + str(MAX_POP) + "\nrepro threshold: " + str(REPRO_THRESHOLD) + "\n")
     f.write("pop size: " + str(pop_size) + "\ngenerations: " + str(generations) + "\n")
