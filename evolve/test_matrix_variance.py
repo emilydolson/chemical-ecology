@@ -31,5 +31,7 @@ def main():
         
     plt.savefig('graph.png')
 
+
 if __name__ == '__main__':
     main()
+    

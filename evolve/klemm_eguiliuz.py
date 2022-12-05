@@ -3,6 +3,7 @@
 #https://github.com/hallucigenia-sparsa/seqtime/blob/master/R/klemm.game.R
 
 import random
+import csv
 
 def add_edges(interactions, node_degrees, i, j, mu, sigma):
     rand1 = random.gauss(mu, sigma)
@@ -100,3 +101,9 @@ def adjust_connectance(interactions, connectance):
             curr_connectance = (sum([sum([1 for y in x if y != 0]) for x in interactions])-num_nodes) / (num_nodes**2 - num_nodes)
 
     return interactions
+
+
+def write_matrix(interactions):
+    with open("interaction_matrix.dat", "w") as f:
+        wr = csv.writer(f)
+        wr.writerows(interactions)

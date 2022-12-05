@@ -8,8 +8,8 @@ from klemm_eguiliuz import create_matrix
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
 N_TYPES = 9
-WORLD_X = 30
-WORLD_Y = 30
+WORLD_X = 10
+WORLD_Y = 10
 UPDATES = 1000
 MAX_POP = 10000
 REPRO_THRESHOLD = 10000000000
@@ -24,8 +24,7 @@ def create_pop(size):
         mu = round(random.uniform(-0.5, 0.5), 3)
         sigma = round(random.uniform(0, 0.5), 3)
         clique_size = random.randint(1, N_TYPES-1)
-        seed = random.randint(1, N_TYPES-1)
-        genome = [diffusion, seeding, clear, clique_linkage, mu, sigma, clique_size, seed]
+        genome = [diffusion, seeding, clear, clique_linkage, mu, sigma, clique_size]
         pop.append(genome)
     return pop
 
@@ -36,7 +35,7 @@ def calc_all_fitness(population, niched=False):
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        interaction_matrix = create_matrix(num_nodes=N_TYPES, clique_size=genome[6], clique_linkage=genome[3], mu=genome[4], sigma=genome[5], seed=genome[7])
+        interaction_matrix = create_matrix(num_nodes=N_TYPES, clique_size=genome[6], clique_linkage=genome[3], mu=genome[4], sigma=genome[5])
         interaction_matrix_file = 'interaction_matrix.dat'
         with open(interaction_matrix_file, 'w') as f:
             wr = csv.writer(f)
@@ -86,7 +85,6 @@ def calc_all_fitness(population, niched=False):
                 'Heredity': fitnesses['Heredity'] / sharing
             }
             niched_fitness_lst.append(new_fitness)
-            #print('niche: ', new_fitness, 'sharing: ', sharing, 'member: ', genome_x)
         return niched_fitness_lst
     return fitness_lst
 
