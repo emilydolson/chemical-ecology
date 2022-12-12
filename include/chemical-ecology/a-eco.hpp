@@ -3,6 +3,8 @@
 #include <iostream>
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
+#include "emp/datastructs/Graph.hpp"
+#include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
 #include "chemical-ecology/config_setup.hpp"
 
@@ -336,7 +338,7 @@ class AEcoWorld {
       }
 
       // Grow linearly until we hit the cap
-      int new_pop = ceil(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      int new_pop = floor(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // Population size cannot be negative
       next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0);
       // Population size capped at MAX_POP
@@ -470,6 +472,7 @@ class AEcoWorld {
     for (int i = 0; i < 20; i++) {
       DoGrowth(0, test_world, next_world);
       std::swap(test_world, next_world);
+      // TODO: NEED TO CLEAR OUT next_world here!
     }
 
     // Record equilibrium community
@@ -525,6 +528,7 @@ class AEcoWorld {
       // We've finished calculating next_world so we can swap it
       // into test_world
       std::swap(test_world, next_world);
+      // TODO: NEED TO CLEAR OUT next_world here!
       // Track time
       time++;
     }
@@ -539,6 +543,124 @@ class AEcoWorld {
     heredity_node.Add(data.heredity);
 
     return data;
+  }
+
+  emp::Graph CalculateCommunityAssemblyGraph() {
+
+    // long long int is 64 bits, so this can handle
+    // communities of up to 64 species
+    long long unsigned int n_communities = pow(2, N_TYPES);
+    struct community_info {
+      bool stable;
+      long long unsigned int transitions_to;
+      community_info(bool s=false, long long int t=0) {
+        stable = s;
+        transitions_to = t;
+      }
+    };
+
+    std::map<long long unsigned int, community_info> communities;
+
+    // community_info t = community_info(true, 0);
+    communities.emplace(0, community_info(true, 0));
+    long long unsigned int n_stable = 1;
+
+    for (long long unsigned int community_id = 1; community_id < pow(2,N_TYPES); community_id++) {
+      std::bitset<64> temp(community_id);
+      emp::BitArray<64> comm(temp);
+
+      // Number of time steps to run test world for
+      int time_limit = 25;
+      world_t test_world;
+      // world is 1x1
+      test_world.resize(1);
+      // Initialize empty test world
+      test_world[0].resize(config->N_TYPES(), 0);
+      for (int pos = comm.FindOne(); pos >= 0; pos = comm.FindOne(pos+1)) {
+        // std::cout << comm.ToBinaryString() << " " << pos 
+        test_world[0][pos] = 1; 
+      }
+
+      // Make a next_world for the test world to
+      // handle simulated updates in our test environment
+      world_t next_world;
+      next_world.resize(1);
+      next_world[0].resize(config->N_TYPES(), 0);
+
+      // Run DoGrowth for 20 time steps to hopefully
+      // get cell to equilibrium
+      // (if cell is an organism, this is analogous to 
+      // development)
+      for (int i = 0; i < time_limit; i++) {
+        DoGrowth(0, test_world, next_world);
+        std::swap(test_world, next_world);
+        std::fill(next_world[0].begin(), next_world[0].end(), 0);
+      }
+
+      emp::BitArray<64> new_comm;
+      for (int i = 0; i < config->N_TYPES(); i++) { 
+        if (test_world[0][i]){
+          new_comm.Toggle(i);
+        }
+      }
+      communities.emplace(community_id, community_info(comm==new_comm, new_comm.GetUInt64(0)));
+      if (communities[community_id].stable) {
+        n_stable++;
+      }
+    }
+
+
+    emp::Graph g(n_stable);
+    std::map<int, int> node_map;
+    int curr_node = 0;
+    for (long long unsigned int i = 0; i < pow(2,N_TYPES); i++) {
+      // Would be great to use n_communities instead of
+      // 64, but we don't know it at compile time
+      // Will end up with a bunch of leading 0s.
+      if (!communities[i].stable) {
+        continue;
+      }
+      node_map[i] = curr_node;
+      std::bitset<9> temp(i);
+      g.SetLabel(curr_node, temp.to_string());
+      curr_node++;
+    }
+
+    for (long long unsigned int i = 0; i < pow(2,N_TYPES); i++) {
+      if (!communities[i].stable) {
+        continue;
+      }
+      std::bitset<64> temp(i);
+      emp::BitArray<64> comm(temp);
+      curr_node = node_map[i];
+
+      emp::BitArray<64> missing_species = comm;
+      missing_species.Toggle();
+      for (int pos = missing_species.FindOne(); pos >= 0 && pos < config->N_TYPES(); pos = missing_species.FindOne(pos+1)) { 
+        comm.Toggle(pos);
+        long long unsigned int id = comm.GetUInt64(0);
+        if (communities[id].stable) {
+          if (curr_node != node_map[id]) {
+            g.AddEdge(curr_node, node_map[id]);
+            std::cout << g.GetLabel(curr_node) << ", " << g.GetLabel(node_map[id]) << ", " << pos << std::endl;
+          }
+        } else {
+          emp_assert(emp::Has(node_map, communities[id].transitions_to));
+          if (curr_node != node_map[communities[id].transitions_to]) {
+            g.AddEdge(curr_node, node_map[communities[id].transitions_to]);
+            std::cout << g.GetLabel(curr_node)  << ", " << g.GetLabel(node_map[communities[id].transitions_to])  << ", " << pos << std::endl;         
+          } 
+        }
+        comm.Toggle(pos);
+      }
+    }
+
+    return g;
+
+  }
+
+  void CalculateCommunityLevelFitnessLandscape() {
+
   }
 
   // Getter for current update/time step
