@@ -27,6 +27,9 @@ all: $(PROJECT) $(PROJECT).js
 debug:	CFLAGS_nat := $(CFLAGS_nat_debug)
 debug:	$(PROJECT)
 
+debug-analysis:	CFLAGS_nat := $(CFLAGS_nat_debug)
+debug-analysis:	analysis
+
 debug-web:	CFLAGS_web := $(CFLAGS_web_debug)
 debug-web:	$(PROJECT).js
 
@@ -39,6 +42,9 @@ $(PROJECT):	source/native.cpp include/
 
 $(PROJECT).js: source/web.cpp include/
 	cd third-party/emsdk && . ./emsdk_env.sh && cd - && $(CXX_web) $(CFLAGS_web) source/web.cpp -o web/$(PROJECT).js
+
+analysis:	source/analysis.cpp include/
+	$(CXX) $(CFLAGS_nat) source/analysis.cpp -o analyze_communities -lstdc++fs
 
 docs:
 	cd docs && make html
