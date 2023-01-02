@@ -55,5 +55,5 @@ cp -r $1/config .
 
 ## Actually run your program. Set the random seed to the array id
 ## and make sure to set whatever other command-line arguments are necessary
-./chemical-ecology -SEED ${SLURM_ARRAY_TASK_ID} -REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -SEEDING_PROB .001 -DIFFUSION 1 -PROB_CLEAR .25 -WORLD_X 30 -WORLD_Y 30 -INTERACTION_SOURCE config/proof_of_concept_interaction_matrix.dat -N_TYPES 9 -UPDATES 10000 > run.log
+./chemical-ecology -SEED ${SLURM_ARRAY_TASK_ID} -REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -SEEDING_PROB .001 -DIFFUSION 1 -PROB_CLEAR .25 -WORLD_X 30 -WORLD_Y 30 -INTERACTION_SOURCE config/proof_of_concept_interaction_matrix.dat -N_TYPES 9 -UPDATES 1000 > run.log
 ## If you need to do anything after your run, it can go here.

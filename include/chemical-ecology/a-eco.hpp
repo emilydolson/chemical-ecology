@@ -7,6 +7,8 @@
 #include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
 #include "chemical-ecology/config_setup.hpp"
+#include "emp/datastructs/map_utils.hpp"
+#include <string>
 
 // TERMINOLOGY NOTES:
 //
@@ -26,6 +28,7 @@ struct CellData {
   double synergy;  // Attempt at measuring facilitation in cell
   double equilib_growth_rate;  // How fast cell produces biomass
                               // after growing to equilibrium
+  double biomass;
   int count = 1;  // For counting the number of cells occupied by the same community
   emp::vector<int> species; // The counts of each type in this cell
 };
@@ -437,8 +440,8 @@ class AEcoWorld {
                 [](const std::pair<emp::vector<int>, CellData> & v1, const std::pair<emp::vector<int>, CellData> & v2 ){return v1.second.count < v2.second.count;})).first;
   }
 
-  // Calculate fitness of individual cell
-  CellData GetFitness(size_t orig_pos) {
+  //This function allows us to calculate the fitness with just take a community composition.
+  CellData doGetFitness(emp::vector<int> community) {
     CellData data;
     // Size of test world 
     // Test world is a num_cells x 1 grid
@@ -455,7 +458,7 @@ class AEcoWorld {
 
     // Put contents of cell being evaluated
     // in left-most spot in test world
-    test_world[0] = world[orig_pos];
+    test_world[0] = community;
 
     // Make a next_world for the test world to
     // handle simulated updates in our test environment
@@ -473,12 +476,13 @@ class AEcoWorld {
       DoGrowth(0, test_world, next_world);
       std::swap(test_world, next_world);
       // TODO: NEED TO CLEAR OUT next_world here!
+      std::fill(next_world[0].begin(), next_world[0].end(), 0);
     }
 
     // Record equilibrium community
     emp::vector<int> starting_point = test_world[0];
     // Calculate pure-math growth rate
-    data.growth_rate = CalcGrowthRate(orig_pos, world);
+    data.growth_rate = CalcGrowthRate(community, world);
     // Calculate synergy
     data.synergy = CalcSynergy(0, test_world);
     // Calculate equilibrium growth rate
@@ -491,16 +495,26 @@ class AEcoWorld {
     // Add synergy to synergy data node
     synergy_node.Add(data.synergy);
     //Add biomass to biomass data node
+    data.biomass = accumulate(data.species.begin(), data.species.end(), 0.0);
     biomass_node.Add(accumulate(data.species.begin(), data.species.end(), 0.0));
 
     // Now we're going to simulate up to time_limit number
     // of time steps to measure heredity and 
     // propogation-based fitness
-    int time = 0;
+    int time = 1;
     // Stop if hit the time limit or if the right-most cell is
     // able to do group-level reproduction (meaning the community
     // has spread across the entire test world and could keep going)
+
     while (!IsReproReady(num_cells - 1, test_world) && time < time_limit) {
+
+      // Group level repro will never occur with the values we're using
+      // Instead check if the final cell is similar enough to the beginning cell
+      // using heredity
+      double curr_heredity = 1.0 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
+      if(curr_heredity > .999){
+        break;
+      }
 
       // Handle within cell growth for each cell in test world
       for (int pos = 0; pos < num_cells; pos++) {
@@ -529,6 +543,7 @@ class AEcoWorld {
       // into test_world
       std::swap(test_world, next_world);
       // TODO: NEED TO CLEAR OUT next_world here!
+      std::fill(next_world[0].begin(), next_world[0].end(), 0);
       // Track time
       time++;
     }
@@ -544,6 +559,13 @@ class AEcoWorld {
 
     return data;
   }
+
+
+  //Get fitness of one cell
+  CellData GetFitness(size_t orig_pos){
+    return doGetFitness(world[orig_pos])
+  }
+
 
   emp::Graph CalculateCommunityAssemblyGraph() {
 
@@ -659,8 +681,93 @@ class AEcoWorld {
 
   }
 
-  void CalculateCommunityLevelFitnessLandscape() {
+  emp::Graph CalculateCommunityLevelFitnessLandscape(string fitness_measure) {
+    emp::Graph assembly = CalculateCommunityAssemblyGraph();
+    struct fitnesses{
+      double growth_rate;
+      double biomass; 
+      double heredity;
+      double invasion_ability;
+      double resiliance;
+    }
 
+    std::map<std::string, fitnesses> found_fitnesses;
+    emp::vector<Nodes> all_nodes = g.getNodes();
+
+    for(Node n : all_nodes){
+      std::string label = n.GetLabel();
+      bool found = false;
+      fitnesses curr_node_fitness;
+      fitnesses adjacent_node_fitness;
+
+      if(emp::Has(found_fitnesses, label)){
+        found = true;
+        curr_node_fitness = found_fitnesses[label];
+      }
+      if(found == false){
+        emp::vector<int> community;
+        for(char& c : label){
+          community.push_back((int)c);
+        }
+        CellData data = doGetFitness(community);
+        //Use equillib growth rate?
+        curr_node_fitness.growth_rate = data.equilib_growth_rate;
+        curr_node_fitness.biomass = data.biomass;
+        curr_node_fitness.heredity = data.heredity;
+        curr_node_fitness.invasion_ability = data.invasion_ability;
+        curr_node_fitness.resiliance = n.GetDegree();
+        found_fitnesses[label] = curr_node_fitness;
+      }
+      emp::BitVector out_nodes = n.GetEdgeSet();
+      for(int pos = out_nodes.FindOne(); pos >= 0 && pos < assembly.GetSize(); pos = out_nodes.FindOne(pos+1)) {
+        if(emp::Has(found_fitnesses, assembly.GetLabel(pos))){
+          found = true;
+          adjacent_node_fitness = found_fitnesses[assembly.GetLabel(pos)];
+        }
+        if(found == false){
+          emp::vector<int> community;
+          for(char& c : assembly.GetLabel(pos)){
+            community.push_back((int)c);
+          }
+          CellData data = doGetFitness(community);
+          adjacent_node_fitness.growth_rate = data.equilib_growth_rate;
+          adjacent_node_fitness.biomass = data.biomass;
+          adjacent_node_fitness.heredity = data.heredity;
+          adjacent_node_fitness.invasion_ability = data.invasion_ability;
+          //Make sure this works
+          adjacent_node_fitness.resiliance = assembly.GetDegree(pos);
+          found_fitnesses[label] = adjacent_node_fitness;
+        }
+        if(fitness_measure.compare("Biomass") == 0){
+          if(curr_node_fitness.biomass > adjacent_node_fitness.biomass){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Growth_Rate") == 0){
+          if(curr_node_fitness.growth_rate > adjacent_node_fitness.growth_rate){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Heredity") == 0){
+          if(curr_node_fitness.heredity > adjacent_node_fitness.heredity){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Invasion_Ability") == 0){
+          if(curr_node_fitness.invasion_ability > adjacent_node_fitness.invasion_ability){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Resiliance") == 0){
+          if(curr_node_fitness.resiliance > adjacent_node_fitness.resiliance){
+            n.RemoveEdge(pos);
+          }
+        }
+      }
+    }
+
+    //need to make a new graph from all_nodes I think
+    return fitness_graph;
   }
 
   // Getter for current update/time step
