@@ -751,7 +751,9 @@ class AEcoWorld {
     std::map<std::string, fitnesses> found_fitnesses;
     emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
 
-    for(emp::Graph::Node n: all_nodes){
+    for(size_t curr_pos = 0; curr_pos < g.GetSize(); curr_pos++){
+      emp::Graph::Node n = g.GetNode(curr_pos);
+    //for(emp::Graph::Node n: all_nodes){
       std::string label = n.GetLabel();
       bool found = false;
       fitnesses curr_node_fitness;
@@ -835,33 +837,31 @@ class AEcoWorld {
         }
         if(fitness_measure.compare("Biomass") == 0){
           if(curr_node_fitness.biomass > adjacent_node_fitness.biomass){
-            n.RemoveEdge(pos);
+            g.SetEdge(curr_pos, pos, false);
           }
         }
         if(fitness_measure.compare("Growth_Rate") == 0){
           if(curr_node_fitness.growth_rate > adjacent_node_fitness.growth_rate){
-            n.RemoveEdge(pos);
+            g.SetEdge(curr_pos, pos, false);
           }
         }
         if(fitness_measure.compare("Heredity") == 0){
           if(curr_node_fitness.heredity > adjacent_node_fitness.heredity){
-            n.RemoveEdge(pos);
+            g.SetEdge(curr_pos, pos, false);
           }
         }
         if(fitness_measure.compare("Invasion_Ability") == 0){
           if(curr_node_fitness.invasion_ability > adjacent_node_fitness.invasion_ability){
-            n.RemoveEdge(pos);
+            g.SetEdge(curr_pos, pos, false);
           }
         }
         if(fitness_measure.compare("Resiliance") == 0){
           if(curr_node_fitness.resiliance > adjacent_node_fitness.resiliance){
-            n.RemoveEdge(pos);
+            g.SetEdge(curr_pos, pos, false);
           }
         }
       }
     }
-
-    //TODO make sure g was modified 
     return g;
   }
 
