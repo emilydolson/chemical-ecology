@@ -13,6 +13,8 @@ sbatch --wait $1 /mnt/home/$USER/chemical-ecology $2
 rm *.out
 python3 scripts/munge_data.py "/mnt/scratch/$USER/chemical-ecology/data/$2/*" all_data
 mv all_data.csv experiments/$2
+python3 scripts/munge_scores.py "/mnt/scratch/$USER/chemical-ecology/data/$2/*" all_scores
+mv all_scores.csv experiments/$2
 python3 scripts/plot_param_experiment.py $2
 
 ## plot_param_experiment can be run with more than one argument to make combined graphs
