@@ -5,6 +5,7 @@ import sys
 
 def main():
     measures = ['Growth_Rate', 'Biomass', 'Heredity', 'Invasion_Ability']
+    # measures = ['Growth_Rate', 'Biomass', 'Heredity']
     fig, axs = plt.subplots(len(measures), sharex=True)
     fig.suptitle('Growth of Fitness Proxies')
     name = '_'.join(sys.argv[1:])

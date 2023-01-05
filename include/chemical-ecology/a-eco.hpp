@@ -7,6 +7,8 @@
 #include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
 #include "chemical-ecology/config_setup.hpp"
+#include "emp/datastructs/map_utils.hpp"
+#include <string>
 
 // TERMINOLOGY NOTES:
 //
@@ -26,6 +28,7 @@ struct CellData {
   double synergy;  // Attempt at measuring facilitation in cell
   double equilib_growth_rate;  // How fast cell produces biomass
                               // after growing to equilibrium
+  double biomass;
   int count = 1;  // For counting the number of cells occupied by the same community
   emp::vector<int> species; // The counts of each type in this cell
 };
@@ -61,6 +64,7 @@ class AEcoWorld {
 
     // Set up data tracking
     emp::DataFile data_file;
+    emp::DataFile score_file;
     emp::DataNode<double, emp::data::Stats> growth_rate_node;
     emp::DataNode<double, emp::data::Stats> synergy_node;
     emp::DataNode<double, emp::data::Stats> heredity_node;
@@ -72,7 +76,7 @@ class AEcoWorld {
 
   public:
   // Default constructor just has to set name of output file
-  AEcoWorld() : data_file("a-eco_data.csv") {;}
+  AEcoWorld() : data_file("a-eco_data.csv"), score_file("scores.csv") {;}
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -265,7 +269,41 @@ class AEcoWorld {
     dom_map.clear();
     fittest.clear();
     dominant.clear();
+  }
 
+
+  //This function should be called to create a stable copy of the world for graph calculations
+  world_t stableUpdate(int num_updates){
+    world_t stable_world;
+    world_t next_stable_world;
+
+    stable_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<int> & v : next_stable_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    next_stable_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<int> & v : next_stable_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    //copy current world into stable world
+    for(size_t i = 0; i < world.size(); i++){
+      stable_world[i].assign(world[i].begin(), world[i].end());
+    }
+
+    for(int i = 0; i < num_updates; i++){
+      // Handle population growth for each cell
+      for (size_t pos = 0; pos < world.size(); pos++) {
+        DoGrowth(pos, stable_world, next_stable_world);
+      }
+
+      std::swap(stable_world, next_stable_world);
+      dom_map.clear();
+      fittest.clear();
+      dominant.clear();
+    }
+    return stable_world;
   }
 
   // Handle the process of running the program through
@@ -276,6 +314,24 @@ class AEcoWorld {
       Update(i);
     }
 
+    world_t stable_world = stableUpdate(20);
+
+    int biomass_score = calcAdaptabilityScore("Biomass", stable_world);
+    int growth_rate_score = calcAdaptabilityScore("Growth_Rate", stable_world);
+    int heredity_score = calcAdaptabilityScore("Heredity", stable_world);
+    int invasion_score = calcAdaptabilityScore("Invasion_Ability", stable_world);
+    int resiliance_score = calcAdaptabilityScore("Resiliance", stable_world);
+
+    score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
+    score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
+    score_file.AddVar(heredity_score, "Heredity_Score", "Heredity_Score");
+    score_file.AddVar(invasion_score, "Invasion_Ability_Score", "Invasion_Ability_Score");
+    score_file.AddVar(resiliance_score, "Resiliance_Score", "Resiliance_Score");
+
+    score_file.PrintHeaderKeys();
+
+    score_file.Update();
+    
     // Print out final state
     //std::cout << "World Vectors:" << std::endl;
     //for (auto & v : world) {
@@ -287,9 +343,7 @@ class AEcoWorld {
     //WriteInteractionMatrix("interaction_matrix.dat");
   }
 
-  // Calculate the growth rate (one measurement of fitness)
-  // for a given cell
-  double CalcGrowthRate(size_t pos, world_t & curr_world) {
+  double doCalcGrowthRate(emp::vector<int> community){
     double growth_rate = 0;
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
@@ -297,14 +351,20 @@ class AEcoWorld {
         // Each type contributes to the growth rate modifier
         // of each other type based on the product of its
         // interaction value with that type and its population size
-        modifier += interactions[i][j] * curr_world[pos][j];
+        modifier += interactions[i][j] * community[j];
       }
 
       // Add this type's overall growth rate to the cell-level
       // growth-rate
-      growth_rate += ceil(modifier*((double)curr_world[pos][i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      growth_rate += ceil(modifier*((double)community[i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
     }
     return growth_rate;
+  }
+
+  // Calculate the growth rate (one measurement of fitness)
+  // for a given cell
+  double CalcGrowthRate(size_t pos, world_t & curr_world) {
+    return doCalcGrowthRate(curr_world[pos]);
   }
 
   // Calculate the amount of cell-level growth that is due to 
@@ -437,8 +497,8 @@ class AEcoWorld {
                 [](const std::pair<emp::vector<int>, CellData> & v1, const std::pair<emp::vector<int>, CellData> & v2 ){return v1.second.count < v2.second.count;})).first;
   }
 
-  // Calculate fitness of individual cell
-  CellData GetFitness(size_t orig_pos) {
+  //This function allows us to calculate the fitness with just take a community composition.
+  CellData doGetFitness(emp::vector<int> community) {
     CellData data;
     // Size of test world 
     // Test world is a num_cells x 1 grid
@@ -455,7 +515,7 @@ class AEcoWorld {
 
     // Put contents of cell being evaluated
     // in left-most spot in test world
-    test_world[0] = world[orig_pos];
+    test_world[0] = community;
 
     // Make a next_world for the test world to
     // handle simulated updates in our test environment
@@ -473,12 +533,13 @@ class AEcoWorld {
       DoGrowth(0, test_world, next_world);
       std::swap(test_world, next_world);
       // TODO: NEED TO CLEAR OUT next_world here!
+      std::fill(next_world[0].begin(), next_world[0].end(), 0);
     }
 
     // Record equilibrium community
     emp::vector<int> starting_point = test_world[0];
     // Calculate pure-math growth rate
-    data.growth_rate = CalcGrowthRate(orig_pos, world);
+    data.growth_rate = doCalcGrowthRate(community);
     // Calculate synergy
     data.synergy = CalcSynergy(0, test_world);
     // Calculate equilibrium growth rate
@@ -491,16 +552,26 @@ class AEcoWorld {
     // Add synergy to synergy data node
     synergy_node.Add(data.synergy);
     //Add biomass to biomass data node
+    data.biomass = accumulate(data.species.begin(), data.species.end(), 0.0);
     biomass_node.Add(accumulate(data.species.begin(), data.species.end(), 0.0));
 
     // Now we're going to simulate up to time_limit number
     // of time steps to measure heredity and 
     // propogation-based fitness
-    int time = 0;
+    int time = 1;
     // Stop if hit the time limit or if the right-most cell is
     // able to do group-level reproduction (meaning the community
     // has spread across the entire test world and could keep going)
+
     while (!IsReproReady(num_cells - 1, test_world) && time < time_limit) {
+
+      // Group level repro will never occur with the values we're using
+      // Instead check if the final cell is similar enough to the beginning cell
+      // using heredity
+      double curr_heredity = 1.0 - emp::EuclideanDistance(test_world[num_cells - 1], starting_point) / ((double)MAX_POP*N_TYPES);
+      if(curr_heredity > .999){
+        break;
+      }
 
       // Handle within cell growth for each cell in test world
       for (int pos = 0; pos < num_cells; pos++) {
@@ -529,6 +600,7 @@ class AEcoWorld {
       // into test_world
       std::swap(test_world, next_world);
       // TODO: NEED TO CLEAR OUT next_world here!
+      std::fill(next_world[0].begin(), next_world[0].end(), 0);
       // Track time
       time++;
     }
@@ -544,6 +616,13 @@ class AEcoWorld {
 
     return data;
   }
+
+
+  //Get fitness of one cell
+  CellData GetFitness(size_t orig_pos){
+    return doGetFitness(world[orig_pos]);
+  }
+
 
   emp::Graph CalculateCommunityAssemblyGraph() {
 
@@ -642,13 +721,13 @@ class AEcoWorld {
         if (communities[id].stable) {
           if (curr_node != node_map[id]) {
             g.AddEdge(curr_node, node_map[id]);
-            std::cout << g.GetLabel(curr_node) << ", " << g.GetLabel(node_map[id]) << ", " << pos << std::endl;
+            //std::cout << g.GetLabel(curr_node) << ", " << g.GetLabel(node_map[id]) << ", " << pos << std::endl;
           }
         } else {
           emp_assert(emp::Has(node_map, communities[id].transitions_to));
           if (curr_node != node_map[communities[id].transitions_to]) {
             g.AddEdge(curr_node, node_map[communities[id].transitions_to]);
-            std::cout << g.GetLabel(curr_node)  << ", " << g.GetLabel(node_map[communities[id].transitions_to])  << ", " << pos << std::endl;         
+            //std::cout << g.GetLabel(curr_node)  << ", " << g.GetLabel(node_map[communities[id].transitions_to])  << ", " << pos << std::endl;         
           } 
         }
         comm.Toggle(pos);
@@ -659,9 +738,174 @@ class AEcoWorld {
 
   }
 
-  void CalculateCommunityLevelFitnessLandscape() {
+  emp::Graph CalculateCommunityLevelFitnessLandscape(std::string fitness_measure) {
+    emp::Graph g = CalculateCommunityAssemblyGraph();
+    struct fitnesses{
+      double growth_rate;
+      double biomass; 
+      double heredity;
+      double invasion_ability;
+      double resiliance;
+    };
 
+    std::map<std::string, fitnesses> found_fitnesses;
+    emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
+
+    for(emp::Graph::Node n: all_nodes){
+      std::string label = n.GetLabel();
+      bool found = false;
+      fitnesses curr_node_fitness;
+      fitnesses adjacent_node_fitness;
+
+      if(emp::Has(found_fitnesses, label)){
+        found = true;
+        curr_node_fitness = found_fitnesses[label];
+      }
+      if(found == false){
+        emp::vector<int> community;
+        for(char& c : label){
+          community.push_back((int)c);
+        }
+        //Need to reverse the vector, since the bit strings have reversed order from the world vectors
+        std::reverse(community.begin(), community.end());
+        //Need to get community to equillibrium
+        world_t test_world;
+        // world is 1x1
+        test_world.resize(1);
+        // Initialize empty test world
+        test_world[0].resize(config->N_TYPES(), 0);
+        test_world[0] = community; 
+        // Make a next_world for the test world to
+        // handle simulated updates in our test environment
+        world_t next_world;
+        next_world.resize(1);
+        next_world[0].resize(config->N_TYPES(), 0);
+
+        for (int i = 0; i < 30; i++) {
+          DoGrowth(0, test_world, next_world);
+          std::swap(test_world, next_world);
+          std::fill(next_world[0].begin(), next_world[0].end(), 0);
+        }
+        emp::vector<int> equillib_community = test_world[0];
+        CellData data = doGetFitness(equillib_community);
+        //TODO Use equillib growth rate?
+        curr_node_fitness.growth_rate = data.equilib_growth_rate;
+        curr_node_fitness.biomass = data.biomass;
+        curr_node_fitness.heredity = data.heredity;
+        curr_node_fitness.invasion_ability = data.invasion_ability;
+        curr_node_fitness.resiliance = n.GetDegree();
+        found_fitnesses[label] = curr_node_fitness;
+      }
+      emp::BitVector out_nodes = n.GetEdgeSet();
+      for(int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1)) {
+        if(emp::Has(found_fitnesses, g.GetLabel(pos))){
+          found = true;
+          adjacent_node_fitness = found_fitnesses[g.GetLabel(pos)];
+        }
+        if(found == false){
+          emp::vector<int> community;
+          for(char& c : g.GetLabel(pos)){
+            community.push_back((int)c);
+          }
+          //reverse community to get world vector
+          std::reverse(community.begin(), community.end());
+          //Need to get community to equillibrium
+          world_t test_world;
+          // world is 1x1
+          test_world.resize(1);
+          test_world[0].resize(config->N_TYPES(), 0);
+          test_world[0] = community; 
+          world_t next_world;
+          next_world.resize(1);
+          next_world[0].resize(config->N_TYPES(), 0);
+          for (int i = 0; i < 30; i++) {
+            DoGrowth(0, test_world, next_world);
+            std::swap(test_world, next_world);
+            std::fill(next_world[0].begin(), next_world[0].end(), 0);
+          }
+          emp::vector<int> equillib_community = test_world[0];
+          //Get the fitness of the community at equillibrium
+          CellData data = doGetFitness(equillib_community);
+          adjacent_node_fitness.growth_rate = data.equilib_growth_rate;
+          adjacent_node_fitness.biomass = data.biomass;
+          adjacent_node_fitness.heredity = data.heredity;
+          adjacent_node_fitness.invasion_ability = data.invasion_ability;
+          adjacent_node_fitness.resiliance = g.GetDegree(pos);
+          found_fitnesses[label] = adjacent_node_fitness;
+        }
+        if(fitness_measure.compare("Biomass") == 0){
+          if(curr_node_fitness.biomass > adjacent_node_fitness.biomass){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Growth_Rate") == 0){
+          if(curr_node_fitness.growth_rate > adjacent_node_fitness.growth_rate){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Heredity") == 0){
+          if(curr_node_fitness.heredity > adjacent_node_fitness.heredity){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Invasion_Ability") == 0){
+          if(curr_node_fitness.invasion_ability > adjacent_node_fitness.invasion_ability){
+            n.RemoveEdge(pos);
+          }
+        }
+        if(fitness_measure.compare("Resiliance") == 0){
+          if(curr_node_fitness.resiliance > adjacent_node_fitness.resiliance){
+            n.RemoveEdge(pos);
+          }
+        }
+      }
+    }
+
+    //TODO make sure g was modified 
+    return g;
   }
+
+
+  int calcAdaptabilityScore(std::string fitness_measure, world_t stable_world){
+    emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
+    emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
+
+    emp::vector<emp::Graph::Node> all_assembly_nodes = assemblyGraph.GetNodes();
+    emp::vector<emp::Graph::Node> all_fitness_nodes = fitnessGraph.GetNodes();
+
+    std::set<std::string> assemblySinks;
+    std::set<std::string> onlyFitnessSinks;
+
+    for(emp::Graph::Node n: all_assembly_nodes){
+      if(n.GetDegree() == 0){
+        assemblySinks.insert(n.GetLabel());
+      }
+    }
+    for(emp::Graph::Node n: all_fitness_nodes){
+      if(n.GetDegree() == 0 && assemblySinks.count(n.GetLabel()) == 0){
+        onlyFitnessSinks.insert(n.GetLabel());
+      }
+    }
+
+    int adaptability_score = 0;
+    for(emp::vector<int> cell: stable_world){
+      std::string temp = "";
+      for(int species: cell){
+        if(species > 0){
+          temp.append("1");
+        }
+        else{
+          temp.append("0");
+        }
+      }
+      std::reverse(temp.begin(), temp.end());
+      if(onlyFitnessSinks.count(temp) == 1){
+        adaptability_score++;
+      }
+    }
+    return adaptability_score;
+  }
+
 
   // Getter for current update/time step
   int GetTime() {
