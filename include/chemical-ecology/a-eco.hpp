@@ -64,6 +64,7 @@ class AEcoWorld {
 
     // Set up data tracking
     emp::DataFile data_file;
+    emp::DataFile score_file;
     emp::DataNode<double, emp::data::Stats> growth_rate_node;
     emp::DataNode<double, emp::data::Stats> synergy_node;
     emp::DataNode<double, emp::data::Stats> heredity_node;
@@ -75,7 +76,7 @@ class AEcoWorld {
 
   public:
   // Default constructor just has to set name of output file
-  AEcoWorld() : data_file("a-eco_data.csv") {;}
+  AEcoWorld() : data_file("a-eco_data.csv"), score_file("scores.csv") {;}
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -271,7 +272,7 @@ class AEcoWorld {
   }
 
 
-  //This funstion should be called to create a stable copy of the world for graph calculations
+  //This function should be called to create a stable copy of the world for graph calculations
   world_t stableUpdate(int num_updates){
     world_t stable_world;
     world_t next_stable_world;
@@ -321,11 +322,15 @@ class AEcoWorld {
     int invasion_score = calcAdaptabilityScore("Invasion_Ability", stable_world);
     int resiliance_score = calcAdaptabilityScore("Resiliance", stable_world);
 
-    data_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
-    data_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
-    data_file.AddVar(heredity_score, "Heredity_Score", "Heredity_Score");
-    data_file.AddVar(invasion_score, "Invasion_Ability_Score", "Invasion_Ability_Score");
-    data_file.AddVar(resiliance_score, "Resiliance_Score", "Resiliance_Score");
+    score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
+    score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
+    score_file.AddVar(heredity_score, "Heredity_Score", "Heredity_Score");
+    score_file.AddVar(invasion_score, "Invasion_Ability_Score", "Invasion_Ability_Score");
+    score_file.AddVar(resiliance_score, "Resiliance_Score", "Resiliance_Score");
+
+    score_file.PrintHeaderKeys();
+
+    score_file.Update();
     
     // Print out final state
     //std::cout << "World Vectors:" << std::endl;
@@ -716,13 +721,13 @@ class AEcoWorld {
         if (communities[id].stable) {
           if (curr_node != node_map[id]) {
             g.AddEdge(curr_node, node_map[id]);
-            std::cout << g.GetLabel(curr_node) << ", " << g.GetLabel(node_map[id]) << ", " << pos << std::endl;
+            //std::cout << g.GetLabel(curr_node) << ", " << g.GetLabel(node_map[id]) << ", " << pos << std::endl;
           }
         } else {
           emp_assert(emp::Has(node_map, communities[id].transitions_to));
           if (curr_node != node_map[communities[id].transitions_to]) {
             g.AddEdge(curr_node, node_map[communities[id].transitions_to]);
-            std::cout << g.GetLabel(curr_node)  << ", " << g.GetLabel(node_map[communities[id].transitions_to])  << ", " << pos << std::endl;         
+            //std::cout << g.GetLabel(curr_node)  << ", " << g.GetLabel(node_map[communities[id].transitions_to])  << ", " << pos << std::endl;         
           } 
         }
         comm.Toggle(pos);
@@ -763,7 +768,26 @@ class AEcoWorld {
         }
         //Need to reverse the vector, since the bit strings have reversed order from the world vectors
         std::reverse(community.begin(), community.end());
-        CellData data = doGetFitness(community);
+        //Need to get community to equillibrium
+        world_t test_world;
+        // world is 1x1
+        test_world.resize(1);
+        // Initialize empty test world
+        test_world[0].resize(config->N_TYPES(), 0);
+        test_world[0] = community; 
+        // Make a next_world for the test world to
+        // handle simulated updates in our test environment
+        world_t next_world;
+        next_world.resize(1);
+        next_world[0].resize(config->N_TYPES(), 0);
+
+        for (int i = 0; i < 30; i++) {
+          DoGrowth(0, test_world, next_world);
+          std::swap(test_world, next_world);
+          std::fill(next_world[0].begin(), next_world[0].end(), 0);
+        }
+        emp::vector<int> equillib_community = test_world[0];
+        CellData data = doGetFitness(equillib_community);
         //TODO Use equillib growth rate?
         curr_node_fitness.growth_rate = data.equilib_growth_rate;
         curr_node_fitness.biomass = data.biomass;
@@ -780,17 +804,32 @@ class AEcoWorld {
         }
         if(found == false){
           emp::vector<int> community;
-          //reverse this?
           for(char& c : g.GetLabel(pos)){
             community.push_back((int)c);
           }
+          //reverse community to get world vector
           std::reverse(community.begin(), community.end());
-          CellData data = doGetFitness(community);
+          //Need to get community to equillibrium
+          world_t test_world;
+          // world is 1x1
+          test_world.resize(1);
+          test_world[0].resize(config->N_TYPES(), 0);
+          test_world[0] = community; 
+          world_t next_world;
+          next_world.resize(1);
+          next_world[0].resize(config->N_TYPES(), 0);
+          for (int i = 0; i < 30; i++) {
+            DoGrowth(0, test_world, next_world);
+            std::swap(test_world, next_world);
+            std::fill(next_world[0].begin(), next_world[0].end(), 0);
+          }
+          emp::vector<int> equillib_community = test_world[0];
+          //Get the fitness of the community at equillibrium
+          CellData data = doGetFitness(equillib_community);
           adjacent_node_fitness.growth_rate = data.equilib_growth_rate;
           adjacent_node_fitness.biomass = data.biomass;
           adjacent_node_fitness.heredity = data.heredity;
           adjacent_node_fitness.invasion_ability = data.invasion_ability;
-          //TODO Make sure this works
           adjacent_node_fitness.resiliance = g.GetDegree(pos);
           found_fitnesses[label] = adjacent_node_fitness;
         }
