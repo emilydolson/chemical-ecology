@@ -7,7 +7,7 @@ namespace chemical_ecology {
   EMP_BUILD_CONFIG(Config,
     GROUP(GLOBAL_SETTINGS, "Global settings"),
     VALUE(SEED, int, -1, "Seed for a simulation"),
-    VALUE(N_TYPES, int, 10, "Number of types"),
+    VALUE(N_TYPES, int, 9, "Number of types"),
     VALUE(WORLD_X, int, 10, "Width world"),
     VALUE(WORLD_Y, int, 10, "Height world"),
     VALUE(UPDATES, int, 1000, "Number of time steps to run for"),
