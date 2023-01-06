@@ -316,11 +316,11 @@ class AEcoWorld {
 
     world_t stable_world = stableUpdate(20);
 
-    int biomass_score = calcAdaptabilityScore("Biomass", stable_world);
-    int growth_rate_score = calcAdaptabilityScore("Growth_Rate", stable_world);
-    int heredity_score = calcAdaptabilityScore("Heredity", stable_world);
-    int invasion_score = calcAdaptabilityScore("Invasion_Ability", stable_world);
-    int resiliance_score = calcAdaptabilityScore("Resiliance", stable_world);
+    double biomass_score = calcAdaptabilityScore("Biomass", stable_world);
+    double growth_rate_score = calcAdaptabilityScore("Growth_Rate", stable_world);
+    double heredity_score = calcAdaptabilityScore("Heredity", stable_world);
+    double invasion_score = calcAdaptabilityScore("Invasion_Ability", stable_world);
+    double resiliance_score = calcAdaptabilityScore("Resiliance", stable_world);
 
     score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
     score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
@@ -856,7 +856,8 @@ class AEcoWorld {
           }
         }
         if(fitness_measure.compare("Resiliance") == 0){
-          if(curr_node_fitness.resiliance > adjacent_node_fitness.resiliance){
+          //Need to do < here -- resiliance is the out degree. Lower out degree is better
+          if(curr_node_fitness.resiliance < adjacent_node_fitness.resiliance){
             g.SetEdge(curr_pos, pos, false);
           }
         }
@@ -866,7 +867,7 @@ class AEcoWorld {
   }
 
 
-  int calcAdaptabilityScore(std::string fitness_measure, world_t stable_world){
+  double calcAdaptabilityScore(std::string fitness_measure, world_t stable_world){
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
 
@@ -903,7 +904,10 @@ class AEcoWorld {
         adaptability_score++;
       }
     }
-    return adaptability_score;
+    //Return the proportion of cells that are in the fitnessonlysinks
+    int total_cells = stable_world.size() * stable_world[0].size();
+    double final_score = double(adaptability_score)/double(total_cells);
+    return final_score;
   }
 
 
