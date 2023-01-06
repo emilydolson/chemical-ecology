@@ -61,12 +61,24 @@ def calc_all_fitness(population, niched=False):
         biomasses = df['mean_Biomass'].values
         growth_rates = df['mean_Growth_Rate'].values
         heredities = df['mean_Heredity'].values
+        df2 = pd.read_csv('scores.csv')
+        b_score = df2['Biomass_Score'].values
+        g_score = df2['Growth_Rate_Score'].values
+        h_score = df2['Heredity_Score'].values
+        i_score = df2['Invasion_Ability_Score'].values
+        r_score = df2['Resiliance_Score'].values
         new_fitness = {
-            # TODO this is redundant -- should we be averaging first 5(?) runs and then subtracting?
+            # TODO use list slicing to subtract final pop from avg of first 5 pops
             'Biomass': biomasses[-1] - biomasses[0],
             'Growth_Rate': growth_rates[-1] - growth_rates[0],
             # Heredity always starts at 1 and goes down. Just take the final heredity value
-            'Heredity': heredities[-1]
+            'Heredity': heredities[-1],
+            # Scores
+            'Biomass_Score': b_score[0],
+            'Growth_Rate_Score': g_score[0],
+            'Heredity_Score': h_score[0],
+            'Invasion_Ability_Score': i_score[0],
+            'Resiliance_Score': r_score[0]
         }
         fitness_lst.append(new_fitness)
     #niching / fitness sharing
@@ -82,7 +94,12 @@ def calc_all_fitness(population, niched=False):
             new_fitness = {
                 'Biomass': fitnesses['Biomass'] / sharing,
                 'Growth_Rate': fitnesses['Growth_Rate'] / sharing,
-                'Heredity': fitnesses['Heredity'] / sharing
+                'Heredity': fitnesses['Heredity'] / sharing, 
+                'Biomass_Score': b_score[0]/sharing,
+                'Growth_Rate_Score': g_score[0]/sharing,
+                'Heredity_Score': h_score[0]/sharing,
+                'Invasion_Ability_Score': i_score[0]/sharing,
+                'Resiliance_Score': r_score[0]/sharing
             }
             niched_fitness_lst.append(new_fitness)
         return niched_fitness_lst
@@ -173,7 +190,7 @@ def run():
     pop_size = 100
     generations = 100
     population = create_pop(pop_size)
-    test_cases = ['Biomass', 'Growth_Rate', 'Heredity']
+    test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     for gen in range(generations):
         all_fitness = calc_all_fitness(population, True)
         parent_tuple = (None, population, all_fitness)
