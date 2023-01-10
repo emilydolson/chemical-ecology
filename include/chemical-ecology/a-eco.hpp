@@ -532,7 +532,6 @@ class AEcoWorld {
     for (int i = 0; i < 20; i++) {
       DoGrowth(0, test_world, next_world);
       std::swap(test_world, next_world);
-      // TODO: NEED TO CLEAR OUT next_world here!
       std::fill(next_world[0].begin(), next_world[0].end(), 0);
     }
 
@@ -543,7 +542,7 @@ class AEcoWorld {
     // Calculate synergy
     data.synergy = CalcSynergy(0, test_world);
     // Calculate equilibrium growth rate
-    data.equilib_growth_rate = CalcGrowthRate(0, test_world);
+    data.equilib_growth_rate = doCalcGrowthRate(starting_point);
     // Record community composition
     data.species = starting_point;
 
@@ -599,7 +598,6 @@ class AEcoWorld {
       // We've finished calculating next_world so we can swap it
       // into test_world
       std::swap(test_world, next_world);
-      // TODO: NEED TO CLEAR OUT next_world here!
       std::fill(next_world[0].begin(), next_world[0].end(), 0);
       // Track time
       time++;
@@ -766,30 +764,11 @@ class AEcoWorld {
       if(found == false){
         emp::vector<int> community;
         for(char& c : label){
-          community.push_back((int)c);
+          community.push_back((int)c - 48);
         }
         //Need to reverse the vector, since the bit strings have reversed order from the world vectors
         std::reverse(community.begin(), community.end());
-        //Need to get community to equillibrium
-        world_t test_world;
-        // world is 1x1
-        test_world.resize(1);
-        // Initialize empty test world
-        test_world[0].resize(config->N_TYPES(), 0);
-        test_world[0] = community; 
-        // Make a next_world for the test world to
-        // handle simulated updates in our test environment
-        world_t next_world;
-        next_world.resize(1);
-        next_world[0].resize(config->N_TYPES(), 0);
-
-        for (int i = 0; i < 30; i++) {
-          DoGrowth(0, test_world, next_world);
-          std::swap(test_world, next_world);
-          std::fill(next_world[0].begin(), next_world[0].end(), 0);
-        }
-        emp::vector<int> equillib_community = test_world[0];
-        CellData data = doGetFitness(equillib_community);
+        CellData data = doGetFitness(community);
         //TODO Use equillib growth rate?
         curr_node_fitness.growth_rate = data.equilib_growth_rate;
         curr_node_fitness.biomass = data.biomass;
@@ -807,27 +786,11 @@ class AEcoWorld {
         if(found == false){
           emp::vector<int> community;
           for(char& c : g.GetLabel(pos)){
-            community.push_back((int)c);
+            community.push_back((int)c - 48);
           }
           //reverse community to get world vector
           std::reverse(community.begin(), community.end());
-          //Need to get community to equillibrium
-          world_t test_world;
-          // world is 1x1
-          test_world.resize(1);
-          test_world[0].resize(config->N_TYPES(), 0);
-          test_world[0] = community; 
-          world_t next_world;
-          next_world.resize(1);
-          next_world[0].resize(config->N_TYPES(), 0);
-          for (int i = 0; i < 30; i++) {
-            DoGrowth(0, test_world, next_world);
-            std::swap(test_world, next_world);
-            std::fill(next_world[0].begin(), next_world[0].end(), 0);
-          }
-          emp::vector<int> equillib_community = test_world[0];
-          //Get the fitness of the community at equillibrium
-          CellData data = doGetFitness(equillib_community);
+          CellData data = doGetFitness(community);
           adjacent_node_fitness.growth_rate = data.equilib_growth_rate;
           adjacent_node_fitness.biomass = data.biomass;
           adjacent_node_fitness.heredity = data.heredity;

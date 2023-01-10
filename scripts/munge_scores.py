@@ -24,7 +24,7 @@ def main():
             reader = csv.reader(scores_file)
             data = list(reader)
             for i, score in enumerate(data[1]):
-                scores[i].append(int(score))
+                scores[i].append(float(score))
         scores_file.close()
 
     avg_scores = []
