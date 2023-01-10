@@ -751,7 +751,6 @@ class AEcoWorld {
 
     for(size_t curr_pos = 0; curr_pos < g.GetSize(); curr_pos++){
       emp::Graph::Node n = g.GetNode(curr_pos);
-    //for(emp::Graph::Node n: all_nodes){
       std::string label = n.GetLabel();
       bool found = false;
       fitnesses curr_node_fitness;
@@ -778,25 +777,27 @@ class AEcoWorld {
         found_fitnesses[label] = curr_node_fitness;
       }
       emp::BitVector out_nodes = n.GetEdgeSet();
-      for(int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1)) {
-        if(emp::Has(found_fitnesses, g.GetLabel(pos))){
-          found = true;
-          adjacent_node_fitness = found_fitnesses[g.GetLabel(pos)];
+      for(int pos = out_nodes.FindOne(); pos >= 0 && pos < out_nodes.size(); pos = out_nodes.FindOne(pos+1)) {
+        bool adj_found = false;
+        std::string adj_label = g.GetLabel(pos);
+        if(emp::Has(found_fitnesses, adj_label)){
+          adj_found = true;
+          adjacent_node_fitness = found_fitnesses[adj_label];
         }
-        if(found == false){
-          emp::vector<int> community;
-          for(char& c : g.GetLabel(pos)){
-            community.push_back((int)c - 48);
+        if(adj_found == false){
+          emp::vector<int> adj_community;
+          for(char& c : adj_label){
+            adj_community.push_back((int)c - 48);
           }
           //reverse community to get world vector
-          std::reverse(community.begin(), community.end());
-          CellData data = doGetFitness(community);
-          adjacent_node_fitness.growth_rate = data.equilib_growth_rate;
-          adjacent_node_fitness.biomass = data.biomass;
-          adjacent_node_fitness.heredity = data.heredity;
-          adjacent_node_fitness.invasion_ability = data.invasion_ability;
+          std::reverse(adj_community.begin(), adj_community.end());
+          CellData adj_data = doGetFitness(adj_community);
+          adjacent_node_fitness.growth_rate = adj_data.equilib_growth_rate;
+          adjacent_node_fitness.biomass = adj_data.biomass;
+          adjacent_node_fitness.heredity = adj_data.heredity;
+          adjacent_node_fitness.invasion_ability = adj_data.invasion_ability;
           adjacent_node_fitness.resiliance = g.GetDegree(pos);
-          found_fitnesses[label] = adjacent_node_fitness;
+          found_fitnesses[adj_label] = adjacent_node_fitness;
         }
         if(fitness_measure.compare("Biomass") == 0){
           if(curr_node_fitness.biomass > adjacent_node_fitness.biomass){
@@ -879,4 +880,105 @@ class AEcoWorld {
     return curr_update;
   }
 
+//   emp::vector<int> test(std::string fitness_measure, std::string l) {
+//     emp::Graph g = CalculateCommunityAssemblyGraph();
+//     struct fitnesses{
+//       double growth_rate;
+//       double biomass; 
+//       double heredity;
+//       double invasion_ability;
+//       double resiliance;
+//     };
+
+//     std::map<std::string, fitnesses> found_fitnesses;
+//     emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
+
+//     for(size_t curr_pos = 0; curr_pos < g.GetSize(); curr_pos++){
+//       emp::Graph::Node n = g.GetNode(curr_pos);
+//     //for(emp::Graph::Node n: all_nodes){
+//       std::string label = n.GetLabel();
+//       bool found = false;
+//       fitnesses curr_node_fitness;
+//       fitnesses adjacent_node_fitness;
+
+//       if(emp::Has(found_fitnesses, label)){
+//         found = true;
+//         curr_node_fitness = found_fitnesses[label];
+//       }
+//       if(found == false){
+//         emp::vector<int> community;
+//         for(char& c : label){
+//           community.push_back((int)c - 48);
+//         }
+//         //Need to reverse the vector, since the bit strings have reversed order from the world vectors
+//         std::reverse(community.begin(), community.end());
+//         CellData data = doGetFitness(community);
+//         if(l.compare(label) == 0){
+//           return community;
+//         }
+//         //TODO Use equillib growth rate?
+//         curr_node_fitness.growth_rate = data.equilib_growth_rate;
+//         curr_node_fitness.biomass = data.biomass;
+//         curr_node_fitness.heredity = data.heredity;
+//         curr_node_fitness.invasion_ability = data.invasion_ability;
+//         curr_node_fitness.resiliance = n.GetDegree();
+//         found_fitnesses[label] = curr_node_fitness;
+//       }
+//       emp::BitVector out_nodes = n.GetEdgeSet();
+//       for(int pos = out_nodes.FindOne(); pos >= 0 && pos < out_nodes.size(); pos = out_nodes.FindOne(pos+1)) {
+//         std::string adj_label = g.GetLabel(pos);
+//         if(emp::Has(found_fitnesses, adj_label)){
+//           found = true;
+//           adjacent_node_fitness = found_fitnesses[adj_label];
+//         }
+//         if(found == false){
+//           emp::vector<int> community;
+//           for(char& c : adj_label){
+//             community.push_back((int)c - 48);
+//           }
+//           //reverse community to get world vector
+//           std::reverse(community.begin(), community.end());
+//           CellData data = doGetFitness(community);
+//           if(l.compare(label) == 0){
+//           return community;
+//         }
+//           adjacent_node_fitness.growth_rate = data.equilib_growth_rate;
+//           adjacent_node_fitness.biomass = data.biomass;
+//           adjacent_node_fitness.heredity = data.heredity;
+//           adjacent_node_fitness.invasion_ability = data.invasion_ability;
+//           adjacent_node_fitness.resiliance = g.GetDegree(pos);
+//           found_fitnesses[adj_label] = adjacent_node_fitness;
+//         }
+//         if(fitness_measure.compare("Biomass") == 0){
+//           if(curr_node_fitness.biomass > adjacent_node_fitness.biomass){
+//             g.SetEdge(curr_pos, pos, false);
+//           }
+//         }
+//         if(fitness_measure.compare("Growth_Rate") == 0){
+//           if(curr_node_fitness.growth_rate > adjacent_node_fitness.growth_rate){
+//             g.SetEdge(curr_pos, pos, false);
+//           }
+//         }
+//         if(fitness_measure.compare("Heredity") == 0){
+//           if(curr_node_fitness.heredity > adjacent_node_fitness.heredity){
+//             g.SetEdge(curr_pos, pos, false);
+//           }
+//         }
+//         if(fitness_measure.compare("Invasion_Ability") == 0){
+//           if(curr_node_fitness.invasion_ability > adjacent_node_fitness.invasion_ability){
+//             g.SetEdge(curr_pos, pos, false);
+//           }
+//         }
+//         if(fitness_measure.compare("Resiliance") == 0){
+//           //Need to do < here -- resiliance is the out degree. Lower out degree is better
+//           if(curr_node_fitness.resiliance < adjacent_node_fitness.resiliance){
+//             g.SetEdge(curr_pos, pos, false);
+//           }
+//         }
+//       }
+//     }
+//     emp::vector<int> f;
+//     f.push_back(-1);
+//     return f;
+//   }
 };
