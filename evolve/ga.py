@@ -4,7 +4,7 @@ import random
 import sys
 import csv
 import numpy as np
-from klemm_eguiliuz import create_matrix
+from lfr_graph import create_matrix
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
 N_TYPES = 9
@@ -20,13 +20,26 @@ def create_pop(size):
         diffusion = round(random.random(), 3)
         seeding = round(random.random(), 3)
         clear = round(random.random(), 3)
-        clique_linkage = round(random.random(), 3)
-        mu = round(random.uniform(-0.5, 0.5), 3)
-        sigma = round(random.uniform(0, 0.5), 3)
-        clique_size = random.randint(1, N_TYPES-1)
-        genome = [diffusion, seeding, clear, clique_linkage, mu, sigma, clique_size]
+        mut = 0.3 #round(random.random(), 3)
+        muw = 0.1 #round(random.random(), 3)
+        beta = 1.5 #round(random.random(), 3)
+        tau = 2 #round(random.random(), 3)
+        tau2 = 1 #round(random.random(), 3)
+        pct_pos_in = round(random.random(), 3)
+        pct_pos_out = round(random.random(), 3)
+        com_size_min = random.randint(3, N_TYPES-3)
+        com_size_max = random.randint(com_size_min+1, N_TYPES-1)
+        average_k = random.randint(3, N_TYPES-3)
+        max_degree = random.randint(average_k+1, N_TYPES-2)
+        overlapping_nodes = random.randint(com_size_min, com_size_max)
+        overlap_membership = com_size_min
+        genome = [diffusion, seeding, clear, mut, muw, beta, tau, tau2, pct_pos_in, pct_pos_out, com_size_min, com_size_max, average_k, max_degree, overlapping_nodes, overlap_membership]
         pop.append(genome)
     return pop
+
+
+def euclidean_distance(genome_x, genome_y):
+    return np.linalg.norm(np.array(genome_x[0:5] + [b/10 for b in genome_x[5:]]) - np.array(genome_y[0:5] + [b/10 for b in genome_y[5:]]))
 
 
 def calc_all_fitness(population, niched=False):
@@ -35,7 +48,20 @@ def calc_all_fitness(population, niched=False):
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        interaction_matrix = create_matrix(num_nodes=N_TYPES, clique_size=genome[6], clique_linkage=genome[3], mu=genome[4], sigma=genome[5])
+        average_k = genome[12]
+        max_degree = genome[13]
+        mut = genome[3]
+        muw = genome[4]
+        beta = genome[5]
+        com_size_min = genome[10]
+        com_size_max = genome[11]
+        tau = genome[6]
+        tau2 = genome[7]
+        overlapping_nodes = genome[14]
+        overlap_membership = genome[15]
+        pct_pos_in = genome[8]
+        pct_pos_out = genome[9]
+        interaction_matrix = create_matrix(num_nodes=N_TYPES, average_k=average_k, max_degree=max_degree, mut=mut, muw=muw, beta=beta, com_size_min=com_size_min, com_size_max=com_size_max, tau=tau, tau2=tau2, overlapping_nodes=overlapping_nodes, overlap_membership=overlap_membership, pct_pos_in=pct_pos_in, pct_pos_out=pct_pos_out)
         interaction_matrix_file = 'interaction_matrix.dat'
         with open(interaction_matrix_file, 'w') as f:
             wr = csv.writer(f)
@@ -90,7 +116,7 @@ def calc_all_fitness(population, niched=False):
         for i in range(len(population)):
             genome_x = population[i]
             fitnesses = fitness_lst[i]
-            sharing = sum([max(0, 1 - (np.linalg.norm(np.array(genome_x[0:6] + [b/10 for b in genome_x[6:]]) - np.array(genome_y[0:6] + [b/10 for b in genome_y[6:]]))/sigma)**(alpha)) for genome_y in population])
+            sharing = sum([max(0, 1 - (euclidean_distance(genome_x, genome_y)/sigma)**(alpha)) for genome_y in population])
             new_fitness = {
                 'Biomass': fitnesses['Biomass'] / sharing,
                 'Growth_Rate': fitnesses['Growth_Rate'] / sharing,
@@ -158,30 +184,54 @@ def mutate(pop):
     for genome in pop:
         for i, param in enumerate(genome):
             if random.random() < 1/len(genome):
-                if i < 4: #diffusion, seeding, clear, clique_linkage
+                if i < 5:
                     param += random.gauss(0, 0.1)
                     if param < 0:
                         param = 0
                     if param > 1:
                         param = 1
-                if i == 4: #mu
+                elif i >= 5 and i <= 7:
                     param += random.gauss(0, 0.1)
-                    if param < -0.5:
-                        param = -0.5
-                    if param > 0.5:
-                        param = 0.5
-                if i == 5: #sigma
+                    if param < 1:
+                        param = 1
+                    if param > 2:
+                        param = 2
+                elif i == 8 or i == 9:
                     param += random.gauss(0, 0.1)
                     if param < 0:
                         param = 0
-                    if param > 0.5:
-                        param = 0.5
-                if i >= 6: #clique_size, seed
+                    if param > 0.75:
+                        param = 0.75
+                elif i == 10:
                     param += random.choice([-1, 1])
-                    if param < 1:
-                        param = 1
+                    if param < 3:
+                        param = 3
+                    if param > N_TYPES-3:
+                        param = N_TYPES-3
+                elif i == 11:
+                    param += random.choice([-1, 1])
+                    if param < genome[10]+1:
+                        param = genome[10]+1
                     if param > N_TYPES-1:
                         param = N_TYPES-1
+                elif i == 12:
+                    param += random.choice([-1, 1])
+                    if param < 3:
+                        param = 3
+                    if param > N_TYPES-3:
+                        param = N_TYPES-3
+                elif i == 13:
+                    param += random.choice([-1, 1])
+                    if param < genome[12]+1:
+                        param = genome[12]+1
+                    if param > N_TYPES-2:
+                        param = N_TYPES-2
+                elif i == 14:
+                    param += random.choice([-1, 1])
+                    if param < genome[10]:
+                        param = genome[10]
+                    if param > genome[11]:
+                        param = genome[11]
             genome[i] = round(param, 3)
     return pop
 
