@@ -9,6 +9,7 @@
 #include "chemical-ecology/config_setup.hpp"
 #include "emp/datastructs/map_utils.hpp"
 #include <string>
+#include "pagerank.h"
 
 // TERMINOLOGY NOTES:
 //
@@ -874,6 +875,18 @@ class AEcoWorld {
     return final_score;
   }
 
+  std::map<std::string, float> calculatePageRank(emp::Graph g) {
+    Table t;
+
+    t.set_trace(false);
+    t.set_numeric(false);
+    t.set_delim(" ");
+    t.read_graph(g);
+    t.pagerank();
+
+    std::map<std::string, float> map = t.get_pr_map();
+    return map;
+  }
 
   // Getter for current update/time step
   int GetTime() {
