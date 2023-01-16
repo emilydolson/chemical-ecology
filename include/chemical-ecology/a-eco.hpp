@@ -30,7 +30,7 @@ struct CellData {
                               // after growing to equilibrium
   double biomass;
   int count = 1;  // For counting the number of cells occupied by the same community
-  emp::vector<int> species; // The counts of each type in this cell
+  emp::vector<double> species; // The counts of each type in this cell
 };
 
 // A class to handle running the simple ecology
@@ -42,7 +42,7 @@ class AEcoWorld {
     
     // Although the world is stored as a flat vector of cells
     // it represents a grid of cells
-    using world_t = emp::vector<emp::vector<int> >;
+    using world_t = emp::vector<emp::vector<double> >;
 
     // The matrix of interactions between types
     // The diagonal of this matrix represents the 
@@ -59,7 +59,7 @@ class AEcoWorld {
     // These values are set in the config but we have local
     // copies for efficiency in accessing their values
     int N_TYPES;
-    int MAX_POP;
+    double MAX_POP;
     int curr_update;
 
     // Set up data tracking
@@ -70,9 +70,9 @@ class AEcoWorld {
     emp::DataNode<double, emp::data::Stats> heredity_node;
     emp::DataNode<double, emp::data::Stats> invasion_node;
     emp::DataNode<double, emp::data::Stats> biomass_node;
-    std::map<emp::vector<int>, CellData> dom_map;
-    emp::vector<int> fittest;
-    emp::vector<int> dominant;
+    std::map<emp::vector<double>, CellData> dom_map;
+    emp::vector<double> fittest;
+    emp::vector<double> dominant;
 
   public:
   // Default constructor just has to set name of output file
@@ -145,7 +145,7 @@ class AEcoWorld {
 
     // Set local config variables based on given configuration
     N_TYPES = config->N_TYPES();
-    MAX_POP = config->MAX_POP();
+    MAX_POP = double(config->MAX_POP());
 
     // Set seed to configured value for reproducibility
     rnd.ResetSeed(config->SEED());
@@ -153,9 +153,9 @@ class AEcoWorld {
     // world vector needs a spot for each cell in the grid
     world.resize(config->WORLD_X() * config->WORLD_Y());
     // Initialize world vector
-    for (emp::vector<int> & v : world) {
+    for (emp::vector<double> & v : world) {
       v.resize(N_TYPES);
-      for (int & count : v) {
+      for (double & count : v) {
         // The quantity of each type in each cell is either 0 or 1
         // The probability of it being 1 is controlled by SEEDING_PROB
         count = rnd.P(config->SEEDING_PROB());
@@ -207,7 +207,7 @@ class AEcoWorld {
     // for the next time step
     world_t next_world;
     next_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<int> & v : next_world) {
+    for (emp::vector<double> & v : next_world) {
       v.resize(N_TYPES, 0);
     }
 
@@ -278,12 +278,12 @@ class AEcoWorld {
     world_t next_stable_world;
 
     stable_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<int> & v : next_stable_world) {
+    for (emp::vector<double> & v : next_stable_world) {
       v.resize(N_TYPES, 0);
     }
 
     next_stable_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<int> & v : next_stable_world) {
+    for (emp::vector<double> & v : next_stable_world) {
       v.resize(N_TYPES, 0);
     }
 
@@ -343,7 +343,7 @@ class AEcoWorld {
     //WriteInteractionMatrix("interaction_matrix.dat");
   }
 
-  double doCalcGrowthRate(emp::vector<int> community){
+  double doCalcGrowthRate(emp::vector<double> community){
     double growth_rate = 0;
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
@@ -356,7 +356,7 @@ class AEcoWorld {
 
       // Add this type's overall growth rate to the cell-level
       // growth-rate
-      growth_rate += ceil(modifier*((double)community[i]/(double)MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      growth_rate += (modifier*(community[i]/MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
     }
     return growth_rate;
   }
@@ -398,13 +398,31 @@ class AEcoWorld {
       }
 
       // Grow linearly until we hit the cap
-      int new_pop = floor(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      double new_pop = modifier*curr_world[pos][i]; // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // Population size cannot be negative
-      next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0);
+      next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0.0);
       // Population size capped at MAX_POP
       next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
     }
   }
+
+  // Allows the assembly graph to handle growth
+  // void GraphDoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
+  //   for (int i = 0; i < N_TYPES; i++) {
+  //     double modifier = 0;
+  //     for (int j = 0; j < N_TYPES; j++) {
+  //       // Sum up growth rate modifier for current type 
+  //       modifier += interactions[i][j] * curr_world[pos][j];
+  //     }
+
+  //     // Grow linearly until we hit the cap
+  //     int new_pop = floor(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+  //     // Population size cannot be negative
+  //     next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0.0);
+  //     // Population size capped at MAX_POP
+  //     next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
+  //   }
+  // }
 
   // Check whether the total population of a cell is large enough
   // for group level replication
@@ -451,7 +469,7 @@ class AEcoWorld {
 
         // make sure final value is legal number
         next_world[direction][i] = std::min(next_world[direction][i], MAX_POP);
-        next_world[direction][i] = std::max(next_world[direction][i], 0);
+        next_world[direction][i] = std::max(next_world[direction][i], 0.0);
       }
     }
 
@@ -459,7 +477,7 @@ class AEcoWorld {
     for (int i = 0; i < N_TYPES; i++) {
       next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
       // We can't have negative population sizes
-      next_world[pos][i] = std::max(next_world[pos][i], 0);
+      next_world[pos][i] = std::max(next_world[pos][i], 0.0);
       // Check whether we should randomly add one individual
       // of this type
       // From the community level perspective this is basically
@@ -494,11 +512,11 @@ class AEcoWorld {
 
     // Track most populus community
     dominant = (*std::max_element(dom_map.begin(), dom_map.end(), 
-                [](const std::pair<emp::vector<int>, CellData> & v1, const std::pair<emp::vector<int>, CellData> & v2 ){return v1.second.count < v2.second.count;})).first;
+                [](const std::pair<emp::vector<double>, CellData> & v1, const std::pair<emp::vector<double>, CellData> & v2 ){return v1.second.count < v2.second.count;})).first;
   }
 
   //This function allows us to calculate the fitness with just take a community composition.
-  CellData doGetFitness(emp::vector<int> community) {
+  CellData doGetFitness(emp::vector<double> community) {
     CellData data;
     // Size of test world 
     // Test world is a num_cells x 1 grid
@@ -509,7 +527,7 @@ class AEcoWorld {
     world_t test_world;
     test_world.resize(num_cells);
     // Initialize empty test world
-    for (emp::vector<int> & v : test_world) {
+    for (emp::vector<double> & v : test_world) {
       v.resize(config->N_TYPES(), 0);
     }
 
@@ -521,7 +539,7 @@ class AEcoWorld {
     // handle simulated updates in our test environment
     world_t next_world;
     next_world.resize(num_cells);
-    for (emp::vector<int> & v : next_world) {
+    for (emp::vector<double> & v : next_world) {
       v.resize(config->N_TYPES(), 0);
     }
 
@@ -536,7 +554,7 @@ class AEcoWorld {
     }
 
     // Record equilibrium community
-    emp::vector<int> starting_point = test_world[0];
+    emp::vector<double> starting_point = test_world[0];
     // Calculate pure-math growth rate
     data.growth_rate = doCalcGrowthRate(community);
     // Calculate synergy
@@ -761,9 +779,9 @@ class AEcoWorld {
         curr_node_fitness = found_fitnesses[label];
       }
       if(found == false){
-        emp::vector<int> community;
+        emp::vector<double> community;
         for(char& c : label){
-          community.push_back((int)c - 48);
+          community.push_back((double)c - 48);
         }
         //Need to reverse the vector, since the bit strings have reversed order from the world vectors
         std::reverse(community.begin(), community.end());
@@ -785,9 +803,9 @@ class AEcoWorld {
           adjacent_node_fitness = found_fitnesses[adj_label];
         }
         if(adj_found == false){
-          emp::vector<int> adj_community;
+          emp::vector<double> adj_community;
           for(char& c : adj_label){
-            adj_community.push_back((int)c - 48);
+            adj_community.push_back((double)c - 48);
           }
           //reverse community to get world vector
           std::reverse(adj_community.begin(), adj_community.end());
@@ -853,7 +871,7 @@ class AEcoWorld {
     }
 
     int adaptability_score = 0;
-    for(emp::vector<int> cell: stable_world){
+    for(emp::vector<double> cell: stable_world){
       std::string temp = "";
       for(int species: cell){
         if(species > 0){
@@ -869,8 +887,8 @@ class AEcoWorld {
       }
     }
     //Return the proportion of cells that are in the fitnessonlysinks
-    int total_cells = stable_world.size() * stable_world[0].size();
-    double final_score = double(adaptability_score)/double(total_cells);
+    double total_cells = stable_world.size() * stable_world[0].size();
+    double final_score = double(adaptability_score)/total_cells;
     return final_score;
   }
 
