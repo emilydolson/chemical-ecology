@@ -714,35 +714,3 @@ const std::map<std::string, float> Table::get_pr_map() {
 
     return pr_map;
 }
-
-/*int main(int argc, char* argv[])
-{ 
-  // Set up a configuration panel for native application
-  setup_config_native(cfg, argc, argv);
-
-  cfg.Write(std::cout);
-
-  AEcoWorld world;
-  world.Setup(cfg);
-
-  emp::Graph g = world.CalculateCommunityAssemblyGraph();
-  
-    Table t;
-
-    t.set_trace(false);
-    t.set_numeric(false);
-    t.set_delim(" ");
-    t.read_graph(g);
-    t.pagerank();
-
-    std::map<std::string, float> map = t.get_pr_map();
-    std::map<std::string, float>::iterator it = map.begin();
-    // Iterate through the map and print the elements
-    while (it != map.end())
-    {
-        std::cout << it->first << " " << it->second << std::endl;
-        ++it;
-    }
-
-  return 0;
-}*/

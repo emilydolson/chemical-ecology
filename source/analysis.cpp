@@ -10,21 +10,11 @@
 #include "chemical-ecology/a-eco.hpp"
 #include "chemical-ecology/ExampleConfig.hpp"
 
-#include "pagerank.h"
-
 chemical_ecology::Config cfg;
 
-void printPageRank(emp::Graph g)
+void printPageRank(AEcoWorld world, emp::Graph g)
 {
-    Table t;
-
-    t.set_trace(false);
-    t.set_numeric(false);
-    t.set_delim(" ");
-    t.read_graph(g);
-    t.pagerank();
-
-    std::map<std::string, float> map = t.get_pr_map();
+    std::map<std::string, float> map = world.calculatePageRank(g);
     std::map<std::string, float>::iterator it = map.begin();
     while (it != map.end())
     {
@@ -59,7 +49,7 @@ int main(int argc, char* argv[])
   std::cout << "***Community Assembly***" << std::endl;
 
   emp::Graph g = world.CalculateCommunityAssemblyGraph();
-  //printPageRank(g);
+  //printPageRank(world, g);
   printGraph(g);
 
   std::vector<std::string> fitnessTypes{"Biomass", "Growth_Rate", "Heredity", "Invasion_Ability", "Resiliance"};
@@ -68,6 +58,7 @@ int main(int argc, char* argv[])
     std::cout << "***" << fitnessTypes[i] << "***" << std::endl;
     emp::Graph g2 = world.CalculateCommunityLevelFitnessLandscape(fitnessTypes[i]);
     printGraph(g2);
+    //printPageRank(world, g2);
   }
 
   world.WriteInteractionMatrix("interaction.dat");
