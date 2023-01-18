@@ -7,14 +7,13 @@
 #SBATCH --mail-user=foreba10@msu.edu
 
 ## Job name settings
-#SBATCH --job-name=GA_big_replicate
-#SBATCH -o ga_%A.out
+#SBATCH --job-name=help-me
 
 ## Time requirement in format "days-hours:minutes"
 #SBATCH --time=6-0:00
 
 ## Memory requirement in megabytes. You might need to make this bigger.
-#SBATCH --mem-per-cpu=1024                                                   
+#SBATCH --mem-per-cpu=5120                                                 
 
 module load GNU/8.2.0-2.31.1
 
@@ -29,15 +28,17 @@ cd $1
 # Get executable
 cp /mnt/home/$USER/chemical-ecology/chemical-ecology .
 
-mkdir evolve
-cd evolve
+# Get config
+cp -r /mnt/home/$USER/chemical-ecology/config .
 
-# Get scripts
-cp /mnt/home/$USER/chemical-ecology/evolve/ga.py .
-cp /mnt/home/$USER/chemical-ecology/evolve/lfr_graph.py .
+mkdir search
+cd search
 
-# Run ga script
-python3 ga.py > outfile.txt
+# Get script
+cp /mnt/home/$USER/chemical-ecology/scripts/search_world_params.py .
+
+# Run script
+python3 search_world_params.py > outfile.txt
 
 # Delete any out files that do not contain error messages
 find /mnt/home/$USER/chemical-ecology/evolve -type f -empty -delete
