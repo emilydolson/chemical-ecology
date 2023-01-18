@@ -12,15 +12,29 @@
 
 chemical_ecology::Config cfg;
 
+void printAdaptiveness(AEcoWorld world, std::set<std::string> finalCommunities, emp::Graph g)
+{
+  std::map<std::string, float> map = world.calculatePageRank(g);
+  std::map<std::string, float>::iterator it = map.begin();
+  while (it != map.end())
+  {
+    if (finalCommunities.find(it->first) != finalCommunities.end())
+      std::cout << it->first << " " << it->second << std::endl;
+    else
+      std::cout << it->first << " " << "0" << std::endl;
+    ++it;
+  }
+}
+
 void printPageRank(AEcoWorld world, emp::Graph g)
 {
-    std::map<std::string, float> map = world.calculatePageRank(g);
-    std::map<std::string, float>::iterator it = map.begin();
-    while (it != map.end())
-    {
-        std::cout << it->first << " " << it->second << std::endl;
-        ++it;
-    }
+  std::map<std::string, float> map = world.calculatePageRank(g);
+  std::map<std::string, float>::iterator it = map.begin();
+  while (it != map.end())
+  {
+      std::cout << it->first << " " << it->second << std::endl;
+      ++it;
+  }
 }
 
 void printGraph(emp::Graph g)
@@ -45,11 +59,14 @@ int main(int argc, char* argv[])
 
   AEcoWorld world;
   world.Setup(cfg);
+  //world.Run();
+
+  //emp::vector<emp::vector<int>> stable_world = world.stableUpdate(20);
+  //std::set<std::string> finalCommunities = world.getFinalCommunities(stable_world);
 
   std::cout << "***Community Assembly***" << std::endl;
-
   emp::Graph g = world.CalculateCommunityAssemblyGraph();
-  //printPageRank(world, g);
+  //printAdaptiveness(world, finalCommunities, g);
   printGraph(g);
 
   std::vector<std::string> fitnessTypes{"Biomass", "Growth_Rate", "Heredity", "Invasion_Ability", "Resiliance"};
@@ -58,7 +75,7 @@ int main(int argc, char* argv[])
     std::cout << "***" << fitnessTypes[i] << "***" << std::endl;
     emp::Graph g2 = world.CalculateCommunityLevelFitnessLandscape(fitnessTypes[i]);
     printGraph(g2);
-    //printPageRank(world, g2);
+    //printAdaptiveness(world, finalCommunities, g2);
   }
 
   world.WriteInteractionMatrix("interaction.dat");

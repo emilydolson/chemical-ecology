@@ -5,7 +5,7 @@ def visualize(edges, file_name, weights={}):
     graph = nx.DiGraph()
     graph.add_edges_from(edges)
 
-    print(file_name, ' nodes: ', graph.number_of_nodes())
+    print('nodes: ', graph.number_of_nodes())
 
     color_map = []
     for node in graph:
@@ -53,9 +53,14 @@ def main(with_pagerank=False):
                     curr_graph = graph_name
 
     for graph in graphs:
-        print(graph, ' edges: ', len(graphs[graph]))
-        visualize(graphs[graph], graph, weights[graph])
+        print(graph)
+        print('edges: ', len(graphs[graph]))
+        if with_pagerank:
+            visualize(graphs[graph], graph, weights[graph])
+        else:
+            visualize(graphs[graph], graph)
+        print()
 
 
 if __name__ == '__main__':
-    main(True)
+    main()
