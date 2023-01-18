@@ -197,7 +197,6 @@ class AEcoWorld {
     data_file.SetTimingRepeat(10);
     // Print column names to data_file
     data_file.PrintHeaderKeys();
-
   }
 
   // Handle an individual time step
@@ -316,12 +315,20 @@ class AEcoWorld {
     }
 
     world_t stable_world = stableUpdate(20);
+    std::set<std::string> finalCommunities = getFinalCommunities(stable_world);
 
-    double biomass_score = calcAdaptabilityScore("Biomass", stable_world);
-    double growth_rate_score = calcAdaptabilityScore("Growth_Rate", stable_world);
-    double heredity_score = calcAdaptabilityScore("Heredity", stable_world);
-    double invasion_score = calcAdaptabilityScore("Invasion_Ability", stable_world);
-    double resiliance_score = calcAdaptabilityScore("Resiliance", stable_world);
+    emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
+    std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
+    float assembly_score = 1;
+    for (std::string node : finalCommunities) {
+      assembly_score *= assembly_pr_map[node];
+    }
+
+    double biomass_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Biomass");
+    double growth_rate_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Growth_Rate");
+    double heredity_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Heredity");
+    double invasion_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Invasion_Ability");
+    double resiliance_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Resiliance");
 
     score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
     score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
@@ -399,7 +406,7 @@ class AEcoWorld {
       }
 
       // Grow linearly until we hit the cap
-      int new_pop = floor(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      int new_pop = ceil(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // Population size cannot be negative
       next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0);
       // Population size capped at MAX_POP
@@ -831,48 +838,16 @@ class AEcoWorld {
     return g;
   }
 
-
-  double calcAdaptabilityScore(std::string fitness_measure, world_t stable_world){
-    emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
+  double calcAdaptabilityScore(std::set<std::string> finalCommunities, float assembly_score, std::string fitness_measure) {
     emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
+    std::map<std::string, float> fitness_pr_map = calculatePageRank(fitnessGraph);
 
-    emp::vector<emp::Graph::Node> all_assembly_nodes = assemblyGraph.GetNodes();
-    emp::vector<emp::Graph::Node> all_fitness_nodes = fitnessGraph.GetNodes();
-
-    std::set<std::string> assemblySinks;
-    std::set<std::string> onlyFitnessSinks;
-
-    for(emp::Graph::Node n: all_assembly_nodes){
-      if(n.GetDegree() == 0){
-        assemblySinks.insert(n.GetLabel());
-      }
-    }
-    for(emp::Graph::Node n: all_fitness_nodes){
-      if(n.GetDegree() == 0 && assemblySinks.count(n.GetLabel()) == 0){
-        onlyFitnessSinks.insert(n.GetLabel());
-      }
+    double fitness_score = 1;
+    for (std::string node : finalCommunities) {
+      fitness_score *= fitness_pr_map[node];
     }
 
-    int adaptability_score = 0;
-    for(emp::vector<int> cell: stable_world){
-      std::string temp = "";
-      for(int species: cell){
-        if(species > 0){
-          temp.append("1");
-        }
-        else{
-          temp.append("0");
-        }
-      }
-      std::reverse(temp.begin(), temp.end());
-      if(onlyFitnessSinks.count(temp) == 1){
-        adaptability_score++;
-      }
-    }
-    //Return the proportion of cells that are in the fitnessonlysinks
-    int total_cells = stable_world.size() * stable_world[0].size();
-    double final_score = double(adaptability_score)/double(total_cells);
-    return final_score;
+    return fitness_score - assembly_score;
   }
 
   std::map<std::string, float> calculatePageRank(emp::Graph g) {
@@ -886,6 +861,24 @@ class AEcoWorld {
 
     std::map<std::string, float> map = t.get_pr_map();
     return map;
+  }
+
+  std::set<std::string> getFinalCommunities(world_t stable_world) {
+    std::set<std::string> finalCommunities;
+    for(emp::vector<int> cell: stable_world){
+      std::string temp = "";
+      for(int species: cell){
+        if(species > 0){
+          temp.append("1");
+        }
+        else{
+          temp.append("0");
+        }
+      }
+      std::reverse(temp.begin(), temp.end());
+      finalCommunities.insert(temp);
+    }
+    return finalCommunities;
   }
 
   // Getter for current update/time step
