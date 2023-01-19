@@ -272,13 +272,13 @@ def run():
 
 
 def track_avg_fitness(all_fitness, test_cases):
-    sum = 0
-    f = open("avg_fitness.txt", "w")
+    f = open("avg_fitness.txt", "a")
     for test in test_cases:
+        sum = 0
         for fitness in all_fitness:
             sum += fitness[test]
-            avg = sum / len(all_fitness)
-            f.write(test + ': ' + str(avg))
+        avg = sum / len(all_fitness)
+        f.write(test + ': ' + str(avg))
     f.close()
 
 
