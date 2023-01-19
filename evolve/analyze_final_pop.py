@@ -7,20 +7,30 @@ from matplotlib.colors import BoundaryNorm
 from lfr_graph import create_matrix
 
 
-def histograms(population):
-    diffusion = [x[0] for x in population]
-    seeding = [x[1] for x in population]
-    clear = [x[2] for x in population]
+def histograms(population, file_name):
+    figure, axis = plt.subplots(1, 1)
 
-    figure, axis = plt.subplots(3, 1, figsize=(9, 18))
-    axis[0].hist(diffusion)
-    axis[1].hist(seeding)
-    axis[2].hist(clear)
-    axis[0].set_xlabel('diffusion')
-    axis[1].set_xlabel('seeding')
-    axis[2].set_xlabel('clear')
+    param_names = ['diffusion', 'seeding', 'clear']
+    for i in range(3):
+        plt.hist([x[i] for x in population], bins=np.arange(0, 1 + 0.05, 0.05), stacked=True, label=param_names[i], alpha=0.66)
+    axis.set_xlim(0, 1)
+    figure.suptitle(file_name)
+    figure.legend()
 
-    plt.savefig('histograms.png')
+    plt.savefig(f'{file_name}_histograms.png')
+
+
+def histograms_scores(fitnesses, file_name):
+    figure, axis = plt.subplots(1, 1)
+    rng = 0.1
+    fitness_names = [x for x in fitnesses[0].keys() if 'Score' in x]
+    for i in range(5):
+        plt.hist([x[fitness_names[i]] for x in fitnesses], bins=np.arange(-rng, rng + 0.01, 0.01), stacked=True, label=fitness_names[i], alpha=0.66)
+    axis.set_xlim(-rng, rng)
+    figure.suptitle(file_name)
+    figure.legend()
+
+    plt.savefig(f'{file_name}_histograms_scores.png')
 
 
 def pareto_front(fitnesses):
@@ -95,8 +105,8 @@ def check_matrices(population):
     print(f'unique matrices: {len(unique)}')
 
 
-def get_final_pop():
-    final_pop = open('final_population').read()
+def get_final_pop(file_location):
+    final_pop = open(f'{file_location}/final_population').read()
     pop_list = []
     fitness_list = []
     for line in final_pop.split('\n'):
@@ -110,12 +120,19 @@ def get_final_pop():
     return pop_list, fitness_list
 
 
-if __name__ == '__main__':
-    population, fitnesses = get_final_pop()
-    check_matrices(population)
+def main(file_name):
+    file_path = f'/mnt/gs21/scratch/leithers/chemical-ecology/data/{file_name}/evolve'
+    population, fitnesses = get_final_pop(file_path)
+    histograms(population, file_name)
+    histograms_scores(fitnesses, file_name)
+    #check_matrices(population)
 
-    interactions = create_matrix_unformatted(population[0])
-    with open("interaction_matrix.dat", "w") as f:
-        wr = csv.writer(f)
-        wr.writerows(interactions)
-    visualize_network('interaction_matrix.dat', 'interaction_matrix.png')
+    #interactions = create_matrix_unformatted(population[0])
+    #with open("interaction_matrix.dat", "w") as f:
+        #wr = csv.writer(f)
+        #wr.writerows(interactions)
+    #visualize_network('interaction_matrix.dat', 'interaction_matrix.png')
+
+
+if __name__ == '__main__':
+    main('evolve_ceil_scores_only')
