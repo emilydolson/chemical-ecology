@@ -50,7 +50,7 @@
 
 using namespace std;
 
-const double DEFAULT_ALPHA = 0.85;
+const double DEFAULT_ALPHA = 1;
 const double DEFAULT_CONVERGENCE = 0.00001;
 const unsigned long DEFAULT_MAX_ITERATIONS = 10000;
 const bool DEFAULT_NUMERIC = false;
