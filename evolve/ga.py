@@ -240,12 +240,15 @@ def run():
     pop_size = 100
     generations = 100
     population = create_pop(pop_size)
-    test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    #test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     for gen in range(generations):
         all_fitness = calc_all_fitness(population, True)
+        track_avg_fitness(all_fitness, test_cases)
         parent_tuple = (None, population, all_fitness)
         parents = []
         for _ in range(pop_size//2):
+            #Returns (winner, pop, all_fitness)
             parent_tuple = lexicase_select(parent_tuple[1], parent_tuple[2], test_cases)
             parents.append(parent_tuple[0])
         #Crossover
@@ -265,6 +268,17 @@ def run():
     f.write("pop size: " + str(pop_size) + "\ngenerations: " + str(generations) + "\n")
     for i in range(len(final_fitness)):
         f.write(str(final_fitness[i]) + '  ' + str(population[i]) + '\n\n')
+    f.close()
+
+
+def track_avg_fitness(all_fitness, test_cases):
+    sum = 0
+    f = open("avg_fitness.txt", "w")
+    for test in test_cases:
+        for fitness in all_fitness:
+            sum += fitness[test]
+            avg = sum / len(all_fitness)
+            f.write(test + ': ' + str(avg))
     f.close()
 
 

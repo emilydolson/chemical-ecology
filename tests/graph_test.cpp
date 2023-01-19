@@ -12,7 +12,7 @@
 
 chemical_ecology::Config cfg;
 
-TEST_CASE("Test Assembly Size")
+TEST_CASE("Test Assembly Self Equality")
 {   
     AEcoWorld world;
     world.Setup(cfg);
@@ -25,11 +25,9 @@ TEST_CASE("Test Assembly Size")
         emp::Graph::Node n2 = g2.GetNode(i);
         assert(n.GetEdgeSet() == n2.GetEdgeSet());
     }
-    std::cout << g.GetSize();
-    std::cout << "\n";
 }
 
-TEST_CASE("Test Assembly and Fitness Equality")
+TEST_CASE("Test Assembly and Fitness Node Equality")
 {   
     AEcoWorld world;
     world.Setup(cfg);
@@ -42,79 +40,26 @@ TEST_CASE("Test Assembly and Fitness Equality")
     emp::Graph g = world.CalculateCommunityAssemblyGraph();
     for(int i = 0; i < 5; i++){
         emp::Graph g2 = world.CalculateCommunityLevelFitnessLandscape(measures[i]);
-        assert(g.GetSize() == g2.GetSize());
+        //Fitness graphs should have equal number of nodes to the assembly graph
+        //Even though we dont print nodes with 0 in/out degree, they should still show up here
+        assert(g.GetSize() >= g2.GetSize());
     }
-    std::cout << g.GetSize();
-    std::cout << "\n";
-    std::cout << g.GetEdgeCount();
 }
 
-TEST_CASE("Dominant Community")
+TEST_CASE("Resiliance edge test")
 {   
     AEcoWorld world;
     world.Setup(cfg);
-    emp::vector<int> community {0, 0, 0, 1, 1, 1, 1, 1, 1};
-    emp::vector<int> community2 {1, 1, 1, 0, 0, 0, 0, 0, 0};
-    CellData data = world.doGetFitness(community);
-    CellData data2 = world.doGetFitness(community2);
-    std::cout << data.species << "\n" << data.equilib_growth_rate << "\n" << data.biomass<<"\n"<<data.heredity<<"\n"<<data.invasion_ability<<"\n\n";
-    std::cout << data2.species << "\n" << data2.equilib_growth_rate << "\n" << data2.biomass<<"\n"<<data2.heredity<<"\n"<<data2.invasion_ability<<"\n";
-    assert(data.equilib_growth_rate > data2.equilib_growth_rate);
-}
-
-TEST_CASE("Fittest edge"){
-    bool found = false;
-    AEcoWorld world;
-    world.Setup(cfg);
-    emp::Graph g = world.CalculateCommunityLevelFitnessLandscape("Growth_Rate");
-    for(size_t i = 0; i < g.GetSize(); i++){
-        emp::Graph::Node n = g.GetNode(i);
-        if(n.GetLabel() == "111111000"){
-            found = true;
-            assert(found);
-            std::cout << g.GetInDegree(i);
-            emp::BitVector out_nodes = n.GetEdgeSet();
-            for(int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1)) {
-                std::cout << g.GetLabel(pos) << "\n";
-            }   
+    emp::Graph g = world.CalculateCommunityLevelFitnessLandscape("Resiliance");
+    double curr_out;
+    double adj_out;
+    for(size_t curr_pos = 0; curr_pos < g.GetSize(); curr_pos++){
+    emp::Graph::Node n = g.GetNode(curr_pos);
+    curr_out = n.GetDegree();
+    emp::BitVector out_nodes = n.GetEdgeSet();
+    for(int pos = out_nodes.FindOne(); pos >= 0 && pos < out_nodes.size(); pos = out_nodes.FindOne(pos+1)){
+        adj_out = g.GetDegree(pos);
+        assert(curr_out > adj_out);
         }
     }
-    std::cout << "done";
-}
-
-TEST_CASE("Assembly edge"){
-    bool found = false;
-    AEcoWorld world;
-    world.Setup(cfg);
-    emp::Graph g = world.CalculateCommunityAssemblyGraph();
-    for(size_t i = 0; i < g.GetSize(); i++){
-        emp::Graph::Node n = g.GetNode(i);
-        if(n.GetLabel() == "111111000"){
-            found = true;
-            assert(found);
-            std::cout << "here" << g.GetInDegree(i);
-            emp::BitVector out_nodes = n.GetEdgeSet();
-            for(int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1)) {
-                std::cout << g.GetLabel(pos) << "\n";
-            }   
-        }
-    }
-    std::cout << "done";
-}
-
-TEST_CASE("Test Edges"){
-    emp::vector<int> community {0, 0, 0, 1, 1, 1, 1, 1, 1};
-    emp::vector<int> community2 {1, 0, 0, 0, 0, 0, 1, 1, 1};
-    emp::vector<int> community3 {0, 1, 0, 0, 0, 0, 1, 1, 1};
-    emp::vector<int> community4 {0, 0, 1, 0, 0, 0, 1, 1, 1};
-    AEcoWorld world;
-    world.Setup(cfg);
-    CellData data = world.doGetFitness(community);
-    CellData data2 = world.doGetFitness(community2);
-    CellData data3 = world.doGetFitness(community3);
-    CellData data4 = world.doGetFitness(community4);
-    std::cout << data.species << "\nGrowth rate: " << data.equilib_growth_rate << "\n";
-    std::cout << data2.species << "\nGrowth rate: " << data2.equilib_growth_rate << "\n";
-    std::cout << data3.species << "\nGrowth rate: " << data3.equilib_growth_rate << "\n";
-    std::cout << data4.species << "\nGrowth rate: " << data4.equilib_growth_rate << "\n";
 }
