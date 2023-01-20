@@ -4,6 +4,7 @@ import random
 import sys
 import csv
 import numpy as np
+from copy import deepcopy
 from lfr_graph import create_matrix
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
@@ -249,7 +250,7 @@ def run():
         parents = []
         for _ in range(pop_size//2):
             #Returns (winner, pop, all_fitness)
-            parent_tuple = lexicase_select(parent_tuple[1], parent_tuple[2], test_cases)
+            parent_tuple = lexicase_select(parent_tuple[1], parent_tuple[2], deepcopy(test_cases))
             parents.append(parent_tuple[0])
         #Crossover
         new_population = []
@@ -278,7 +279,8 @@ def track_avg_fitness(all_fitness, test_cases):
         for fitness in all_fitness:
             sum += fitness[test]
         avg = sum / len(all_fitness)
-        f.write(test + ': ' + str(avg))
+        f.write(test + ': ' + str(avg) + '\n')
+    f.write('\n')
     f.close()
 
 
