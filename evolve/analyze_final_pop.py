@@ -2,12 +2,15 @@ import json
 import ast
 import csv
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
 from lfr_graph import create_matrix
 
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
-def histograms(population, file_name):
+def histogram_params(population, file_name):
     figure, axis = plt.subplots(1, 1)
 
     param_names = ['diffusion', 'seeding', 'clear']
@@ -17,14 +20,14 @@ def histograms(population, file_name):
     figure.suptitle(file_name)
     figure.legend()
 
-    plt.savefig(f'{file_name}_histograms.png')
+    plt.savefig(f'{file_name}_histograms_params.png')
 
 
-def histograms_scores(fitnesses, file_name):
+def histogram_scores(fitnesses, file_name):
     figure, axis = plt.subplots(1, 1)
     rng = 0.1
     fitness_names = [x for x in fitnesses[0].keys() if 'Score' in x]
-    for i in range(5):
+    for i in range(len(fitness_names)):
         plt.hist([x[fitness_names[i]] for x in fitnesses], bins=np.arange(-rng, rng + 0.01, 0.01), stacked=True, label=fitness_names[i], alpha=0.66)
     axis.set_xlim(-rng, rng)
     figure.suptitle(file_name)
@@ -105,6 +108,34 @@ def check_matrices(population):
     print(f'unique matrices: {len(unique)}')
 
 
+def get_avg_fitness(file_location):
+    avg_fitnesses = open(f'{file_location}/avg_fitness.txt').read()
+    avg_fitness_list = [{}]
+    for line in avg_fitnesses.split('\n'):
+        if len(line) < 3:
+            avg_fitness_list.append({})
+        else:
+            name, value = line.split(': ')
+            avg_fitness_list[-1][name] = float(value)
+    return avg_fitness_list[:-2]
+            
+
+def avg_fitness_over_time(avg_fitnesses, file_name):
+    fitness_names = [x for x in avg_fitnesses[0].keys() if 'Score' in x]
+    avg_fitness_sep = [[] for _ in range(5)]
+    for fitnesses in avg_fitnesses:
+        for i in range(len(fitness_names)):
+            avg_fitness_sep[i].append(fitnesses[fitness_names[i]])
+    
+    figure, axis = plt.subplots(1, 1)
+    for i in range(len(fitness_names)):
+        plt.plot(avg_fitness_sep[i], label=fitness_names[i])
+    figure.suptitle(file_name)
+    figure.legend()
+
+    plt.savefig(f'{file_name}_avg_fitness.png')
+
+
 def get_final_pop(file_location):
     final_pop = open(f'{file_location}/final_population').read()
     pop_list = []
@@ -123,8 +154,9 @@ def get_final_pop(file_location):
 def main(file_name):
     file_path = f'/mnt/gs21/scratch/leithers/chemical-ecology/data/{file_name}/evolve'
     population, fitnesses = get_final_pop(file_path)
-    histograms(population, file_name)
-    histograms_scores(fitnesses, file_name)
+    histogram_params(population, file_name)
+    histogram_scores(fitnesses, file_name)
+    avg_fitness_over_time(get_avg_fitness(file_path), file_name)
     #check_matrices(population)
 
     #interactions = create_matrix_unformatted(population[0])
@@ -135,4 +167,4 @@ def main(file_name):
 
 
 if __name__ == '__main__':
-    main('evolve_ceil_scores_only')
+    main('temp')
