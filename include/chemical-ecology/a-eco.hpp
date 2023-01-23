@@ -324,17 +324,18 @@ class AEcoWorld {
       assembly_score *= assembly_pr_map[node];
     }
 
-    double biomass_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Biomass");
-    double growth_rate_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Growth_Rate");
-    double heredity_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Heredity");
-    double invasion_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Invasion_Ability");
-    double resiliance_score = calcAdaptabilityScore(finalCommunities, assembly_score, "Resiliance");
+    double biomass_score = calcAdaptabilityScore(finalCommunities, "Biomass");
+    double growth_rate_score = calcAdaptabilityScore(finalCommunities, "Growth_Rate");
+    double heredity_score = calcAdaptabilityScore(finalCommunities, "Heredity");
+    double invasion_score = calcAdaptabilityScore(finalCommunities, "Invasion_Ability");
+    double resiliance_score = calcAdaptabilityScore(finalCommunities, "Resiliance");
 
     score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
     score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
     score_file.AddVar(heredity_score, "Heredity_Score", "Heredity_Score");
     score_file.AddVar(invasion_score, "Invasion_Ability_Score", "Invasion_Ability_Score");
     score_file.AddVar(resiliance_score, "Resiliance_Score", "Resiliance_Score");
+    score_file.AddVar(assembly_score, "Assembly_Score", "Assembly_Score");
 
     score_file.PrintHeaderKeys();
 
@@ -856,7 +857,7 @@ class AEcoWorld {
     return g;
   }
 
-  double calcAdaptabilityScore(std::set<std::string> finalCommunities, float assembly_score, std::string fitness_measure) {
+  double calcAdaptabilityScore(std::set<std::string> finalCommunities, std::string fitness_measure) {
     emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
     std::map<std::string, float> fitness_pr_map = calculatePageRank(fitnessGraph);
 
@@ -865,7 +866,7 @@ class AEcoWorld {
       fitness_score *= fitness_pr_map[node];
     }
 
-    return fitness_score - assembly_score;
+    return fitness_score;
   }
 
   std::map<std::string, float> calculatePageRank(emp::Graph g) {
