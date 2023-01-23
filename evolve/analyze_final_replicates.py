@@ -71,6 +71,22 @@ def avg_fitnesses_over_time(avg_fitnesseses, file_name):
     plt.savefig(f'{file_name}_avg_fitnesses.png')
 
 
+def get_adaptive_genomes(populations, fitnesses, print_genomes=True):
+    fitness_names = [x for x in fitnesses[0][0].keys() if 'Score' in x]
+    num_adaptive = 0
+    for r in range(len(populations)): #replicates
+        for g in range(len(populations[r])): #genomes
+            num_adaptive_local = 0
+            for f in fitness_names:
+                if fitnesses[r][g][f] > 0:
+                    num_adaptive_local += 1
+            if num_adaptive_local >= 4:
+                if print_genomes:
+                    print(populations[r][g], {x: fitnesses[r][g][x] for x in fitnesses[r][g] if 'Score' in x})
+                num_adaptive += 1
+    print(f'Adaptive genomes: {num_adaptive} out of {len(populations)*len(populations[0])}')
+
+
 def main(file_name):
     file_path = f'/mnt/gs21/scratch/leithers/chemical-ecology/data/{file_name}'
     populations = []
@@ -85,6 +101,7 @@ def main(file_name):
     histograms_params(populations, file_name)
     histograms_scores(fitnesses, file_name)
     avg_fitnesses_over_time(avg_fitnesses, file_name)
+    get_adaptive_genomes(populations, fitnesses)
 
 
 if __name__ == '__main__':
