@@ -21,19 +21,19 @@ def create_pop(size):
         diffusion = round(random.random(), 3)
         seeding = round(random.random(), 3)
         clear = round(random.random(), 3)
-        mut = 0.3 #round(random.random(), 3)
-        muw = 0.1 #round(random.random(), 3)
-        beta = 1.5 #round(random.random(), 3)
-        tau = 2 #round(random.random(), 3)
-        tau2 = 1 #round(random.random(), 3)
+        mut = 0.3
+        muw = 0.1
+        beta = 1.5
+        tau = 2
+        tau2 = 1
         pct_pos_in = round(random.random(), 3)
         pct_pos_out = round(random.random(), 3)
         com_size_min = random.randint(3, N_TYPES-3)
         com_size_max = random.randint(com_size_min+1, N_TYPES-1)
         average_k = random.randint(3, N_TYPES-3)
         max_degree = random.randint(average_k+1, N_TYPES-2)
-        overlapping_nodes = random.randint(com_size_min, com_size_max)
-        overlap_membership = com_size_min
+        overlapping_nodes = 0 #random.randint(0, com_size_min-1)
+        overlap_membership = 0 #random.randint(0, com_size_min-1)
         genome = [diffusion, seeding, clear, mut, muw, beta, tau, tau2, pct_pos_in, pct_pos_out, com_size_min, com_size_max, average_k, max_degree, overlapping_nodes, overlap_membership]
         pop.append(genome)
     return pop
@@ -63,51 +63,64 @@ def calc_all_fitness(population, niched=False):
         pct_pos_in = genome[8]
         pct_pos_out = genome[9]
         interaction_matrix = create_matrix(num_nodes=N_TYPES, average_k=average_k, max_degree=max_degree, mut=mut, muw=muw, beta=beta, com_size_min=com_size_min, com_size_max=com_size_max, tau=tau, tau2=tau2, overlapping_nodes=overlapping_nodes, overlap_membership=overlap_membership, pct_pos_in=pct_pos_in, pct_pos_out=pct_pos_out)
-        interaction_matrix_file = 'interaction_matrix.dat'
-        with open(interaction_matrix_file, 'w') as f:
-            wr = csv.writer(f)
-            wr.writerows(interaction_matrix)
-        chem_eco = subprocess.Popen(
-            [(f'../chemical-ecology '
-            f'-DIFFUSION {diffusion} '
-            f'-SEEDING_PROB {seeding} '
-            f'-PROB_CLEAR {clear} ' 
-            f'-INTERACTION_SOURCE {interaction_matrix_file} '
-            f'-REPRO_THRESHOLD {REPRO_THRESHOLD} '
-            f'-MAX_POP {MAX_POP} '
-            f'-WORLD_X {WORLD_X} '
-            f'-WORLD_Y {WORLD_Y} '
-            f'-N_TYPES {N_TYPES}')],
-            shell=True, 
-            stdout=subprocess.DEVNULL)
-        return_code = chem_eco.wait()
-        if return_code != 0:
-            print("Error in a-eco, return code:", return_code)
-            sys.stdout.flush()
-        df = pd.read_csv('a-eco_data.csv')
-        biomasses = df['mean_Biomass'].values
-        growth_rates = df['mean_Growth_Rate'].values
-        heredities = df['mean_Heredity'].values
-        df2 = pd.read_csv('scores.csv')
-        b_score = df2['Biomass_Score'].values
-        g_score = df2['Growth_Rate_Score'].values
-        h_score = df2['Heredity_Score'].values
-        i_score = df2['Invasion_Ability_Score'].values
-        r_score = df2['Resiliance_Score'].values
-        new_fitness = {
-            # TODO use list slicing to subtract final pop from avg of first 5 pops
-            'Biomass': biomasses[-1] - biomasses[0],
-            'Growth_Rate': growth_rates[-1] - growth_rates[0],
-            # Heredity always starts at 1 and goes down. Just take the final heredity value
-            'Heredity': heredities[-1],
-            # Scores
-            'Biomass_Score': b_score[0],
-            'Growth_Rate_Score': g_score[0],
-            'Heredity_Score': h_score[0],
-            'Invasion_Ability_Score': i_score[0],
-            'Resiliance_Score': r_score[0]
-        }
-        fitness_lst.append(new_fitness)
+        if sum([sum(x) for x in interaction_matrix]) == 0:
+            new_fitness = {
+                'Biomass': 0,
+                'Growth_Rate': 0,
+                'Heredity': 0,
+                'Biomass_Score': -1,
+                'Growth_Rate_Score': -1,
+                'Heredity_Score': -1,
+                'Invasion_Ability_Score': -1,
+                'Resiliance_Score': -1
+            }
+            fitness_lst.append(new_fitness)
+        else:
+            interaction_matrix_file = 'interaction_matrix.dat'
+            with open(interaction_matrix_file, 'w') as f:
+                wr = csv.writer(f)
+                wr.writerows(interaction_matrix)
+            chem_eco = subprocess.Popen(
+                [(f'../chemical-ecology '
+                f'-DIFFUSION {diffusion} '
+                f'-SEEDING_PROB {seeding} '
+                f'-PROB_CLEAR {clear} ' 
+                f'-INTERACTION_SOURCE {interaction_matrix_file} '
+                f'-REPRO_THRESHOLD {REPRO_THRESHOLD} '
+                f'-MAX_POP {MAX_POP} '
+                f'-WORLD_X {WORLD_X} '
+                f'-WORLD_Y {WORLD_Y} '
+                f'-N_TYPES {N_TYPES}')],
+                shell=True, 
+                stdout=subprocess.DEVNULL)
+            return_code = chem_eco.wait()
+            if return_code != 0:
+                print("Error in a-eco, return code:", return_code)
+                sys.stdout.flush()
+            df = pd.read_csv('a-eco_data.csv')
+            biomasses = df['mean_Biomass'].values
+            growth_rates = df['mean_Growth_Rate'].values
+            heredities = df['mean_Heredity'].values
+            df2 = pd.read_csv('scores.csv')
+            b_score = df2['Biomass_Score'].values
+            g_score = df2['Growth_Rate_Score'].values
+            h_score = df2['Heredity_Score'].values
+            i_score = df2['Invasion_Ability_Score'].values
+            r_score = df2['Resiliance_Score'].values
+            new_fitness = {
+                # TODO use list slicing to subtract final pop from avg of first 5 pops
+                'Biomass': biomasses[-1] - biomasses[0],
+                'Growth_Rate': growth_rates[-1] - growth_rates[0],
+                # Heredity always starts at 1 and goes down. Just take the final heredity value
+                'Heredity': heredities[-1],
+                # Scores
+                'Biomass_Score': b_score[0],
+                'Growth_Rate_Score': g_score[0],
+                'Heredity_Score': h_score[0],
+                'Invasion_Ability_Score': i_score[0],
+                'Resiliance_Score': r_score[0]
+            }
+            fitness_lst.append(new_fitness)
     #niching / fitness sharing
     #based on formula in https://www.sciencedirect.com/science/article/pii/S0304397518304882
     if niched:
@@ -185,7 +198,13 @@ def mutate(pop):
     for genome in pop:
         for i, param in enumerate(genome):
             if random.random() < 1/len(genome):
-                if i < 5:
+                if i == 1:
+                    param += random.gauss(0, 0.1)
+                    if param < 0.01:
+                        param = 0.01
+                    if param > 1:
+                        param = 1
+                if i < 5 and i != 1:
                     param += random.gauss(0, 0.1)
                     if param < 0:
                         param = 0
@@ -227,12 +246,12 @@ def mutate(pop):
                         param = genome[12]+1
                     if param > N_TYPES-2:
                         param = N_TYPES-2
-                elif i == 14:
+                elif i == 14 or i == 15:
                     param += random.choice([-1, 1])
-                    if param < genome[10]:
-                        param = genome[10]
-                    if param > genome[11]:
-                        param = genome[11]
+                    if param < 0:
+                        param = 0
+                    if param > genome[10]-1:
+                        param = genome[10]-1
             genome[i] = round(param, 3)
     return pop
 
@@ -241,11 +260,12 @@ def run():
     pop_size = 100
     generations = 100
     population = create_pop(pop_size)
-    #test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
-    test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    #test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     for gen in range(generations):
         all_fitness = calc_all_fitness(population, True)
         track_avg_fitness(all_fitness, test_cases)
+        track_max_fitness(all_fitness, test_cases)
         parent_tuple = (None, population, all_fitness)
         parents = []
         for _ in range(pop_size//2):
@@ -275,11 +295,22 @@ def run():
 def track_avg_fitness(all_fitness, test_cases):
     f = open("avg_fitness.txt", "a")
     for test in test_cases:
-        sum = 0
+        sum_fitness = 0
         for fitness in all_fitness:
-            sum += fitness[test]
-        avg = sum / len(all_fitness)
+            sum_fitness += fitness[test]
+        avg = sum_fitness / len(all_fitness)
         f.write(test + ': ' + str(avg) + '\n')
+    f.write('\n')
+    f.close()
+
+
+def track_max_fitness(all_fitness, test_cases):
+    f = open("max_fitness.txt", "a")
+    for test in test_cases:
+        fitnesses = []
+        for fitness in all_fitness:
+            fitnesses.append(fitness[test])
+        f.write(test + ': ' + str(max(fitnesses)) + '\n')
     f.write('\n')
     f.close()
 
