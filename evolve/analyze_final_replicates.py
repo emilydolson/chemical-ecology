@@ -32,14 +32,14 @@ def histograms_params(populations, file_name):
 
 def histograms_scores(fitnesses, file_name):
     figure, axis = plt.subplots(5, 2, figsize=(10,10))
-    rng = 0.1
     fitness_names = [x for x in fitnesses[0][0].keys() if 'Score' in x]
     k = 0
     for j in range(len(fitnesses)):
         for i in range(len(fitness_names)):
             label = None if j > 0 else fitness_names[i]
-            axis[j%5][k%2].hist([x[fitness_names[i]] for x in fitnesses[j]], bins=np.arange(-rng, rng + 0.01, 0.01), stacked=True, label=label, alpha=0.66)
-        axis[j%5][k%2].set_xlim(-rng, rng)
+            h = np.histogram([x[fitness_names[i]] for x in fitnesses[j]], bins=(-1, 0, 1e-100, 1))
+            axis[j%5][k%2].bar(range(3), h[0], label=label, alpha=0.66, width=1)
+            axis[j%5][k%2].set_xticks(np.arange(0, 3, 1), ['[-1, 0)', '0', '(0, 1]'])
         axis[j%5][k%2].set_ylim(0, len(fitnesses[j]))
         k += 1
     figure.suptitle(file_name)
@@ -88,4 +88,4 @@ def main(file_name):
 
 
 if __name__ == '__main__':
-    main('test_results3')
+    main('results_double_with_fitness')
