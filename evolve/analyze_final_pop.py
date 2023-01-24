@@ -10,13 +10,31 @@ from lfr_graph import create_matrix
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
+def histograms_fitnesses(fitnesses, file_name):
+    figure, axis = plt.subplots(1, 1)
+
+    fitness_names = ['Biomass', 'Growth_Rate', 'Heredity']
+    for i in range(len(fitness_names)):
+        data = [x[fitness_names[i]] for x in fitnesses]
+        axis.hist([d/max(data) for d in data], bins=np.arange(0, 1 + 0.1, 0.1), stacked=True, label=f'{fitness_names[i]} {round(max(data),2)}', alpha=0.66)
+    axis.set_xlim(0, 1)
+    axis.set_ylim(0, len(fitnesses))
+    figure.legend()
+    figure.suptitle(file_name)
+    figure.supxlabel('value (normalized)')
+    figure.supylabel('count')
+
+    plt.savefig(f'{file_name}_histogram_fitnesses.png')
+
+
 def histogram_params(population, file_name):
     figure, axis = plt.subplots(1, 1)
 
     param_names = ['diffusion', 'seeding', 'clear']
     for i in range(3):
-        plt.hist([x[i] for x in population], bins=np.arange(0, 1 + 0.05, 0.05), stacked=True, label=param_names[i], alpha=0.66)
+            axis.hist([x[i] for x in population], bins=np.arange(0, 1 + 0.05, 0.05), stacked=True, label=param_names[i], alpha=0.66)
     axis.set_xlim(0, 1)
+    axis.set_ylim(0, len(population))
     figure.suptitle(file_name)
     figure.legend()
 
@@ -28,8 +46,10 @@ def histogram_scores(fitnesses, file_name):
     rng = 0.1
     fitness_names = [x for x in fitnesses[0].keys() if 'Score' in x]
     for i in range(len(fitness_names)):
-        plt.hist([x[fitness_names[i]] for x in fitnesses], bins=np.arange(-rng, rng + 0.01, 0.01), stacked=True, label=fitness_names[i], alpha=0.66)
-    axis.set_xlim(-rng, rng)
+        h = np.histogram([x[fitness_names[i]] for x in fitnesses], bins=(-1, 0, 1e-100, 1))
+        axis.bar(range(3), h[0], label=fitness_names[i], alpha=0.66, width=1)
+        axis.set_xticks(np.arange(0, 3, 1), ['[-1, 0)', '0', '(0, 1]'])
+    axis.set_ylim(0, len(fitnesses))
     figure.suptitle(file_name)
     figure.legend()
 
@@ -122,7 +142,7 @@ def get_avg_fitness(file_location):
 
 def avg_fitness_over_time(avg_fitnesses, file_name):
     fitness_names = [x for x in avg_fitnesses[0].keys() if 'Score' in x]
-    avg_fitness_sep = [[] for _ in range(5)]
+    avg_fitness_sep = [[] for _ in range(len(fitness_names))]
     for fitnesses in avg_fitnesses:
         for i in range(len(fitness_names)):
             avg_fitness_sep[i].append(fitnesses[fitness_names[i]])
@@ -131,7 +151,7 @@ def avg_fitness_over_time(avg_fitnesses, file_name):
     for i in range(len(fitness_names)):
         plt.plot(avg_fitness_sep[i], label=fitness_names[i])
     figure.suptitle(file_name)
-    figure.legend()
+    figure.legend(loc='lower right')
 
     plt.savefig(f'{file_name}_avg_fitness.png')
 
@@ -156,14 +176,9 @@ def main(file_name):
     population, fitnesses = get_final_pop(file_path)
     histogram_params(population, file_name)
     histogram_scores(fitnesses, file_name)
+    histograms_fitnesses(fitnesses, file_name)
     avg_fitness_over_time(get_avg_fitness(file_path), file_name)
-    #check_matrices(population)
-
-    #interactions = create_matrix_unformatted(population[0])
-    #with open("interaction_matrix.dat", "w") as f:
-        #wr = csv.writer(f)
-        #wr.writerows(interactions)
-    #visualize_network('interaction_matrix.dat', 'interaction_matrix.png')
+    check_matrices(population)
 
 
 if __name__ == '__main__':

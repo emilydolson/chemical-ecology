@@ -5,10 +5,30 @@ import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from analyze_final_pop import get_final_pop, get_avg_fitness
+from analyze_final_pop import get_final_pop, get_avg_fitness, create_matrix_unformatted
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
+
+def histograms_fitnesses(fitnesses, file_name):
+    figure, axis = plt.subplots(5, 2, figsize=(10,10))
+
+    fitness_names = ['Biomass', 'Growth_Rate', 'Heredity']
+    k = 0
+    for j in range(len(fitnesses)):
+        for i in range(len(fitness_names)):
+            data = [x[fitness_names[i]] for x in fitnesses[j]]
+            axis[j%5][k%2].hist([d/max(data) for d in data], bins=np.arange(0, 1 + 0.1, 0.1), stacked=True, label=f'{fitness_names[i]} {round(max(data),2)}', alpha=0.66)
+        axis[j%5][k%2].set_xlim(0, 1)
+        axis[j%5][k%2].set_ylim(0, len(fitnesses[j]))
+        axis[j%5][k%2].legend(loc='upper center')
+        k += 1
+    figure.suptitle(file_name)
+    figure.supxlabel('value (normalized)')
+    figure.supylabel('count')
+
+    plt.savefig(f'{file_name}_histograms_fitnesses.png')
+
 
 def histograms_params(populations, file_name):
     figure, axis = plt.subplots(5, 2, figsize=(10,10))
@@ -64,6 +84,7 @@ def avg_fitnesses_over_time(avg_fitnesseses, file_name):
             label = None if j > 0 else fitness_names[i]
             axis[j%5][k%2].plot(avg_fitness_sep[i], label=label)
         axis[j%5][k%2].set_xlim(0, len(avg_fitnesseses))
+        axis[j%5][k%2].set_ylim(-5e-4, 5e-4)
         k += 1
     figure.suptitle(file_name)
     figure.legend()
@@ -74,16 +95,18 @@ def avg_fitnesses_over_time(avg_fitnesseses, file_name):
 def get_adaptive_genomes(populations, fitnesses, print_genomes=True):
     fitness_names = [x for x in fitnesses[0][0].keys() if 'Score' in x]
     num_adaptive = 0
-    for r in range(len(populations)): #replicates
-        for g in range(len(populations[r])): #genomes
+    for r in range(len(populations)):
+        for g in range(len(populations[r])):
             num_adaptive_local = 0
             for f in fitness_names:
                 if fitnesses[r][g][f] > 0:
                     num_adaptive_local += 1
             if num_adaptive_local >= 4:
-                if print_genomes:
-                    print(populations[r][g], {x: fitnesses[r][g][x] for x in fitnesses[r][g] if 'Score' in x})
-                num_adaptive += 1
+                matrix = create_matrix_unformatted(populations[r][g])
+                if sum([sum(x) for x in matrix]) != 0:
+                    if print_genomes:
+                        print(populations[r][g], {x: fitnesses[r][g][x] for x in fitnesses[r][g] if 'Score' in x})
+                    num_adaptive += 1
     print(f'Adaptive genomes: {num_adaptive} out of {len(populations)*len(populations[0])}')
 
 
@@ -100,9 +123,10 @@ def main(file_name):
         avg_fitnesses.append(get_avg_fitness(full_path+'/evolve'))
     histograms_params(populations, file_name)
     histograms_scores(fitnesses, file_name)
+    histograms_fitnesses(fitnesses, file_name)
     avg_fitnesses_over_time(avg_fitnesses, file_name)
-    get_adaptive_genomes(populations, fitnesses)
+    get_adaptive_genomes(populations, fitnesses, True)
 
 
 if __name__ == '__main__':
-    main('results_double_with_fitness')
+    main('results_double')
