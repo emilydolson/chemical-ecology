@@ -1,3 +1,4 @@
+
 #https://github.com/Nathaniel-Rodriguez/graphgen
 
 import random
@@ -56,14 +57,15 @@ def create_matrix(num_nodes, average_k, max_degree, mut, muw, beta, com_size_min
         return [[0 for _ in range(num_nodes)] for _ in range(num_nodes)]
     matrix, communities = queue.get()
 
-    for row in range(len(matrix)):
-        for col in range(len(matrix)):
-            if matrix[row][col] > 1:
-                matrix[row][col] = round(matrix[row][col]/10, 3)
+    if len(communities) > 0:
+        for row in range(len(matrix)):
+            for col in range(len(matrix)):
                 if matrix[row][col] > 1:
-                    matrix[row][col] = 1
+                    matrix[row][col] = round(matrix[row][col]/10, 3)
+                    if matrix[row][col] > 1:
+                        matrix[row][col] = 1
                 if sum([x in communities[row] for x in communities[col]]) == 0:
-                    if random.random() < pct_pos_out:
+                    if random.random() > pct_pos_out:
                         matrix[row][col] = -matrix[row][col]
                 else:
                     if random.random() > pct_pos_in:
