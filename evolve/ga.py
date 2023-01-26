@@ -156,11 +156,11 @@ def calc_all_fitness(population, niched=False):
                 'Biomass': fitnesses['Biomass'] / sharing,
                 'Growth_Rate': fitnesses['Growth_Rate'] / sharing,
                 'Heredity': fitnesses['Heredity'] / sharing, 
-                'Biomass_Score': b_score[0]/sharing,
-                'Growth_Rate_Score': g_score[0]/sharing,
-                'Heredity_Score': h_score[0]/sharing,
-                'Invasion_Ability_Score': i_score[0]/sharing,
-                'Resiliance_Score': r_score[0]/sharing
+                'Biomass_Score': fitnesses['Biomass_Score'] / sharing,
+                'Growth_Rate_Score': fitnesses['Growth_Rate_Score'] / sharing,
+                'Heredity_Score': fitnesses['Heredity_Score'] / sharing,
+                'Invasion_Ability_Score': fitnesses['Invasion_Ability_Score'] / sharing,
+                'Resiliance_Score': fitnesses['Resiliance_Score'] / sharing
             }
             niched_fitness_lst.append(new_fitness)
         return niched_fitness_lst
@@ -284,7 +284,7 @@ def run():
     test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     #test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     for gen in range(generations):
-        all_fitness = calc_all_fitness(population, True)
+        all_fitness = calc_all_fitness(population, False)
         track_avg_fitness(all_fitness, test_cases)
         track_max_fitness(all_fitness, test_cases)
         parent_tuple = (None, population, all_fitness)
