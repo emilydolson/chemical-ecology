@@ -117,10 +117,11 @@ def main(file_name):
     avg_fitnesses = []
     for f in os.listdir(file_path):
         full_path = os.path.join(file_path, f)
-        population, fitness = get_final_pop(full_path+'/evolve')
-        populations.append(population)
-        fitnesses.append(fitness)
-        avg_fitnesses.append(get_avg_fitness(full_path+'/evolve'))
+        if os.path.exists(full_path+'/evolve/final_population'):
+            population, fitness = get_final_pop(full_path+'/evolve')
+            populations.append(population)
+            fitnesses.append(fitness)
+            avg_fitnesses.append(get_avg_fitness(full_path+'/evolve'))
     histograms_params(populations, file_name)
     histograms_scores(fitnesses, file_name)
     histograms_fitnesses(fitnesses, file_name)
