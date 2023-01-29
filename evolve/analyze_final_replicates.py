@@ -3,9 +3,10 @@ import ast
 import csv
 import os
 import numpy as np
+import sys
 import matplotlib
 import matplotlib.pyplot as plt
-from analyze_final_pop import get_final_pop, get_avg_fitness, create_matrix_unformatted
+from analyze_final_pop import get_final_pop, get_avg_fitness, create_matrix_unformatted, get_max_fitness
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -24,8 +25,8 @@ def histograms_fitnesses(fitnesses, file_name):
         axis[j%5][k%2].legend(loc='upper center')
         k += 1
     figure.suptitle(file_name)
-    figure.supxlabel('value (normalized)')
-    figure.supylabel('count')
+    # figure.supxlabel('value (normalized)')
+    # figure.supylabel('count')
 
     plt.savefig(f'{file_name}_histograms_fitnesses.png')
 
@@ -43,8 +44,8 @@ def histograms_params(populations, file_name):
         axis[j%5][k%2].set_ylim(0, len(populations[j]))
         k += 1
     figure.suptitle(file_name)
-    figure.supxlabel('value')
-    figure.supylabel('count')
+    # figure.supxlabel('value')
+    # figure.supylabel('count')
     figure.legend()
 
     plt.savefig(f'{file_name}_histograms_params.png')
@@ -63,8 +64,8 @@ def histograms_scores(fitnesses, file_name):
         axis[j%5][k%2].set_ylim(0, len(fitnesses[j]))
         k += 1
     figure.suptitle(file_name)
-    figure.supxlabel('value')
-    figure.supylabel('count')
+    # figure.supxlabel('value')
+    # figure.supylabel('count')
     figure.legend()
 
     plt.savefig(f'{file_name}_histograms_scores.png')
@@ -83,8 +84,8 @@ def avg_fitnesses_over_time(avg_fitnesseses, file_name):
         for i in range(len(fitness_names)):
             label = None if j > 0 else fitness_names[i]
             axis[j%5][k%2].plot(avg_fitness_sep[i], label=label)
-        axis[j%5][k%2].set_xlim(0, len(avg_fitnesseses))
-        axis[j%5][k%2].set_ylim(-5e-4, 5e-4)
+        axis[j%5][k%2].set_xlim(0, len(avg_fitnesses))
+        axis[j%5][k%2].set_ylim(-5e-3, 5e-3)
         k += 1
     figure.suptitle(file_name)
     figure.legend()
@@ -110,8 +111,8 @@ def get_adaptive_genomes(populations, fitnesses, print_genomes=True):
     print(f'Adaptive genomes: {num_adaptive} out of {len(populations)*len(populations[0])}')
 
 
-def main(file_name):
-    file_path = f'/mnt/gs21/scratch/leithers/chemical-ecology/data/{file_name}'
+def main(user, file_name):
+    file_path = f'/mnt/gs21/scratch/{user}/chemical-ecology/data/{file_name}'
     populations = []
     fitnesses = []
     avg_fitnesses = []
@@ -121,7 +122,11 @@ def main(file_name):
             population, fitness = get_final_pop(full_path+'/evolve')
             populations.append(population)
             fitnesses.append(fitness)
-            avg_fitnesses.append(get_avg_fitness(full_path+'/evolve'))
+            avg_fitnesses.append(get_max_fitness(full_path+'/evolve'))
+    print(len(populations))
+    if(len(populations) == 0):
+        print("No final fitnesses found")
+        exit()
     histograms_params(populations, file_name)
     histograms_scores(fitnesses, file_name)
     histograms_fitnesses(fitnesses, file_name)
@@ -130,4 +135,4 @@ def main(file_name):
 
 
 if __name__ == '__main__':
-    main('results_double')
+    main(sys.argv[1], sys.argv[2])

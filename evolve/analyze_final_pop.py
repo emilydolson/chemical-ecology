@@ -138,6 +138,18 @@ def get_avg_fitness(file_location):
             name, value = line.split(': ')
             avg_fitness_list[-1][name] = float(value)
     return avg_fitness_list[:-2]
+
+
+def get_max_fitness(file_location):
+    avg_fitnesses = open(f'{file_location}/max_fitness.txt').read()
+    avg_fitness_list = [{}]
+    for line in avg_fitnesses.split('\n'):
+        if len(line) < 3:
+            avg_fitness_list.append({})
+        else:
+            name, value = line.split(': ')
+            avg_fitness_list[-1][name] = float(value)
+    return avg_fitness_list[:-2]
             
 
 def avg_fitness_over_time(avg_fitnesses, file_name):
