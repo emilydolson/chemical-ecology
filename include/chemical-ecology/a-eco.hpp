@@ -713,6 +713,12 @@ class AEcoWorld {
       }
     }
 
+    for (auto c : communities) {
+      if (!communities[c.second.transitions_to].stable) {
+        n_stable++;
+        communities[c.second.transitions_to].stable = true;
+      }
+    }
 
     emp::Graph g(n_stable);
     std::map<int, int> node_map;
