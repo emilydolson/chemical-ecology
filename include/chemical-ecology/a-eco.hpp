@@ -321,7 +321,13 @@ class AEcoWorld {
     std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
     float assembly_score = 1;
     for (std::string node : finalCommunities) {
-      assembly_score *= assembly_pr_map[node];
+      if (assembly_pr_map.find(node) != assembly_pr_map.end()) {
+        assembly_score *= assembly_pr_map[node];
+      }
+      else {
+        assembly_score = 0;
+        std::cout << node << " not found in community assembly graph" << std::endl;
+      }
     }
 
     double biomass_score = calcAdaptabilityScore(finalCommunities, "Biomass");
@@ -869,7 +875,13 @@ class AEcoWorld {
 
     double fitness_score = 1;
     for (std::string node : finalCommunities) {
-      fitness_score *= fitness_pr_map[node];
+      if (fitness_pr_map.find(node) != fitness_pr_map.end()) {
+        fitness_score *= fitness_pr_map[node];
+      }
+      else {
+        fitness_score = 0;
+        std::cout << node << " not found in " << fitness_measure << " graph" << std::endl;
+      }
     }
 
     return fitness_score;
