@@ -5,7 +5,6 @@ import random
 from multiprocessing import Process, Queue
 import time
 import networkx as nx
-from networkx.generators.community import LFR_benchmark_graph
 import matplotlib.pyplot as plt
 from graphgen.lfr_generators import weighted_directed_lfr_as_adj
 
@@ -57,20 +56,42 @@ def create_matrix(num_nodes, average_k, max_degree, mut, muw, beta, com_size_min
         return [[0 for _ in range(num_nodes)] for _ in range(num_nodes)]
     matrix, communities = queue.get()
 
+    min_all = min([min(x) for x in matrix])
+    max_all = max([max(x) for x in matrix])
+
     if len(communities) > 0:
         for row in range(len(matrix)):
             for col in range(len(matrix)):
-                if matrix[row][col] > 1:
-                    matrix[row][col] = round(matrix[row][col]/10, 3)
-                    if matrix[row][col] > 1:
-                        matrix[row][col] = 1
-                if sum([x in communities[row] for x in communities[col]]) == 0:
-                    if random.random() > pct_pos_out:
-                        matrix[row][col] = -matrix[row][col]
-                else:
-                    if random.random() > pct_pos_in:
-                        matrix[row][col] = -matrix[row][col]
+                if matrix[row][col] != 0:
+                    matrix[row][col] = (matrix[row][col] - min_all) / (max_all - min_all)
+                    if sum([x in communities[row] for x in communities[col]]) == 0:
+                        if random.random() > 1:
+                            matrix[row][col] = -matrix[row][col]
+                    else:
+                        if random.random() > 1:
+                            matrix[row][col] = -matrix[row][col]
 
+    return matrix
+
+
+def create_matrix_unformatted(genome):
+    diffusion = genome[0]
+    seeding = genome[1]
+    clear = genome[2]
+    average_k = genome[12]
+    max_degree = genome[13]
+    mut = genome[3]
+    muw = genome[4]
+    beta = genome[5]
+    com_size_min = genome[10]
+    com_size_max = genome[11]
+    tau = genome[6]
+    tau2 = genome[7]
+    overlapping_nodes = genome[14]
+    overlap_membership = genome[15]
+    pct_pos_in = genome[8]
+    pct_pos_out = genome[9]
+    matrix = create_matrix(num_nodes=9, average_k=average_k, max_degree=max_degree, mut=mut, muw=muw, beta=beta, com_size_min=com_size_min, com_size_max=com_size_max, tau=tau, tau2=tau2, overlapping_nodes=overlapping_nodes, overlap_membership=overlap_membership, pct_pos_in=pct_pos_in, pct_pos_out=pct_pos_out)
     return matrix
 
 

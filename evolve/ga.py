@@ -104,6 +104,7 @@ def calc_all_fitness(population, niched=False):
                     f'-MAX_POP {MAX_POP} '
                     f'-WORLD_X {WORLD_X} '
                     f'-WORLD_Y {WORLD_Y} '
+                    f'-UPDATES {UPDATES} '
                     f'-N_TYPES {N_TYPES}')],
                     shell=True, 
                     stdout=subprocess.DEVNULL)
@@ -281,10 +282,10 @@ def run():
     pop_size = 100
     generations = 100
     population = create_pop(pop_size)
-    test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
-    #test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    #test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     for gen in range(generations):
-        all_fitness = calc_all_fitness(population, False)
+        all_fitness = calc_all_fitness(population, True)
         track_avg_fitness(all_fitness, test_cases)
         track_max_fitness(all_fitness, test_cases)
         parent_tuple = (None, population, all_fitness)
