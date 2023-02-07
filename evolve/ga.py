@@ -5,7 +5,7 @@ import sys
 import csv
 import numpy as np
 from copy import deepcopy
-from lfr_graph import create_matrix
+from klemm_lfr_graph import create_matrix
 
 #REPRO_THRESHOLD 10000000000 -MAX_POP 10000 -WORLD_X 30 -WORLD_Y 30 -N_TYPES 9 -UPDATES 10000 <-- Used in poc
 N_TYPES = 9
@@ -13,7 +13,7 @@ WORLD_X = 10
 WORLD_Y = 10
 UPDATES = 1000
 MAX_POP = 10000
-REPRO_THRESHOLD = 10000000000
+REPRO_THRESHOLD = 1000
 
 def create_pop(size):
     pop = []
@@ -21,26 +21,19 @@ def create_pop(size):
         diffusion = round(random.random(), 3)
         seeding = round(random.random(), 3)
         clear = round(random.random(), 3)
-        mut = 0.3
-        muw = 0.1
-        beta = 1.5
-        tau = 2
-        tau2 = 1
+        clique_linkage = round(random.random(), 3)
         pct_pos_in = round(random.random(), 3)
         pct_pos_out = round(random.random(), 3)
-        com_size_min = random.randint(3, N_TYPES-3)
-        com_size_max = random.randint(com_size_min+1, N_TYPES-1)
-        average_k = random.randint(3, N_TYPES-3)
-        max_degree = random.randint(average_k+1, N_TYPES-2)
-        overlapping_nodes = 0 #random.randint(0, com_size_min-1)
-        overlap_membership = 0 #random.randint(0, com_size_min-1)
-        genome = [diffusion, seeding, clear, mut, muw, beta, tau, tau2, pct_pos_in, pct_pos_out, com_size_min, com_size_max, average_k, max_degree, overlapping_nodes, overlap_membership]
+        muw = round(random.random(), 3)
+        beta = random.randint(1, 2)
+        clique_size = random.randint(2, N_TYPES-1)
+        genome = [diffusion, seeding, clear, clique_linkage, pct_pos_in, pct_pos_out, muw, beta, clique_size]
         pop.append(genome)
     return pop
 
 
 def euclidean_distance(genome_x, genome_y):
-    return np.linalg.norm(np.array(genome_x[0:5] + [b/10 for b in genome_x[5:]]) - np.array(genome_y[0:5] + [b/10 for b in genome_y[5:]]))
+    return np.linalg.norm(np.array(genome_x[0:6] + [b/10 for b in genome_x[6:]]) - np.array(genome_y[0:6] + [b/10 for b in genome_y[6:]]))
 
 
 def calc_all_fitness(population, niched=False):
@@ -49,100 +42,102 @@ def calc_all_fitness(population, niched=False):
         diffusion = genome[0]
         seeding = genome[1]
         clear = genome[2]
-        average_k = genome[12]
-        max_degree = genome[13]
-        mut = genome[3]
-        muw = genome[4]
-        beta = genome[5]
-        com_size_min = genome[10]
-        com_size_max = genome[11]
-        tau = genome[6]
-        tau2 = genome[7]
-        overlapping_nodes = genome[14]
-        overlap_membership = genome[15]
-        pct_pos_in = genome[8]
-        pct_pos_out = genome[9]
-        interaction_matrix = create_matrix(num_nodes=N_TYPES, average_k=average_k, max_degree=max_degree, mut=mut, muw=muw, beta=beta, com_size_min=com_size_min, com_size_max=com_size_max, tau=tau, tau2=tau2, overlapping_nodes=overlapping_nodes, overlap_membership=overlap_membership, pct_pos_in=pct_pos_in, pct_pos_out=pct_pos_out)
-        if sum([sum(x) for x in interaction_matrix]) == 0:
-            new_fitness = {
-                'Biomass': 0,
-                'Growth_Rate': 0,
-                'Heredity': 0,
-                'Biomass_Score': -1,
-                'Growth_Rate_Score': -1,
-                'Heredity_Score': -1,
-                'Invasion_Ability_Score': -1,
-                'Resiliance_Score': -1
-            }
-            fitness_lst.append(new_fitness)
-        else:
-            interaction_matrix_file = 'interaction_matrix.dat'
-            with open(interaction_matrix_file, 'w') as f:
-                wr = csv.writer(f)
-                wr.writerows(interaction_matrix)
-            #run chem eco three times, store the fitness and assembly values for each run, then multiply the scores togetehr and average the fitnesses
-            temp_fits = {
-                "biomass": [],
-                "growth_rate": [], 
-                "heredity": [], 
-                "biomass_score": [],
-                "growth_rate_score": [], 
-                "invasion_score": [], 
-                "heredity_score": [], 
-                "resiliance_score": [], 
-                #assembly score is not a fitness value. It is used to calc fitness values. 
-                "assembly_score": []
-            }
-            for _ in range(3):
-                chem_eco = subprocess.Popen(
-                    [(f'../chemical-ecology '
-                    f'-DIFFUSION {diffusion} '
-                    f'-SEEDING_PROB {seeding} '
-                    f'-PROB_CLEAR {clear} ' 
-                    f'-INTERACTION_SOURCE {interaction_matrix_file} '
-                    f'-REPRO_THRESHOLD {REPRO_THRESHOLD} '
-                    f'-MAX_POP {MAX_POP} '
-                    f'-WORLD_X {WORLD_X} '
-                    f'-WORLD_Y {WORLD_Y} '
-                    f'-UPDATES {UPDATES} '
-                    f'-N_TYPES {N_TYPES}')],
-                    shell=True, 
-                    stdout=subprocess.DEVNULL)
-                return_code = chem_eco.wait()
-                if return_code != 0:
-                    print("Error in a-eco, return code:", return_code)
-                    sys.stdout.flush()
-                df = pd.read_csv('a-eco_data.csv')
-                biomasses = df['mean_Biomass'].values
-                growth_rates = df['mean_Growth_Rate'].values
-                heredities = df['mean_Heredity'].values
-                df2 = pd.read_csv('scores.csv')
-                b_score = df2['Biomass_Score'].values
-                g_score = df2['Growth_Rate_Score'].values
-                h_score = df2['Heredity_Score'].values
-                i_score = df2['Invasion_Ability_Score'].values
-                r_score = df2['Resiliance_Score'].values
-                a_score =  df2['Assembly_Score'].values
-                temp_fits["biomass"].append(biomasses[-1] - biomasses[0])
-                temp_fits["growth_rate"].append(growth_rates[-1] - growth_rates[0])
-                temp_fits["heredity"].append(heredities[-1])
-                temp_fits["biomass_score"].append(b_score[0])
-                temp_fits["growth_rate_score"].append(g_score[0])
-                temp_fits["heredity_score"].append(h_score[0])
-                temp_fits["invasion_score"].append(i_score[0])
-                temp_fits["resiliance_score"].append(r_score[0])
-                temp_fits["assembly_score"].append(a_score[0])
+        clique_linkage = genome[3]
+        pct_pos_in = genome[4]
+        pct_pos_out = genome[5]
+        muw = genome[6]
+        beta = genome[7]
+        clique_size = genome[8]
+        interaction_matrix = create_matrix(num_nodes=N_TYPES, clique_size=clique_size, clique_linkage=clique_linkage, muw=muw, beta=beta, pct_pos_in=pct_pos_in, pct_pos_out=pct_pos_out)
+        interaction_matrix_file = 'interaction_matrix.dat'
+        with open(interaction_matrix_file, 'w') as f:
+            wr = csv.writer(f)
+            wr.writerows(interaction_matrix)
+        #run chem eco three times, store the fitness and assembly values for each run, then multiply the scores togetehr and average the fitnesses
+        temp_fits = {
+            "biomass": [],
+            "growth_rate": [], 
+            "heredity": [], 
+            "biomass_score": [],
+            "growth_rate_score": [], 
+            "invasion_score": [], 
+            "heredity_score": [], 
+            "resiliance_score": [], 
+            #assembly score is not a fitness value. It is used to calc fitness values. 
+            "assembly_score": []
+        }
+        for _ in range(3):
+            chem_eco = subprocess.Popen(
+                [(f'../chemical-ecology '
+                f'-DIFFUSION {diffusion} '
+                f'-SEEDING_PROB {seeding} '
+                f'-PROB_CLEAR {clear} ' 
+                f'-INTERACTION_SOURCE {interaction_matrix_file} '
+                f'-REPRO_THRESHOLD {REPRO_THRESHOLD} '
+                f'-MAX_POP {MAX_POP} '
+                f'-WORLD_X {WORLD_X} '
+                f'-WORLD_Y {WORLD_Y} '
+                f'-UPDATES {UPDATES} '
+                f'-N_TYPES {N_TYPES}')],
+                shell=True, 
+                stdout=subprocess.DEVNULL)
+            return_code = chem_eco.wait()
+            if return_code != 0:
+                print("Error in a-eco, return code:", return_code)
+                sys.stdout.flush()
+            df = pd.read_csv('a-eco_data.csv')
+            biomasses = df['mean_Biomass'].values
+            growth_rates = df['mean_Growth_Rate'].values
+            heredities = df['mean_Heredity'].values
+            df2 = pd.read_csv('scores.csv')
+            b_score = df2['Biomass_Score'].values
+            g_score = df2['Growth_Rate_Score'].values
+            h_score = df2['Heredity_Score'].values
+            i_score = df2['Invasion_Ability_Score'].values
+            r_score = df2['Resiliance_Score'].values
+            a_score =  df2['Assembly_Score'].values
+            temp_fits["biomass"].append(biomasses[-1] - biomasses[0])
+            temp_fits["growth_rate"].append(growth_rates[-1] - growth_rates[0])
+            temp_fits["heredity"].append(heredities[-1])
+            temp_fits["biomass_score"].append(b_score[0])
+            temp_fits["growth_rate_score"].append(g_score[0])
+            temp_fits["heredity_score"].append(h_score[0])
+            temp_fits["invasion_score"].append(i_score[0])
+            temp_fits["resiliance_score"].append(r_score[0])
+            temp_fits["assembly_score"].append(a_score[0])
+        new_fitness = {
+            'Biomass': np.mean(temp_fits['biomass']),
+            'Growth_Rate': np.mean(temp_fits['growth_rate']),
+            'Heredity': np.mean(temp_fits['heredity']),
+            'Biomass_Score': np.prod(temp_fits['biomass_score']) - np.prod(temp_fits['assembly_score']),
+            'Growth_Rate_Score': np.prod(temp_fits['growth_rate_score']) - np.prod(temp_fits['assembly_score']),
+            'Heredity_Score': np.prod(temp_fits['heredity_score']) - np.prod(temp_fits['assembly_score']),
+            'Invasion_Ability_Score': np.prod(temp_fits['invasion_score']) - np.prod(temp_fits['assembly_score']),
+            'Resiliance_Score': np.prod(temp_fits['resiliance_score']) - np.prod(temp_fits['assembly_score'])
+        }
+        '''if np.prod(temp_fits['assembly_score']) != 0:
             new_fitness = {
                 'Biomass': np.mean(temp_fits['biomass']),
                 'Growth_Rate': np.mean(temp_fits['growth_rate']),
                 'Heredity': np.mean(temp_fits['heredity']),
-                'Biomass_Score': np.prod(temp_fits['biomass_score']) - np.prod(temp_fits['assembly_score']),
-                'Growth_Rate_Score': np.prod(temp_fits['growth_rate_score']) - np.prod(temp_fits['assembly_score']),
-                'Heredity_Score': np.prod(temp_fits['heredity_score']) - np.prod(temp_fits['assembly_score']),
-                'Invasion_Ability_Score': np.prod(temp_fits['invasion_score']) - np.prod(temp_fits['assembly_score']),
-                'Resiliance_Score': np.prod(temp_fits['resiliance_score']) - np.prod(temp_fits['assembly_score'])
+                'Biomass_Score': np.prod(temp_fits['biomass_score']) / np.prod(temp_fits['assembly_score']),
+                'Growth_Rate_Score': np.prod(temp_fits['growth_rate_score']) / np.prod(temp_fits['assembly_score']),
+                'Heredity_Score': np.prod(temp_fits['heredity_score']) / np.prod(temp_fits['assembly_score']),
+                'Invasion_Ability_Score': np.prod(temp_fits['invasion_score']) / np.prod(temp_fits['assembly_score']),
+                'Resiliance_Score': np.prod(temp_fits['resiliance_score']) / np.prod(temp_fits['assembly_score'])
             }
-            fitness_lst.append(new_fitness)
+        else:
+            new_fitness = {
+                'Biomass': np.mean(temp_fits['biomass']),
+                'Growth_Rate': np.mean(temp_fits['growth_rate']),
+                'Heredity': np.mean(temp_fits['heredity']),
+                'Biomass_Score': 0,
+                'Growth_Rate_Score': 0,
+                'Heredity_Score': 0,
+                'Invasion_Ability_Score': 0,
+                'Resiliance_Score': 0
+            }'''
+        fitness_lst.append(new_fitness)
     #niching / fitness sharing
     #based on formula in https://www.sciencedirect.com/science/article/pii/S0304397518304882
     if niched:
@@ -226,66 +221,48 @@ def mutate(pop):
                         param = 0.01
                     if param > 1:
                         param = 1
-                if i < 5 and i != 1:
+                if i < 4 and i != 1:
                     param += random.gauss(0, 0.1)
                     if param < 0:
                         param = 0
                     if param > 1:
                         param = 1
-                elif i >= 5 and i <= 7:
-                    param += random.gauss(0, 0.1)
-                    if param < 1:
-                        param = 1
-                    if param > 2:
-                        param = 2
-                elif i == 8 or i == 9:
+                if i == 4 or i == 5: #pct pos
                     param += random.gauss(0, 0.1)
                     if param < 0:
                         param = 0
                     if param > 0.75:
                         param = 0.75
-                elif i == 10:
-                    param += random.choice([-1, 1])
-                    if param < 3:
-                        param = 3
-                    if param > N_TYPES-3:
-                        param = N_TYPES-3
-                elif i == 11:
-                    param += random.choice([-1, 1])
-                    if param < genome[10]+1:
-                        param = genome[10]+1
-                    if param > N_TYPES-1:
-                        param = N_TYPES-1
-                elif i == 12:
-                    param += random.choice([-1, 1])
-                    if param < 3:
-                        param = 3
-                    if param > N_TYPES-3:
-                        param = N_TYPES-3
-                elif i == 13:
-                    param += random.choice([-1, 1])
-                    if param < genome[12]+1:
-                        param = genome[12]+1
-                    if param > N_TYPES-2:
-                        param = N_TYPES-2
-                elif i == 14 or i == 15:
-                    param += random.choice([-1, 1])
+                if i == 6: #muw
+                    param += random.gauss(0, 0.1)
                     if param < 0:
                         param = 0
-                    if param > genome[10]-1:
-                        param = genome[10]-1
+                    if param > 1:
+                        param = 1
+                elif i == 7: #beta
+                    param += random.gauss(0, 0.1)
+                    if param < 0:
+                        param = 0
+                    if param > 3:
+                        param = 3
+                elif i == 8: #clique size
+                    param += random.choice([-1, 1])
+                    if param < 2:
+                        param = 2
+                    if param > N_TYPES-1:
+                        param = N_TYPES-1
             genome[i] = round(param, 3)
     return pop
 
 
 def run():
     pop_size = 100
-    generations = 100
+    generations = 250
     population = create_pop(pop_size)
-    #test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
-    test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    test_cases = ['Biomass', 'Growth_Rate', 'Heredity', 'Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
+    #test_cases = ['Biomass_Score', 'Growth_Rate_Score', 'Heredity_Score', 'Invasion_Ability_Score', 'Resiliance_Score']
     for gen in range(generations):
-        all_fitness = calc_all_fitness(population, True)
+        all_fitness = calc_all_fitness(population, False)
         track_avg_fitness(all_fitness, test_cases)
         track_max_fitness(all_fitness, test_cases)
         parent_tuple = (None, population, all_fitness)
