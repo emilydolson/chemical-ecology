@@ -9,6 +9,7 @@
 #include "chemical-ecology/config_setup.hpp"
 #include "emp/datastructs/map_utils.hpp"
 #include <string>
+#include <math.h>
 #include "pagerank.h"
 
 // TERMINOLOGY NOTES:
@@ -319,13 +320,13 @@ class AEcoWorld {
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
-    float assembly_score = 1;
+    double assembly_score = 1;
     for (std::string node : finalCommunities) {
       if (assembly_pr_map.find(node) != assembly_pr_map.end()) {
         assembly_score *= assembly_pr_map[node];
       }
       else {
-        assembly_score = 0;
+        assembly_score *= pow(10.0, -10.0);
         std::cout << node << " not found in community assembly graph" << std::endl;
       }
     }
@@ -879,7 +880,7 @@ class AEcoWorld {
         fitness_score *= fitness_pr_map[node];
       }
       else {
-        fitness_score = 0;
+        fitness_score *= pow(10.0, -10.0);
         std::cout << node << " not found in " << fitness_measure << " graph" << std::endl;
       }
     }
