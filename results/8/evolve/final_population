@@ -1,0 +1,207 @@
+types: 9
+world size: 10
+updates: 1000
+max pop: 10000
+repro threshold: 10000000000
+pop size: 100
+generations: 100
+{'Biomass': 27229.533333333336, 'Growth_Rate': 2526.7850000000003, 'Heredity': 0.92224, 'Biomass_Score': 0.07350248861377245, 'Growth_Rate_Score': 0.03755309095370579, 'Heredity_Score': 0.03131629884878055, 'Invasion_Ability_Score': 0.03444611583619456, 'Resiliance_Score': -0.024351622476564083}  [0.678, 0.456, 0.08, 0.685, 0.539, 0.181, 0.525, 2.361, 2]
+
+{'Biomass': 29027.15295, 'Growth_Rate': 2658.86615464, 'Heredity': 0.8355633333333333, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 3.1022777405509655e-07, 'Invasion_Ability_Score': 8.321448887760241e-25, 'Resiliance_Score': 0.0}  [1, 0.202, 0, 0.791, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 29556.35915, 'Growth_Rate': 2170.9987100499998, 'Heredity': 0.936624, 'Biomass_Score': -0.014268042984069269, 'Growth_Rate_Score': -0.012057793359798495, 'Heredity_Score': -0.027512840278247984, 'Invasion_Ability_Score': -0.027512958329989144, 'Resiliance_Score': 0.08057936537266695}  [0.491, 0.213, 0, 0.777, 0.521, 0.104, 0.498, 2.011, 2]
+
+{'Biomass': 29264.646666666667, 'Growth_Rate': 2478.8823666666663, 'Heredity': 0.946805, 'Biomass_Score': -0.050525413499041126, 'Growth_Rate_Score': -0.049128437347729, 'Heredity_Score': -0.06399893769790703, 'Invasion_Ability_Score': -0.06399829447157392, 'Resiliance_Score': -0.0551420170723493}  [0.382, 0.182, 0.234, 0.683, 0.539, 0.103, 0.525, 1.859, 2]
+
+{'Biomass': 29995.70965666667, 'Growth_Rate': 2258.0385672493335, 'Heredity': 0.928057, 'Biomass_Score': -0.025266290365102445, 'Growth_Rate_Score': -0.021816667280443326, 'Heredity_Score': -0.039173222532542025, 'Invasion_Ability_Score': -0.03917366877272321, 'Resiliance_Score': 0.09038123675915541}  [0.597, 0.19, 0, 0.999, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 31618.67333333333, 'Growth_Rate': 3254.2520000000004, 'Heredity': 0.905345, 'Biomass_Score': 0.006319748926413348, 'Growth_Rate_Score': 0.008547445520818629, 'Heredity_Score': -0.006521594452922355, 'Invasion_Ability_Score': -0.006521440253595286, 'Resiliance_Score': 0.0005274682549940507}  [0.742, 0.559, 0, 0.777, 0.635, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29999.651843333337, 'Growth_Rate': 3520.280000021043, 'Heredity': 0.919766, 'Biomass_Score': 0.006888328376839088, 'Growth_Rate_Score': 0.00869796680959153, 'Heredity_Score': -0.0064450675427719034, 'Invasion_Ability_Score': -0.006444587311766704, 'Resiliance_Score': 0.002558319002514578}  [0.715, 0.041, 0.08, 0.777, 0.539, 0.104, 0.573, 1.973, 2]
+
+{'Biomass': 29446.749, 'Growth_Rate': 2963.925233333334, 'Heredity': 0.928057, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.0748755501791688, 'Invasion_Ability_Score': -9.157848458842682e-05, 'Resiliance_Score': -0.03327810650558696}  [0.597, 0.19, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 1222.8941200000002, 'Growth_Rate': 55.52911770469667, 'Heredity': 0.994382, 'Biomass_Score': 0, 'Growth_Rate_Score': 0, 'Heredity_Score': 0, 'Invasion_Ability_Score': 0, 'Resiliance_Score': 0}  [0.382, 0.182, 0.234, 0.683, 0.539, 0.103, 0.309, 2.018, 2]
+
+{'Biomass': 7441.757863333333, 'Growth_Rate': -3.247212e-06, 'Heredity': 0.917379, 'Biomass_Score': -3.4767762780629717e-15, 'Growth_Rate_Score': -6.2049384731048505e-15, 'Heredity_Score': -5.171473671224673e-15, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 0.0}  [0.406, 0.379, 0.019, 0.777, 0.413, 0.127, 0.498, 1.967, 2]
+
+{'Biomass': 29996.852776666667, 'Growth_Rate': 1915.9393574353335, 'Heredity': 0.9139940000000001, 'Biomass_Score': -0.009372429036062665, 'Growth_Rate_Score': -0.008382459295219467, 'Heredity_Score': -0.017513986264524127, 'Invasion_Ability_Score': -0.017513873008930734, 'Resiliance_Score': -0.016787230122477133}  [0.808, 0.183, 0, 0.891, 0.539, 0, 0.459, 2.241, 2]
+
+{'Biomass': 29898.833746333334, 'Growth_Rate': 2426.4447136807, 'Heredity': 0.934162, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.05968958937659097, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.52, 0.056, 0, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 19930.37959, 'Growth_Rate': 1315.2110505438334, 'Heredity': 0.929776, 'Biomass_Score': -0.009965813985888689, 'Growth_Rate_Score': -0.00955927906466579, 'Heredity_Score': -0.010706122997877989, 'Invasion_Ability_Score': -0.0008291458840201989, 'Resiliance_Score': -0.010711848673559544}  [0.808, 0.183, 0, 1, 0.484, 0.023, 0.511, 2.255, 2]
+
+{'Biomass': 29999.782054666666, 'Growth_Rate': 2434.560000000492, 'Heredity': 0.9308359999999999, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 4.256295546058135e-27, 'Invasion_Ability_Score': 1.599732832674702e-17, 'Resiliance_Score': 3.8736988543109874e-06}  [0.561, 0.027, 0.081, 0.878, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 19954.646396, 'Growth_Rate': 5982.840500048421, 'Heredity': 0.9344886666666667, 'Biomass_Score': -0.0011477614946985813, 'Growth_Rate_Score': 0.004618340056376936, 'Heredity_Score': -0.010640741649875001, 'Invasion_Ability_Score': -0.010640738265686676, 'Resiliance_Score': 0.0}  [0.715, 0.097, 0, 0.791, 0.539, 0.127, 0.343, 2.251, 3]
+
+{'Biomass': 27532.453333333335, 'Growth_Rate': 2239.6136333333334, 'Heredity': 0.939727, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.05968958937659097, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.456, 0.514, 0.003, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 16535.086666666666, 'Growth_Rate': 5.924333333333332, 'Heredity': 0.8648236666666667, 'Biomass_Score': -3.6372171370863444e-30, 'Growth_Rate_Score': -4.6252106746195466e-30, 'Heredity_Score': 4.618673993447331e-28, 'Invasion_Ability_Score': 2.7723487959494118e-30, 'Resiliance_Score': -4.029588079712907e-30}  [0.491, 0.213, 0, 0.837, 0.539, 0.104, 0.501, 2.33, 3]
+
+{'Biomass': 29742.04663333333, 'Growth_Rate': 2581.240096146667, 'Heredity': 0.922583, 'Biomass_Score': 0.07787214400168302, 'Growth_Rate_Score': 0.0705459149128346, 'Heredity_Score': -0.03410956000236169, 'Invasion_Ability_Score': -0.03411498517826552, 'Resiliance_Score': 0.0863575444074364}  [0.673, 0.183, 0, 0.723, 0.539, 0.103, 0.525, 2.018, 2]
+
+{'Biomass': 39897.730587, 'Growth_Rate': 3081.134468707635, 'Heredity': 0.926521, 'Biomass_Score': 0.007008272578052985, 'Growth_Rate_Score': 0.009652381129928151, 'Heredity_Score': -0.005665807029340713, 'Invasion_Ability_Score': -0.005665834305686986, 'Resiliance_Score': 0.0029975390898481467}  [0.494, 0.111, 0.054, 0.879, 0.623, 0, 0.501, 2.349, 2]
+
+{'Biomass': 23804.323333333334, 'Growth_Rate': 17677.463333333333, 'Heredity': 0.9357559999999999, 'Biomass_Score': -6.981134570628239e-16, 'Growth_Rate_Score': 6.057556282044678e-15, 'Heredity_Score': -7.753132321951222e-16, 'Invasion_Ability_Score': -7.753765101277992e-16, 'Resiliance_Score': -9.817257986562554e-17}  [0.45, 0.213, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 3]
+
+{'Biomass': 29992.457172666665, 'Growth_Rate': 3008.4818900229056, 'Heredity': 0.934162, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.0741403954643998, 'Invasion_Ability_Score': -0.00010861271464270017, 'Resiliance_Score': -0.03327810650558696}  [0.52, 0.056, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29891.457273333333, 'Growth_Rate': 2452.7640903199995, 'Heredity': 0.9354239999999999, 'Biomass_Score': 0.06658562448493843, 'Growth_Rate_Score': 0.08920862874642896, 'Heredity_Score': 0.05971241313516858, 'Invasion_Ability_Score': -0.06399900638221911, 'Resiliance_Score': -0.05566633141138463}  [0.505, 0.228, 0, 0.891, 0.539, 0, 0.501, 2.302, 2]
+
+{'Biomass': 27892.846666666668, 'Growth_Rate': 2832.5769999999998, 'Heredity': 0.934664, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.0741403954643998, 'Invasion_Ability_Score': -0.00010861271464270017, 'Resiliance_Score': -0.03327810650558696}  [0.514, 0.379, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29996.014979999996, 'Growth_Rate': 1469.6899415685336, 'Heredity': 0.934664, 'Biomass_Score': 4.132752268158633e-09, 'Growth_Rate_Score': 6.461367675387103e-09, 'Heredity_Score': 3.9388217622666445e-10, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 0.0}  [0.514, 0.418, 0.019, 0.683, 0.539, 0.103, 0.309, 2.018, 2]
+
+{'Biomass': 20000.625744, 'Growth_Rate': 3216.3900000189183, 'Heredity': 0.946243, 'Biomass_Score': -0.0038636896912849624, 'Growth_Rate_Score': -0.005855606295995466, 'Heredity_Score': -0.005888369646182551, 'Invasion_Ability_Score': -0.0059023622889453585, 'Resiliance_Score': 0.0013390069354332025}  [0.52, 0.056, 0, 0.872, 0.524, 0.064, 0.52, 2.303, 3]
+
+{'Biomass': 28210.630000000005, 'Growth_Rate': 2334.871, 'Heredity': 0.9165870000000002, 'Biomass_Score': 0.06441711626734875, 'Growth_Rate_Score': 0.088925345429376, 'Heredity_Score': 0.059722841144989006, 'Invasion_Ability_Score': -0.06399900500885436, 'Resiliance_Score': -0.05617603836857926}  [0.765, 0.465, 0, 0.891, 0.539, 0, 0.501, 2.241, 2]
+
+{'Biomass': 19870.808141999998, 'Growth_Rate': 14699.94266665502, 'Heredity': 0.934489, 'Biomass_Score': 0.0009353465505836942, 'Growth_Rate_Score': 0.005281378827963631, 'Heredity_Score': -0.007637109661873088, 'Invasion_Ability_Score': -0.007637109661873088, 'Resiliance_Score': 0.002174229487438911}  [0.715, 0.097, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 3]
+
+{'Biomass': 29380.917666666664, 'Growth_Rate': 2957.066566666667, 'Heredity': 0.946805, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.07428009275730432, 'Invasion_Ability_Score': -8.246549731324992e-05, 'Resiliance_Score': -0.03327810650558696}  [0.382, 0.213, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29027.833333333332, 'Growth_Rate': 3539.928, 'Heredity': 0.94, 'Biomass_Score': 0.0003552183749687488, 'Growth_Rate_Score': 0.0006348321048742036, 'Heredity_Score': -0.000146377732314076, 'Invasion_Ability_Score': -0.00014637755045608612, 'Resiliance_Score': 7.97577552214972e-05}  [0.453, 0.182, 0.234, 0.777, 0.539, 0.104, 0.582, 2.011, 2]
+
+{'Biomass': 29894.051123333335, 'Growth_Rate': 2193.530724843013, 'Heredity': 0.936624, 'Biomass_Score': -0.014268042984069269, 'Growth_Rate_Score': -0.012057793359798495, 'Heredity_Score': -0.027512840278247984, 'Invasion_Ability_Score': -0.027512958329989144, 'Resiliance_Score': 0.08057936537266695}  [0.491, 0.213, 0.067, 0.897, 0.521, 0.104, 0.498, 2.011, 2]
+
+{'Biomass': 29861.1442, 'Growth_Rate': 2735.754483833333, 'Heredity': 0.906394, 'Biomass_Score': 0.07418600455430896, 'Growth_Rate_Score': 0.006755977361331655, 'Heredity_Score': 0.02898439048935808, 'Invasion_Ability_Score': 0.03088427854627096, 'Resiliance_Score': -0.01067317625004044}  [0.947, 0.129, 0, 0.791, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 36034.60999999999, 'Growth_Rate': 4454.714333333333, 'Heredity': 0.9242303333333334, 'Biomass_Score': -0.06499071117925646, 'Growth_Rate_Score': -0.06432462779423959, 'Heredity_Score': -0.07484679968942189, 'Invasion_Ability_Score': 0.04993807084012353, 'Resiliance_Score': 0.0}  [0.52, 0.302, 0.13, 0.646, 0.521, 0, 0.501, 2.446, 2]
+
+{'Biomass': 29404.224666666665, 'Growth_Rate': 3012.495833333333, 'Heredity': 0.946805, 'Biomass_Score': 0.06428867675618989, 'Growth_Rate_Score': 0.041018430887578575, 'Heredity_Score': 0.05794867058409078, 'Invasion_Ability_Score': -9.595200800002757e-05, 'Resiliance_Score': -0.056447390872000014}  [0.382, 0.213, 0, 0.777, 0.539, 0.104, 0.549, 1.977, 2]
+
+{'Biomass': 5014.390333333334, 'Growth_Rate': -61.12233333333333, 'Heredity': 0.9416343333333334, 'Biomass_Score': 2.4495152428998046e-48, 'Growth_Rate_Score': 1.300738595684198e-45, 'Heredity_Score': 2.5581652520047727e-49, 'Invasion_Ability_Score': 0, 'Resiliance_Score': 0}  [0.715, 0.097, 0, 0.778, 0.521, 0.104, 0.501, 2.384, 3]
+
+{'Biomass': 29230.093810000002, 'Growth_Rate': 2913.8567371364334, 'Heredity': 0.8347509999999999, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 5.904831647384835e-13, 'Invasion_Ability_Score': 2.4172834627816877e-14, 'Resiliance_Score': 1.9494669993847995e-09}  [1, 0.173, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 28049.15366666667, 'Growth_Rate': 2541.4377, 'Heredity': 0.934664, 'Biomass_Score': -0.02480146152563669, 'Growth_Rate_Score': -0.022800889966228373, 'Heredity_Score': -0.039172734682899946, 'Invasion_Ability_Score': -9.404461229484823e-05, 'Resiliance_Score': 0.06779723748156656}  [0.514, 0.418, 0.019, 0.777, 0.539, 0.157, 0.525, 2.207, 2]
+
+{'Biomass': 24331.339999999997, 'Growth_Rate': 9528.253333333332, 'Heredity': 0.934664, 'Biomass_Score': 0.007122691878274052, 'Growth_Rate_Score': 0.009139955338043595, 'Heredity_Score': -0.006427178743202777, 'Invasion_Ability_Score': -0.006427178743202777, 'Resiliance_Score': 0.0029449983016434757}  [0.514, 0.418, 0.019, 0.971, 0.539, 0.142, 0.501, 2.349, 3]
+
+{'Biomass': -5294.806666666666, 'Growth_Rate': -6421.306666666667, 'Heredity': 0.9068876666666666, 'Biomass_Score': 3.549753469000623e-48, 'Growth_Rate_Score': 0, 'Heredity_Score': 0, 'Invasion_Ability_Score': 0, 'Resiliance_Score': 0}  [0.742, 0.468, 0, 0.777, 0.652, 0.104, 0.549, 2.011, 3]
+
+{'Biomass': 38999.03227266666, 'Growth_Rate': 2208.5398999690597, 'Heredity': 0.8843203333333333, 'Biomass_Score': 1.0023822253087333e-05, 'Growth_Rate_Score': 1.1511807683411826e-05, 'Heredity_Score': 2.4409346128912796e-11, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 6.59894656261335e-06}  [0.947, 0.129, 0, 0.667, 0.524, 0.005, 0.402, 2.22, 2]
+
+{'Biomass': 28319.73, 'Growth_Rate': 1997.5813666666666, 'Heredity': 0.934664, 'Biomass_Score': -0.019926620119522134, 'Growth_Rate_Score': -0.017854393225782257, 'Heredity_Score': -0.03411321356262167, 'Invasion_Ability_Score': -0.00011441875035025223, 'Resiliance_Score': 0.06858972240998638}  [0.514, 0.642, 0.019, 0.791, 0.524, 0.064, 0.475, 2.303, 2]
+
+{'Biomass': 39999.58458533333, 'Growth_Rate': 2616.8999997921615, 'Heredity': 0.907353, 'Biomass_Score': 8.252098883187262e-06, 'Growth_Rate_Score': 9.583373313073044e-06, 'Heredity_Score': 2.6209018014626693e-11, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 5.9613312699072e-06}  [0.715, 0.041, 0.08, 0.883, 0.689, 0.127, 0.383, 2.347, 2]
+
+{'Biomass': 29833.595154333336, 'Growth_Rate': 18507.054466666414, 'Heredity': 0.9259376666666667, 'Biomass_Score': -0.0028138735563790315, 'Growth_Rate_Score': 0.001303210858661901, 'Heredity_Score': -0.005981588238599575, 'Invasion_Ability_Score': -0.005981588238599575, 'Resiliance_Score': -0.0026864769744856325}  [0.629, 0.027, 0.081, 0.791, 0.524, 0.064, 0.546, 2.303, 3]
+
+{'Biomass': 28014.809666666668, 'Growth_Rate': 2729.7086666666664, 'Heredity': 0.8391013333333333, 'Biomass_Score': 1.2554305482892944e-05, 'Growth_Rate_Score': 1.9065153412746236e-05, 'Heredity_Score': -4.9238066025216006e-06, 'Invasion_Ability_Score': -4.923697079047135e-06, 'Resiliance_Score': 4.240523134775925e-06}  [1, 0.202, 0, 0.872, 0.524, 0.064, 0.53, 2.303, 2]
+
+{'Biomass': 27659.986666666668, 'Growth_Rate': 2557.0899999999997, 'Heredity': 0.9165870000000002, 'Biomass_Score': 0.07418600455430896, 'Growth_Rate_Score': 0.006755977361331655, 'Heredity_Score': 0.028597022921420398, 'Invasion_Ability_Score': 0.031024713083815575, 'Resiliance_Score': -0.01067317625004044}  [0.765, 0.409, 0, 0.791, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 36522.08, 'Growth_Rate': 3203.6200000000003, 'Heredity': 0.924807, 'Biomass_Score': 0.007014114345201542, 'Growth_Rate_Score': 0.009636971330862183, 'Heredity_Score': -0.007206245910993524, 'Invasion_Ability_Score': -0.007206263466220187, 'Resiliance_Score': 0.0016129281819316698}  [0.514, 0.418, 0.019, 0.791, 0.711, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 29998.807837999997, 'Growth_Rate': 2434.5599842375022, 'Heredity': 0.906394, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': -0.06399950650003616, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.947, 0.129, 0, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 28772.485333333334, 'Growth_Rate': 2121.3050666666663, 'Heredity': 0.934664, 'Biomass_Score': -0.014473869700710662, 'Growth_Rate_Score': -0.013493836568704443, 'Heredity_Score': -0.027507586359503115, 'Invasion_Ability_Score': -0.027510165331279337, 'Resiliance_Score': 0.0856049986799538}  [0.514, 0.418, 0, 0.791, 0.539, 0.067, 0.383, 2.251, 2]
+
+{'Biomass': 29899.821748, 'Growth_Rate': 2426.443333333333, 'Heredity': 0.9259376666666667, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.059688099888110815, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.629, 0.027, 0.081, 0.879, 0.539, 0.053, 0.501, 2.349, 2]
+
+{'Biomass': 29343.148666666664, 'Growth_Rate': 2951.402, 'Heredity': 0.946805, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.07428009275730432, 'Invasion_Ability_Score': -8.246549731324992e-05, 'Resiliance_Score': -0.03327810650558696}  [0.382, 0.213, 0, 0.681, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29816.129653333333, 'Growth_Rate': 2992.76850613, 'Heredity': 0.936365, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 0.0, 'Invasion_Ability_Score': 2.5803408718295206e-08, 'Resiliance_Score': 4.204636337147695e-06}  [0.494, 0.111, 0.054, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29999.762613999996, 'Growth_Rate': 3013.060000009657, 'Heredity': 0.92569, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.07439103935783131, 'Invasion_Ability_Score': -8.52391372883829e-05, 'Resiliance_Score': -0.03327810650558696}  [0.629, 0.027, 0.081, 0.777, 0.539, 0.104, 0.549, 2.008, 2]
+
+{'Biomass': 39565.03263333333, 'Growth_Rate': 2592.1861166666667, 'Heredity': 0.951253, 'Biomass_Score': 8.252098883187264e-06, 'Growth_Rate_Score': 9.583373313073044e-06, 'Heredity_Score': 2.249443044134768e-09, 'Invasion_Ability_Score': 8.110508291964059e-43, 'Resiliance_Score': 5.9613312699072e-06}  [0.281, 0.184, 0.067, 0.791, 0.689, 0.127, 0.383, 2.347, 2]
+
+{'Biomass': 26967.345666666664, 'Growth_Rate': 2467.9529666666663, 'Heredity': 0.845742, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 3.1022777405509655e-07, 'Invasion_Ability_Score': 8.321448887760243e-25, 'Resiliance_Score': 0.0}  [1, 0.202, 0, 0.791, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 26702.628563333332, 'Growth_Rate': 2072.349064166, 'Heredity': 0.845703, 'Biomass_Score': 1.2525945614938367e-08, 'Growth_Rate_Score': 2.0170075842525305e-08, 'Heredity_Score': 2.6687844285852004e-15, 'Invasion_Ability_Score': 5.080855930424243e-21, 'Resiliance_Score': 2.030225774407884e-09}  [1, 0.202, 0, 0.879, 0.539, 0, 0.501, 2.448, 2]
+
+{'Biomass': 39995.249879, 'Growth_Rate': 3444.9014246087404, 'Heredity': 0.933178, 'Biomass_Score': 0.006523140821798375, 'Growth_Rate_Score': 0.009846045503472803, 'Heredity_Score': -0.007034394444945299, 'Invasion_Ability_Score': -0.0070343518069955185, 'Resiliance_Score': 0.0017108496597686663}  [0.43, 0.044, 0, 0.777, 0.623, 0.157, 0.525, 2.361, 2]
+
+{'Biomass': 6917.07, 'Growth_Rate': 929.6966666666303, 'Heredity': 0.8931146666666666, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 0.0, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 0.0}  [0.678, 0.456, 0.08, 0.791, 0.524, 0.064, 0.52, 2.303, 3]
+
+{'Biomass': 29999.069448666665, 'Growth_Rate': 2441.449954244299, 'Heredity': 0.919766, 'Biomass_Score': 0.08556618245317849, 'Growth_Rate_Score': 0.03232811110238741, 'Heredity_Score': 0.060639328372819865, 'Invasion_Ability_Score': -0.06399947869428509, 'Resiliance_Score': -0.05754606806458665}  [0.715, 0.072, 0.08, 1, 0.616, 0.023, 0.511, 2.255, 2]
+
+{'Biomass': 29999.641853666664, 'Growth_Rate': 2445.0199866660787, 'Heredity': 0.9308359999999999, 'Biomass_Score': 0.09087241577960803, 'Growth_Rate_Score': 0.10613464750206963, 'Heredity_Score': 0.059871131226904184, 'Invasion_Ability_Score': -0.06399901023109465, 'Resiliance_Score': -0.05581719939312794}  [0.561, 0.027, 0.081, 0.778, 0.539, 0.216, 0.501, 2.33, 2]
+
+{'Biomass': 28973.78933333333, 'Growth_Rate': 2671.4299333333333, 'Heredity': 0.934664, 'Biomass_Score': 0.07350248861377245, 'Growth_Rate_Score': 0.03755309095370579, 'Heredity_Score': 0.0319039175085889, 'Invasion_Ability_Score': 0.03385500821666379, 'Resiliance_Score': -0.024351622476564083}  [0.514, 0.379, 0.019, 0.777, 0.539, 0.157, 0.525, 2.361, 2]
+
+{'Biomass': 29996.387976666665, 'Growth_Rate': 1469.6899641595335, 'Heredity': 0.930208, 'Biomass_Score': 4.132752268158633e-09, 'Growth_Rate_Score': 6.461367675387103e-09, 'Heredity_Score': 3.9388217622666445e-10, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 0.0}  [0.569, 0.456, 0, 0.683, 0.539, 0.103, 0.309, 2.018, 2]
+
+{'Biomass': 29696.707340000004, 'Growth_Rate': 2410.2140804686333, 'Heredity': 0.936624, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.05968958937659097, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.491, 0.213, 0, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 5885.746666666666, 'Growth_Rate': -930.9646666666667, 'Heredity': 0.8958013333333333, 'Biomass_Score': 5.4582267445236993e-08, 'Growth_Rate_Score': 1.2741580173637123e-05, 'Heredity_Score': 4.043201195817705e-08, 'Invasion_Ability_Score': 0, 'Resiliance_Score': 0}  [0.433, 0.418, 0.003, 0.683, 0.539, 0.103, 0.485, 2.018, 3]
+
+{'Biomass': 9789.766666666665, 'Growth_Rate': 3228.843333333333, 'Heredity': 0.952519, 'Biomass_Score': 0.0922802827934808, 'Growth_Rate_Score': 0.017336737701071782, 'Heredity_Score': -0.01969569358931065, 'Invasion_Ability_Score': -0.019527537587993277, 'Resiliance_Score': 0.09906546303075195}  [0.433, 0.449, 0.003, 0.791, 0.539, 0.127, 0.343, 2.251, 3]
+
+{'Biomass': 10251.913333333334, 'Growth_Rate': 3315.2333333333336, 'Heredity': 0.952519, 'Biomass_Score': 0.0922802827934808, 'Growth_Rate_Score': 0.017336737701071782, 'Heredity_Score': -0.01969569358931065, 'Invasion_Ability_Score': -0.019527537587993277, 'Resiliance_Score': 0.09906546303075195}  [0.433, 0.418, 0.003, 0.791, 0.539, 0.127, 0.343, 2.251, 3]
+
+{'Biomass': 29999.482619, 'Growth_Rate': 2713.7999885986565, 'Heredity': 0.936365, 'Biomass_Score': 0.06492964127042712, 'Growth_Rate_Score': 0.034901846596804134, 'Heredity_Score': 0.029841653294695583, 'Invasion_Ability_Score': -0.09423853942464355, 'Resiliance_Score': -0.02054507257441171}  [0.494, 0.044, 0, 0.791, 0.524, 0.064, 0.52, 2.355, 2]
+
+{'Biomass': 29999.640321666666, 'Growth_Rate': 2380.98000004182, 'Heredity': 0.936365, 'Biomass_Score': 0.07281997679924332, 'Growth_Rate_Score': 0.0381183562087259, 'Heredity_Score': -0.006933828852213622, 'Invasion_Ability_Score': -5.9485765222216935e-05, 'Resiliance_Score': -0.04932650375974614}  [0.494, 0.044, 0, 0.791, 0.524, 0.064, 0.402, 2.303, 2]
+
+{'Biomass': 29996.939476666666, 'Growth_Rate': 1374.6399830258335, 'Heredity': 0.934664, 'Biomass_Score': 1.6571594069341515e-12, 'Growth_Rate_Score': 3.810381552671492e-12, 'Heredity_Score': 8.417953217601179e-13, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 0.0}  [0.514, 0.379, 0.019, 0.891, 0.539, 0, 0.285, 2.241, 2]
+
+{'Biomass': 29999.05462566667, 'Growth_Rate': 2434.5598709670444, 'Heredity': 0.934162, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.05968958937659097, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.52, 0.056, 0, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 29999.738806999998, 'Growth_Rate': 2745.190000016983, 'Heredity': 0.933499, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 0.0, 'Invasion_Ability_Score': 6.405381473670287e-25, 'Resiliance_Score': 0.0}  [0.528, 0.027, 0.081, 0.872, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 29999.560022333335, 'Growth_Rate': 2451.7800000439966, 'Heredity': 0.936365, 'Biomass_Score': 0.08960667326275731, 'Growth_Rate_Score': 0.10620466199621717, 'Heredity_Score': 0.0598674038950439, 'Invasion_Ability_Score': -0.06399901078441121, 'Resiliance_Score': -0.05587565101680084}  [0.494, 0.056, 0, 0.87, 0.539, 0.246, 0.501, 2.318, 2]
+
+{'Biomass': 29999.815903666662, 'Growth_Rate': 2434.560000012687, 'Heredity': 0.9308359999999999, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.059688099888110815, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.561, 0.027, 0.081, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 28200.546666666665, 'Growth_Rate': 2312.6362999999997, 'Heredity': 0.934664, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 1.429881696608945e-07, 'Invasion_Ability_Score': 1.30347167639168e-15, 'Resiliance_Score': 4.373521421053135e-06}  [0.514, 0.406, 0.019, 1, 0.616, 0.023, 0.511, 2.255, 2]
+
+{'Biomass': 29994.941460000002, 'Growth_Rate': 1546.4698351886666, 'Heredity': 0.9165870000000002, 'Biomass_Score': 1.562904540822451e-06, 'Growth_Rate_Score': 1.937690182200062e-06, 'Heredity_Score': -1.2428340822627834e-07, 'Invasion_Ability_Score': -1.405895876383766e-07, 'Resiliance_Score': -2.277768240414991e-07}  [0.765, 0.409, 0, 0.742, 0.524, 0.064, 0.43, 2.303, 2]
+
+{'Biomass': 29999.795501333338, 'Growth_Rate': 2745.190000000452, 'Heredity': 0.92569, 'Biomass_Score': 0.07418600455430896, 'Growth_Rate_Score': 0.006755977361331655, 'Heredity_Score': 0.028306467713087438, 'Invasion_Ability_Score': 0.030925039136146554, 'Resiliance_Score': -0.01067317625004044}  [0.629, 0.027, 0.081, 0.872, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 6269.809328333334, 'Growth_Rate': -22.27753395645671, 'Heredity': 0.9296066666666668, 'Biomass_Score': -8.53601249354708e-12, 'Growth_Rate_Score': -8.8995263304203e-12, 'Heredity_Score': -8.8995263304203e-12, 'Invasion_Ability_Score': 8.736939279450885e-12, 'Resiliance_Score': -7.886554931779137e-12}  [0.715, 0.041, 0.08, 0.837, 0.539, 0.104, 0.501, 2.33, 3]
+
+{'Biomass': 29673.074666666667, 'Growth_Rate': 2745.499366666667, 'Heredity': 0.922583, 'Biomass_Score': 0.04348522038538771, 'Growth_Rate_Score': 0.0016878552729313046, 'Heredity_Score': 0.03340767016704749, 'Invasion_Ability_Score': 0.035345102483375135, 'Resiliance_Score': -0.009490913539608}  [0.673, 0.183, 0, 0.791, 0.569, 0.064, 0.52, 2.273, 2]
+
+{'Biomass': 29789.379456666666, 'Growth_Rate': 2418.3223341766666, 'Heredity': 0.934162, 'Biomass_Score': 0.1041321943943381, 'Growth_Rate_Score': 0.08849117624181907, 'Heredity_Score': 0.05968958937659097, 'Invasion_Ability_Score': -0.06399948825399034, 'Resiliance_Score': -0.05571431635928544}  [0.52, 0.245, 0.046, 0.733, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 29740.0006, 'Growth_Rate': 2708.2830953333337, 'Heredity': 0.9139940000000001, 'Biomass_Score': 0.058085018390689525, 'Growth_Rate_Score': 0.036626242978787554, 'Heredity_Score': 0.029915573342752813, 'Invasion_Ability_Score': 0.031486446298082116, 'Resiliance_Score': -0.021297677058499095}  [0.808, 0.183, 0, 0.791, 0.524, 0.064, 0.52, 2.338, 2]
+
+{'Biomass': 29872.5705, 'Growth_Rate': 2735.779277233333, 'Heredity': 0.9200333333333334, 'Biomass_Score': 0.07418600455430896, 'Growth_Rate_Score': 0.006755977361331655, 'Heredity_Score': 0.028697705706173054, 'Invasion_Ability_Score': 0.03072509444405147, 'Resiliance_Score': -0.01067317625004044}  [0.715, 0.072, 0.08, 0.791, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 29898.351523333335, 'Growth_Rate': 2436.8697329322663, 'Heredity': 0.919766, 'Biomass_Score': 0.09087241577960803, 'Growth_Rate_Score': 0.10613464750206963, 'Heredity_Score': 0.06029504303013816, 'Invasion_Ability_Score': -0.06399900429242665, 'Resiliance_Score': -0.05581719939312794}  [0.715, 0.077, 0.08, 0.778, 0.539, 0.246, 0.501, 2.33, 2]
+
+{'Biomass': 29997.49269, 'Growth_Rate': 2382.1099293994002, 'Heredity': 0.936624, 'Biomass_Score': 0.04671784610458855, 'Growth_Rate_Score': 0.033736471972046975, 'Heredity_Score': 0.059893282358208, 'Invasion_Ability_Score': -0.06399855978282926, 'Resiliance_Score': -0.05738761532227264}  [0.491, 0.213, 0, 0.879, 0.539, 0, 0.501, 2.371, 2]
+
+{'Biomass': 28625.051016666668, 'Growth_Rate': 2432.831781946667, 'Heredity': 0.8363703333333333, 'Biomass_Score': 0, 'Growth_Rate_Score': 0, 'Heredity_Score': 1.169416471835561e-16, 'Invasion_Ability_Score': 2.1880342112627377e-20, 'Resiliance_Score': 0}  [1, 0.136, 0, 0.683, 0.539, 0.103, 0.525, 2.018, 2]
+
+{'Biomass': 29640.548, 'Growth_Rate': 2719.98791, 'Heredity': 0.934162, 'Biomass_Score': 0.07418600455430896, 'Growth_Rate_Score': 0.006755977361331655, 'Heredity_Score': 0.028131609090436036, 'Invasion_Ability_Score': 0.03113048519873607, 'Resiliance_Score': -0.01067317625004044}  [0.52, 0.206, 0, 0.871, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 39999.39024666667, 'Growth_Rate': 3089.2499869518447, 'Heredity': 0.926521, 'Biomass_Score': 0.007008272578052985, 'Growth_Rate_Score': 0.009652381129928151, 'Heredity_Score': -0.005665807029340713, 'Invasion_Ability_Score': -0.005665834305686986, 'Resiliance_Score': 0.0029975390898481467}  [0.494, 0.056, 0, 0.879, 0.623, 0, 0.501, 2.349, 2]
+
+{'Biomass': 29999.59302, 'Growth_Rate': 2200.8699990578534, 'Heredity': 0.919766, 'Biomass_Score': -0.014268042984069269, 'Growth_Rate_Score': -0.012057793359798495, 'Heredity_Score': -0.027512879023541544, 'Invasion_Ability_Score': -0.027512962716145027, 'Resiliance_Score': 0.08057936537266695}  [0.715, 0.041, 0, 0.777, 0.521, 0.104, 0.498, 2.011, 2]
+
+{'Biomass': 27466.47333333334, 'Growth_Rate': 14715.060333333333, 'Heredity': 0.9473363333333333, 'Biomass_Score': -0.007001246172971709, 'Growth_Rate_Score': -0.0024101674868669863, 'Heredity_Score': -0.007266969880316538, 'Invasion_Ability_Score': -0.007267113726017537, 'Resiliance_Score': -0.005317221315971047}  [0.382, 0.182, 0.234, 0.778, 0.539, 0.246, 0.501, 2.33, 3]
+
+{'Biomass': 29314.891666666666, 'Growth_Rate': 2695.0639666666666, 'Heredity': 0.9343813333333334, 'Biomass_Score': 0.07418600455430896, 'Growth_Rate_Score': 0.006755977361331655, 'Heredity_Score': 0.028131609090436036, 'Invasion_Ability_Score': 0.03113048519873607, 'Resiliance_Score': -0.01067317625004044}  [0.52, 0.245, 0.065, 0.804, 0.524, 0.064, 0.52, 2.303, 2]
+
+{'Biomass': 29894.54329666667, 'Growth_Rate': 2714.7108068233338, 'Heredity': 0.906394, 'Biomass_Score': 0.058085018390689525, 'Growth_Rate_Score': 0.036626242978787554, 'Heredity_Score': 0.029923790952108245, 'Invasion_Ability_Score': 0.031744258183210444, 'Resiliance_Score': -0.021297677058499095}  [0.947, 0.129, 0, 0.791, 0.524, 0.064, 0.52, 2.338, 2]
+
+{'Biomass': 39552.738966666664, 'Growth_Rate': 2571.486511233333, 'Heredity': 0.9268199999999999, 'Biomass_Score': -0.014563214323676996, 'Growth_Rate_Score': -0.013166779751877878, 'Heredity_Score': -0.025368821134075997, 'Invasion_Ability_Score': 0.01231902990303788, 'Resiliance_Score': -0.016514199272887685}  [0.491, 0.184, 0.067, 0.791, 0.689, 0.127, 0.383, 2.382, 2]
+
+{'Biomass': 29992.654259000003, 'Growth_Rate': 3008.48189000668, 'Heredity': 0.92569, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.07467759125204815, 'Invasion_Ability_Score': -8.880508882984361e-05, 'Resiliance_Score': -0.03327810650558696}  [0.629, 0.027, 0.081, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
+{'Biomass': 29409.401923333335, 'Growth_Rate': 2340.86949952407, 'Heredity': 0.8314576666666667, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 1.0743380066891354e-26, 'Invasion_Ability_Score': 4.98628768142613e-55, 'Resiliance_Score': 2.4225260837197252e-24}  [1, 0.129, 0.019, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 29887.48893333333, 'Growth_Rate': 2582.8872318666668, 'Heredity': 0.9139940000000001, 'Biomass_Score': 0.008958320779725578, 'Growth_Rate_Score': 0.012166315565771527, 'Heredity_Score': -0.006203320185242097, 'Invasion_Ability_Score': -0.006203336182154487, 'Resiliance_Score': 0.0032659916066760603}  [0.808, 0.183, 0, 0.778, 0.539, 0.246, 0.511, 2.33, 2]
+
+{'Biomass': 29896.044556666664, 'Growth_Rate': 2156.0494698157004, 'Heredity': 0.9343813333333334, 'Biomass_Score': -0.02399240879293175, 'Growth_Rate_Score': -0.024261960904007434, 'Heredity_Score': -0.026741169930582714, 'Invasion_Ability_Score': -0.02674804162122167, 'Resiliance_Score': -0.026745966776603722}  [0.52, 0.209, 0.13, 1, 0.539, 0.246, 0.501, 2.33, 2]
+
+{'Biomass': 29933.093333333334, 'Growth_Rate': 2802.515266666667, 'Heredity': 0.92569, 'Biomass_Score': 0.058112337281947674, 'Growth_Rate_Score': 0.02349961895729656, 'Heredity_Score': 0.029268951245440766, 'Invasion_Ability_Score': 0.03258152060684641, 'Resiliance_Score': -0.01978076657970282}  [0.629, 0.027, 0.081, 0.777, 0.539, 0.136, 0.525, 2.33, 2]
+
+{'Biomass': 38793.039, 'Growth_Rate': 2996.7403, 'Heredity': 0.9248073333333333, 'Biomass_Score': 0.007008272578052985, 'Growth_Rate_Score': 0.009652381129928151, 'Heredity_Score': -0.0056658072606923585, 'Invasion_Ability_Score': -0.005665834305686986, 'Resiliance_Score': 0.0029975390898481467}  [0.514, 0.379, 0.086, 0.879, 0.623, 0, 0.501, 2.349, 2]
+
+{'Biomass': 29998.142043333337, 'Growth_Rate': 1469.68999251622, 'Heredity': 0.940274, 'Biomass_Score': 4.132752268158633e-09, 'Growth_Rate_Score': 6.461367675387103e-09, 'Heredity_Score': 3.9388217622666445e-10, 'Invasion_Ability_Score': 0.0, 'Resiliance_Score': 0.0}  [0.45, 0.212, 0, 0.683, 0.539, 0.103, 0.309, 2.018, 2]
+
+{'Biomass': 29893.473343333335, 'Growth_Rate': 2468.4120821996667, 'Heredity': 0.9139940000000001, 'Biomass_Score': 0.06441711626734875, 'Growth_Rate_Score': 0.088925345429376, 'Heredity_Score': -0.06399872266323621, 'Invasion_Ability_Score': -0.06399900500885436, 'Resiliance_Score': -0.05617603836857926}  [0.808, 0.183, 0, 0.891, 0.539, 0, 0.501, 2.241, 2]
+
+{'Biomass': 29899.19317166667, 'Growth_Rate': 2426.443303120967, 'Heredity': 0.9343813333333334, 'Biomass_Score': 0.0, 'Growth_Rate_Score': 0.0, 'Heredity_Score': 1.403257694895872e-26, 'Invasion_Ability_Score': 2.2770638548562208e-17, 'Resiliance_Score': 5.229469500425919e-06}  [0.52, 0.056, 0.08, 0.879, 0.539, 0, 0.501, 2.349, 2]
+
+{'Biomass': 18398.800000000003, 'Growth_Rate': 9392.353666666666, 'Heredity': 0.948254, 'Biomass_Score': -0.004251991316973399, 'Growth_Rate_Score': 0.009527063770767721, 'Heredity_Score': -0.007130719094795314, 'Invasion_Ability_Score': -0.0071538027330695034, 'Resiliance_Score': 0.003448235157815482}  [0.491, 0.213, 0.067, 0.999, 0.539, 0, 0.501, 2.349, 3]
+
+{'Biomass': 27440.33, 'Growth_Rate': 2787.164666666667, 'Heredity': 0.9180259999999999, 'Biomass_Score': 0.0987425241879798, 'Growth_Rate_Score': 0.08196587775437031, 'Heredity_Score': 0.07485626393414707, 'Invasion_Ability_Score': -8.959749852031212e-05, 'Resiliance_Score': -0.03327810650558696}  [0.742, 0.409, 0, 0.777, 0.539, 0.104, 0.549, 2.011, 2]
+
