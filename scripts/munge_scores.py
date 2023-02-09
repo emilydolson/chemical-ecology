@@ -11,7 +11,7 @@ import os
 def main():
     glob_pattern = sys.argv[1]
     outfilename = sys.argv[2]
-    scores = [[], [], [], [],[]]
+    scores = [[], [], [], [], [], []]
 
 
     for dirname in glob.glob(glob_pattern):
