@@ -38,7 +38,7 @@ cd search
 cp /mnt/home/$USER/chemical-ecology/scripts/search_world_params.py .
 
 # Run script
-python3 search_world_params.py > outfile.txt
+python3 search_world_params.py $2 > outfile.txt
 
 # Delete any out files that do not contain error messages
 find /mnt/home/$USER/chemical-ecology/evolve -type f -empty -delete
