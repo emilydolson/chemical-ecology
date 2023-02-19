@@ -11,7 +11,7 @@ from klemm_lfr_graph import create_matrix as klemm_create_matrix
 
 def test_matrix_size(seed): #5
     params = []
-    for n_types in [9, 15, 21, 27, 33]:
+    for n_types in [9]:#, 15, 21, 27, 33]:
         params.append([n_types, 4, 0.9, 0.5, 1, 0.75, 0.25, seed])
     return params
 
@@ -72,7 +72,14 @@ def search_params(matrix_scheme, seed):
                     i_score = df['Invasion_Ability_Score'].values
                     r_score = df['Resiliance_Score'].values
                     a_score = df['Assembly_Score'].values
+                    df_aeco = pd.read_csv('a-eco_data.csv')
+                    biomasses = df_aeco['mean_Biomass'].values
+                    growth_rates = df_aeco['mean_Growth_Rate'].values
+                    heredities = df_aeco['mean_Heredity'].values
                     fitnesses.append({
+                        'Biomass': biomasses[-1] - biomasses[0],
+                        'Growth_Rate': growth_rates[-1] - growth_rates[0],
+                        'Heredity': heredities[-1],
                         'Biomass_Score': b_score[0] - a_score[0],
                         'Growth_Rate_Score': g_score[0] - a_score[0],
                         'Heredity_Score': h_score[0] - a_score[0],
