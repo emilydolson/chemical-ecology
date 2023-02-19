@@ -1,0 +1,46 @@
+#!/bin/sh
+
+#SBATCH -A ecode
+
+## Email settings
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=leithers@msu.edu
+
+## Job name settings
+#SBATCH --job-name=matrix_search
+#SBATCH -o ga_%A.out
+
+## Time requirement in format "days-hours:minutes"
+#SBATCH --time=3-0:00
+
+## Memory requirement in megabytes. You might need to make this bigger.
+#SBATCH --mem-per-cpu=4gb
+
+#SBATCH --array=0-9
+
+module load GNU/8.2.0-2.31.1
+
+cd /mnt/scratch/$USER/chemical-ecology/data
+
+## Make a directory for this condition
+## (this line will throw an error once the directory exists, but
+## that's harmless)
+mkdir $1
+cd $1
+
+mkdir ${SLURM_ARRAY_TASK_ID}
+cd ${SLURM_ARRAY_TASK_ID}
+
+# Get executable
+cp /mnt/home/$USER/grant/chemical-ecology/chemical-ecology .
+
+# Get scripts
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/matrices/search_params.py .
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/matrices/matrices.py .
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/matrices/klemm_lfr_graph.py .
+
+# Run ga script
+python3 search_params.py $1 ${SLURM_ARRAY_TASK_ID} > outfile.txt
+
+# Delete any out files that do not contain error messages
+find /mnt/home/$USER/grant/chemical-ecology/scripts -type f -empty -delete
