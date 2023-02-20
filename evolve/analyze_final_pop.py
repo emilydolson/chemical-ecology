@@ -32,7 +32,7 @@ def histogram_params(population, file_name):
 
     param_names = ['diffusion', 'seeding', 'clear']
     for i in range(3):
-            axis.hist([x[i] for x in population], bins=np.arange(0, 1 + 0.05, 0.05), stacked=True, label=param_names[i], alpha=0.66)
+        axis.hist([x[i] for x in population], bins=np.arange(0, 1 + 0.05, 0.05), stacked=True, label=param_names[i], alpha=0.66)
     axis.set_xlim(0, 1)
     axis.set_ylim(0, len(population))
     figure.suptitle(file_name)
