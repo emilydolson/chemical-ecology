@@ -315,7 +315,7 @@ class AEcoWorld {
       Update(i);
     }
 
-    world_t stable_world = stableUpdate(20);
+    world_t stable_world = stableUpdate(1000);
     std::set<std::string> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
@@ -739,7 +739,9 @@ class AEcoWorld {
       }
       node_map[i] = curr_node;
       std::bitset<64> temp(i);
-      g.SetLabel(curr_node, temp.to_string());
+      std::string temp_str = temp.to_string();
+      temp_str.erase(0, 64-N_TYPES);
+      g.SetLabel(curr_node, temp_str);
       curr_node++;
     }
 
@@ -906,7 +908,7 @@ class AEcoWorld {
     for(emp::vector<double> cell: stable_world){
       std::string temp = "";
       for(double species: cell){
-        if(species > 0.0){
+        if(species > 0.001){
           temp.append("1");
         }
         else{
@@ -914,7 +916,6 @@ class AEcoWorld {
         }
       }
       std::reverse(temp.begin(), temp.end());
-      temp = std::string(64-temp.length(), '0').append(temp);
       finalCommunities.insert(temp);
     }
     return finalCommunities;
