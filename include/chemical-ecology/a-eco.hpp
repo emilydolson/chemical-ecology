@@ -738,7 +738,7 @@ class AEcoWorld {
         continue;
       }
       node_map[i] = curr_node;
-      std::bitset<9> temp(i);
+      std::bitset<64> temp(i);
       g.SetLabel(curr_node, temp.to_string());
       curr_node++;
     }
@@ -914,6 +914,7 @@ class AEcoWorld {
         }
       }
       std::reverse(temp.begin(), temp.end());
+      temp = std::string(64-temp.length(), '0').append(temp);
       finalCommunities.insert(temp);
     }
     return finalCommunities;
