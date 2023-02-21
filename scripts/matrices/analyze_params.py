@@ -9,32 +9,61 @@ import pandas as pd
 import seaborn as sb
 
 
-def correlation_heatmap(adaptive, score, matrix_scheme):
-    df = pd.DataFrame(adaptive[score])
+def get_network_properties(adaptive, score, matrix_scheme):
+    if matrix_scheme == 'klemm':
+        create_matrix_func = klemm_create_matrix
+    elif matrix_scheme == 'klemm_random':
+        create_matrix_func = klemm_random_create_matrix
+    elif matrix_scheme == 'mangal':
+        create_matrix_func = read_mangal
+    elif matrix_scheme == 'motif':
+        create_matrix_func = motif_create_matrix
+    elif matrix_scheme == 'random':
+        create_matrix_func = random_create_matrix
+    else:
+        print('invalid matrix scheme')
+        return
+
+    properties = []
+    for genome in adaptive[score]:
+        matrix = create_matrix_func(*genome[3:])
+        connectance = sum([sum([1 for y in x if y != 0]) for x in matrix]) / len(matrix)**2
+
+
+def correlation_heatmap(params, score, matrix_scheme):
+    df = pd.DataFrame(params)
+    df.drop(df.columns[[-1]], axis=1, inplace=True)
     corr = df.corr()
     fig = sb.heatmap(corr, center=0, vmin=-1, vmax=1, cmap='coolwarm').get_figure()
     fig.savefig(f'plots/{matrix_scheme}/{score}_heatmap.png')
     plt.close()
 
 
-def param_histograms(adaptive, score, matrix_scheme):
+def param_histograms(params, score, matrix_scheme):
     figure, axis = plt.subplots(5, 2, figsize=(10,10))
 
-    if len(adaptive[score][0]) > 12:
+    if len(params[0]) > 12:
         print('too many parameters to visualize in histogram figure')
         return
 
     row = 0
     col = 0
-    for i in range(len(adaptive[score][0])):
+    for i in range(len(params[0])-1):
         param_i = []
-        for j in range(len(adaptive[score])):
-            param_i.append(adaptive[score][j][i])
-        bins = sorted(list(set(param_i)))
-        h = np.histogram(param_i, bins=[bins[0]-0.001]+[x+0.001 for x in bins])
-        axis[row][col].bar(range(len(bins)), h[0], label=i, alpha=0.66, width=1)
-        axis[row][col].set_xticks(np.arange(0, len(bins), 1), bins)
-        axis[row][col].set_ylim(0, len(adaptive[score]))
+        for j in range(len(params)):
+            param_i.append(params[j][i])
+        bins = set(param_i)
+        if len(bins) < 10:
+            bins = sorted(list(bins))
+            h = np.histogram(param_i, bins=[bins[0]-0.001]+[x+0.001 for x in bins])
+            axis[row][col].bar(range(len(bins)), h[0], label=i, alpha=0.66, width=1)
+            axis[row][col].set_xticks(np.arange(0, len(bins), 1), bins)
+        else:
+            if round(max(param_i)) == 1:
+                axis[row][col].hist(param_i, bins=np.arange(0, 1.1, 0.1), label=i, alpha=0.66)
+            else:
+                axis[row][col].hist(param_i, bins=np.arange(0, round(max(param_i))+0.5, 0.5), label=i, alpha=0.66)
+        axis[row][col].set_ylim(0, len(params))
         axis[row][col].legend()
         if i > 1:
             row += 1
@@ -67,7 +96,7 @@ def adaptive_params(fitnesses, params):
         for j in range(len(params[i])):
             for score in adaptive.keys():
                 if fitnesses[i][j][score] > 0 and fitnesses[i][j]['Biomass'] > 5000:
-                    adaptive[score].append(params[i][j][:-1])
+                    adaptive[score].append(params[i][j])
     return adaptive
 
 
@@ -89,6 +118,7 @@ def get_results(file_location):
 
 def main(file_name):
     file_path = f'/mnt/gs21/scratch/{os.getlogin()}/chemical-ecology/data/{file_name}'
+
     params = []
     fitnesses = []
     adaptive = []
@@ -100,13 +130,18 @@ def main(file_name):
             fitnesses.append(fitness_list)
         else:
             print(f'results not found for seed {f}')
-    print(f'{len(params[0])*len(params)} combinations')
+
+    print(f'{sum([len(x) for x in params])} combinations')
     adaptive = adaptive_params(fitnesses, params)
     for score in [x for x in fitnesses[0][0].keys() if 'Score' in x]:
         print(f'Adaptive {score}: {len(adaptive[score])}')
         fitness_correlation(params, fitnesses, score, file_name)
-        param_histograms(adaptive, score, file_name)
-        correlation_heatmap(adaptive, score, file_name)
+        param_histograms(adaptive[score], score, file_name)
+        correlation_heatmap(adaptive[score], score, file_name)
+
+    all_params = [val for sublist in params for val in sublist]
+    param_histograms(all_params, 'All', file_name)
+    correlation_heatmap(all_params, 'All', file_name)
 
 
 if __name__ == '__main__':

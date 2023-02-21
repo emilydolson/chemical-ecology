@@ -67,9 +67,8 @@ def random_create_matrix(num_types, seed):
 
 
 def search_params(matrix_scheme, seed):
-    random.seed(seed)
     interaction_matrix_file = 'interaction_matrix.dat'
-    num_samples = 1000
+    num_samples = 100000
 
     if matrix_scheme == 'klemm':
         abiotic_params, matrix_params = sample_params(num_samples, [2, 0, 0, 0, 0, 0], [8, 1, 3, 1, 1, 1], [True, False, False, False, False, False], True, int(seed))
@@ -144,7 +143,7 @@ def search_params(matrix_scheme, seed):
         })
         abiotics.append([diffusion, seeding, clear])
 
-        if i % 100 == 0:
+        if (i+1) % 100 == 0:
             with open('results.txt', 'a') as f:
                 for i in range(len(fitnesses)):
                     f.write(f'{fitnesses[i]} | {abiotics[i]} | {param_list}\n')
