@@ -34,13 +34,17 @@ for (i in 1:length(networks)){
 		for (j in 1:nrow(net_tbl)){
 		    value <- net_tbl$value[j]
 			if (normalize){
-				adj_matrix[nodes_from[j], nodes_to[j]] <- (value - min(net_tbl$value)) / (max(net_tbl$value) - min(net_tbl$value))
+				adj_matrix[nodes_to[j], nodes_from[j]] <- (value - min(net_tbl$value)) / (max(net_tbl$value) - min(net_tbl$value))
 			}
 			else{
-		    	adj_matrix[nodes_from[j], nodes_to[j]] <- value
+		    	adj_matrix[nodes_to[j], nodes_from[j]] <- value
 			}
-			if ((net_tbl$type[j] == 'predation') | (net_tbl$type[j] == 'herbivory') | (net_tbl$type[j] == 'parasitism')){
-				adj_matrix[nodes_to[j], nodes_from[j]] <- runif(1, -1, 0)
+			if (((net_tbl$type[j] == 'predation') | (net_tbl$type[j] == 'herbivory') | (net_tbl$type[j] == 'parasitism')) & (identical(nodes_to[j], nodes_from[j]) == 0)){
+				neg_value <- rnorm(1, adj_matrix[nodes_to[j], nodes_from[j]], 0.1)
+				if (neg_value > 0){
+					neg_value <- -neg_value
+				}
+				adj_matrix[nodes_from[j], nodes_to[j]] <- neg_value
 			}
 		}
 
