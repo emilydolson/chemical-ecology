@@ -14,32 +14,34 @@ from klemm_eguiliuz import create_matrix as klemm_random_create_matrix
 from motifs import create_matrix as motif_create_matrix
 
 
-def sample_params(num_samples, lower_bounds, upper_bounds, ints, constant_ntypes, seed):
-    lower_bounds = [0, 0, 0] + lower_bounds
-    upper_bounds = [1, 1, 1] + upper_bounds
+def sample_params(num_samples, lower_bounds, upper_bounds, ints, constant_ntypes, seed, sampling_scheme):
+    if sampling_scheme == 'lhs':
+        lower_bounds = [0, 0, 0] + lower_bounds
+        upper_bounds = [1, 1, 1] + upper_bounds
 
-    sampler = qmc.LatinHypercube(d=len(lower_bounds), seed=seed)
-    unscaled_sample = sampler.random(n=num_samples)
-    sample = qmc.scale(unscaled_sample, lower_bounds, upper_bounds).tolist()
+        sampler = qmc.LatinHypercube(d=len(lower_bounds), seed=seed)
+        unscaled_sample = sampler.random(n=num_samples)
+        sample = qmc.scale(unscaled_sample, lower_bounds, upper_bounds).tolist()
 
-    matrix_sample = [s[3:] for s in sample]
-    abiotic_params = [[round(x, 3) for x in s[0:3]] for s in sample]
-    if constant_ntypes:
-        matrix_params = [[9]+[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in matrix_sample]
-    else:
-        matrix_params = [[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in matrix_sample]
+        matrix_sample = [s[3:] for s in sample]
+        abiotic_params = [[round(x, 3) for x in s[0:3]] for s in sample]
+        if constant_ntypes:
+            matrix_params = [[9]+[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in matrix_sample]
+        else:
+            matrix_params = [[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in matrix_sample]
     
     return abiotic_params, matrix_params
 
 
-def sample_matrix_params(num_samples, lower_bounds, upper_bounds, ints, constant_ntypes, seed):
-    sampler = qmc.LatinHypercube(d=len(lower_bounds), seed=seed)
-    unscaled_sample = sampler.random(n=num_samples)
-    sample = qmc.scale(unscaled_sample, lower_bounds, upper_bounds).tolist()
-    if constant_ntypes:
-        params = [[9]+[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in sample]
-    else:
-        params = [[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in sample]
+def sample_matrix_params(num_samples, lower_bounds, upper_bounds, ints, constant_ntypes, seed, sampling_scheme):
+    if sampling_scheme == 'lhs':
+        sampler = qmc.LatinHypercube(d=len(lower_bounds), seed=seed)
+        unscaled_sample = sampler.random(n=num_samples)
+        sample = qmc.scale(unscaled_sample, lower_bounds, upper_bounds).tolist()
+        if constant_ntypes:
+            params = [[9]+[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in sample]
+        else:
+            params = [[round(s[i]) if ints[i] else round(s[i], 3) for i in range(len(s))]+[seed] for s in sample]
     return params
 
 
@@ -47,7 +49,7 @@ def get_mangal_params():
     params = []
     for f in os.listdir('mangal_matrices'):
         species_count = sum(1 for line in open(f'mangal_matrices/{f}'))
-        if species_count <= 32:
+        if species_count <= 20:
             params.append([species_count, f])
     return params
 
@@ -57,24 +59,26 @@ def read_mangal(num_types, name):
     return matrix
 
 
-def random_create_matrix(num_types, seed):
+def random_create_matrix(num_types, prob_edge, seed):
     random.seed(seed)
     matrix = [[0 for _ in range(num_types)] for _ in range(num_types)]
     for row in range(len(matrix)):
         for col in range(len(matrix)):
-            matrix[row][col] = random.uniform(-1, 1)
+            if random.random() < prob_edge:
+                matrix[row][col] = random.uniform(-1, 1)
     return matrix
 
 
 def search_params(matrix_scheme, seed):
     interaction_matrix_file = 'interaction_matrix.dat'
+    sampling_scheme = 'lhs'
     num_samples = 100000
 
     if matrix_scheme == 'klemm':
-        abiotic_params, matrix_params = sample_params(num_samples, [2, 0, 0, 0, 0, 0], [8, 1, 3, 1, 1, 1], [True, False, False, False, False, False], True, int(seed))
+        abiotic_params, matrix_params = sample_params(num_samples, [2, 0, 0, 0, 0, 0], [8, 1, 3, 1, 1, 1], [True, False, False, False, False, False], True, int(seed), sampling_scheme)
         create_matrix_func = klemm_create_matrix
     elif matrix_scheme == 'klemm_random':
-        abiotic_params, matrix_params = sample_params(num_samples, [2, 0], [8, 1], [True, False], True, int(seed))
+        abiotic_params, matrix_params = sample_params(num_samples, [2, 0], [8, 1], [True, False], True, int(seed), sampling_scheme)
         create_matrix_func = klemm_random_create_matrix
     elif matrix_scheme == 'mangal':
         matrix_params = get_mangal_params()
@@ -82,12 +86,12 @@ def search_params(matrix_scheme, seed):
         matrix_params = matrix_params*64
         create_matrix_func = read_mangal
     elif matrix_scheme == 'motif':
-        abiotic_params, matrix_params = sample_params(num_samples, [0]*18, ([13]*9)+([2]*9), [True]*18, True, int(seed))
+        abiotic_params, matrix_params = sample_params(num_samples, [0]*18, ([13]*9)+([2]*9), [True]*18, True, int(seed), sampling_scheme)
         matrix_params = [[x[0], 3, x[1:10], x[10:-1], x[-1]] for x in matrix_params]
         create_matrix_func = motif_create_matrix
     elif matrix_scheme == 'random':
         abiotic_params = [[random.random(), random.random(), random.random()] for _ in range(num_samples)]
-        matrix_params = [[9, random.randint(0, 100000000)] for _ in range(num_samples)]
+        matrix_params = [[9, random.random(), random.randint(0, 100000000)] for _ in range(num_samples)]
         create_matrix_func = random_create_matrix
     else:
         print('invalid matrix scheme')
@@ -95,6 +99,7 @@ def search_params(matrix_scheme, seed):
 
     fitnesses = []
     abiotics = []
+    matrices = []
     for i in range(num_samples):
         diffusion = abiotic_params[i][0]
         seeding = abiotic_params[i][1]
@@ -142,13 +147,15 @@ def search_params(matrix_scheme, seed):
             'Resiliance_Score': r_score[0] - a_score[0]
         })
         abiotics.append([diffusion, seeding, clear])
+        matrices.append(param_list)
 
         if (i+1) % 100 == 0:
             with open('results.txt', 'a') as f:
                 for i in range(len(fitnesses)):
-                    f.write(f'{fitnesses[i]} | {abiotics[i]} | {param_list}\n')
+                    f.write(f'{fitnesses[i]} | {abiotics[i]} | {matrices[i]}\n')
             fitnesses = []
             abiotics = []
+            matrices = []
 
 
 def main():
