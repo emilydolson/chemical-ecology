@@ -162,4 +162,5 @@ def main():
     search_params(sys.argv[1], sys.argv[2])
 
 
-main()
+if __name__ == '__main__':
+    main()
