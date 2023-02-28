@@ -91,36 +91,26 @@ def individual_correlation(params, fitnesses, score, param_id, matrix_scheme, ad
     figure, axis = plt.subplots(1, 1)
 
     if adaptive:
-        scores = [y[score] for y in fitnesses[replicate] if y['Biomass'] > 5000 and y[score] > 0]
-        params_id = [params[replicate][j][param_id] for j in range(len(params[replicate])) if fitnesses[replicate][j]['Biomass'] > 5000 and fitnesses[replicate][j][score] > 0]
-        colors = [y['Biomass'] for y in fitnesses[replicate] if y['Biomass'] > 5000 and y[score] > 0]
-        cmap = 'Oranges'
+        scores = [y[score] for y in fitnesses[replicate] if y['Biomass'] > 5000 and y[score] > 1]
+        params_id = [params[replicate][j][param_id] for j in range(len(params[replicate])) if fitnesses[replicate][j]['Biomass'] > 5000 and fitnesses[replicate][j][score] > 1]
+        colors = [y['Final_Communities_Present'] for y in fitnesses[replicate] if y['Biomass'] > 5000 and y[score] > 1]
     else:
         scores = [y[score] for y in fitnesses[replicate]]
         params_id = [params[replicate][j][param_id] for j in range(len(params[replicate]))]
-        colors_temp = [y['Biomass'] for y in fitnesses[replicate]]
-        colors = []
-        min_c = min(colors_temp)
-        max_c = max(colors_temp)
-        for c in colors_temp:
-            if c < 0:
-                colors.append(-1)
-            elif c > 0 and c < 5000:
-                colors.append(-0.5)
-            else:
-                colors.append((c - min_c) / (max_c - min_c))
-        cmap = 'PuOr_r'
+        colors = [y['Final_Communities_Present'] for y in fitnesses[replicate]]
 
-    sc = axis.scatter(params_id, scores, c=colors, cmap=cmap)
+    sc = axis.scatter(params_id, scores, c=colors, cmap='Oranges')
     cb = figure.colorbar(sc, ax=axis)
-    cb.set_label('Biomass')
+    cb.set_label('Percent of Final Communities Present')
     figure.suptitle(f'{matrix_scheme} param {param_id} and {score} (adaptive = {adaptive})')
     figure.supxlabel(f'Parameter {param_id}')
     figure.supylabel(score)
 
     if adaptive:
+        axis.set_ylim(1, 5)
         plt.savefig(f'plots/{matrix_scheme}/{score}_{param_id}_adpt_correlation.png')
     else:
+        axis.set_ylim(0, 5)
         plt.savefig(f'plots/{matrix_scheme}/{score}_{param_id}_all_correlation.png')
     plt.close()
 
@@ -156,7 +146,7 @@ def adaptive_params(fitnesses, params):
     for i in range(len(params)):
         for j in range(len(params[i])):
             for score in adaptive.keys():
-                if fitnesses[i][j][score] > 0 and fitnesses[i][j]['Biomass'] > 5000:
+                if fitnesses[i][j][score] > 1 and fitnesses[i][j]['Biomass'] > 5000:
                     adaptive[score].append(params[i][j])
     return adaptive
 
