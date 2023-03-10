@@ -21,6 +21,7 @@ def visualize_network(matrix, output_name):
     plt.imshow(matrix, cmap=cmap, interpolation='none', norm=norm)
     plt.colorbar()
     plt.savefig(output_name)
+    plt.close()
 
 
 def visualize_graph(matrix, output_name):
@@ -43,3 +44,4 @@ def visualize_graph(matrix, output_name):
     nx.draw(G, pos=pos, with_labels=True, node_size=1000, edge_color=color_map, node_color='lightgrey')
 
     plt.savefig(output_name)
+    plt.close()

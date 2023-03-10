@@ -60,8 +60,8 @@ def read_mangal(num_types, name):
     return matrix
 
 
-def random_create_matrix(num_types, prob_edge, seed):
-    random.seed(seed)
+def random_create_matrix(num_types, prob_edge, matrix_seed, seed):
+    random.seed(matrix_seed)
     matrix = [[0 for _ in range(num_types)] for _ in range(num_types)]
     for row in range(len(matrix)):
         for col in range(len(matrix)):
@@ -91,8 +91,7 @@ def search_params(matrix_scheme, seed):
         matrix_params = [[x[0], 3, x[1:10], x[10:-1], x[-1]] for x in matrix_params]
         create_matrix_func = motif_create_matrix
     elif matrix_scheme == 'random':
-        abiotic_params = [[random.random(), random.random(), random.random()] for _ in range(num_samples)]
-        matrix_params = [[9, random.random(), random.randint(0, 100000000)] for _ in range(num_samples)]
+        abiotic_params, matrix_params = sample_params(num_samples, [0, 0], [1, 100000000], [False, True], True, int(seed), sampling_scheme)
         create_matrix_func = random_create_matrix
     else:
         print('invalid matrix scheme')
@@ -101,7 +100,7 @@ def search_params(matrix_scheme, seed):
     fitnesses = []
     abiotics = []
     matrices = []
-    for i in range(num_samples):
+    for i in range(num_samples): #todo this breaks mangal
         diffusion = abiotic_params[i][0]
         seeding = abiotic_params[i][1]
         clear = abiotic_params[i][2]
