@@ -10,7 +10,7 @@ def write_matrix(interactions, output_name):
         wr.writerows(interactions)
 
 
-def visualize_network(matrix, output_name):
+def visualize_network(matrix, output_name, title=''):
     #https://stackoverflow.com/questions/23994020/colorplot-that-distinguishes-between-positive-and-negative-values
     cmap = plt.get_cmap('PuOr')
     cmaplist = [cmap(i) for i in range(cmap.N)]
@@ -19,7 +19,10 @@ def visualize_network(matrix, output_name):
     norm = BoundaryNorm(bounds, cmap.N)
 
     plt.imshow(matrix, cmap=cmap, interpolation='none', norm=norm)
-    plt.colorbar()
+    #plt.tick_params(which = 'both', size = 0, labelsize = 0)
+    #plt.colorbar(ticks=[-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1], orientation='horizontal', location='bottom', fraction=0.052, pad=0.1)
+    plt.colorbar(ticks=[-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1])
+    plt.title(title, fontsize=15)
     plt.savefig(output_name)
     plt.close()
 
