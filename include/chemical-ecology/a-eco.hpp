@@ -315,7 +315,16 @@ class AEcoWorld {
       Update(i);
     }
 
-    world_t stable_world = stableUpdate(1000);
+    //temp fix
+    world_t stable_world_temp = stableUpdate(1000);
+    world_t stable_world;
+    for(size_t i = 0; i < stable_world_temp.size(); i++){
+      float sum_of_elems = 0;
+      for (auto& n : world[i])
+        sum_of_elems += n;
+      if (sum_of_elems > 5000)
+        stable_world.push_back(stable_world_temp[i]);
+    }
     std::set<std::string> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
@@ -359,10 +368,14 @@ class AEcoWorld {
     score_file.Update();
     
     // Print out final state
-    //std::cout << "World Vectors:" << std::endl;
-    //for (auto & v : world) {
-      //std::cout << emp::to_string(v) << std::endl;
-    //}
+/*     std::cout << "World Vectors:" << std::endl;
+    for (auto & v : world) {
+      std::cout << emp::to_string(v) << std::endl;
+    }
+    std::cout << "Stable World Vectors:" << std::endl;
+    for (auto & v : stable_world) {
+      std::cout << emp::to_string(v) << std::endl;
+    } */
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
