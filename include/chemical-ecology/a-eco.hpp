@@ -325,15 +325,17 @@ class AEcoWorld {
       if (sum_of_elems > 5000)
         stable_world.push_back(stable_world_temp[i]);
     }
-    std::set<std::string> finalCommunities = getFinalCommunities(stable_world);
+    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
     double num_communities_in_pr = 0;
-    double assembly_score = 1;
-    for (std::string node : finalCommunities) {
+    double assembly_score = 0;
+    for(auto& [key, val] : finalCommunities){
+      std::string node = key;
+      float proportion = val;
       if (assembly_pr_map.find(node) != assembly_pr_map.end()) {
-        assembly_score *= assembly_pr_map[node];
+        assembly_score += (proportion * assembly_pr_map[node]);
         num_communities_in_pr += 1;
       }
       else {
@@ -368,14 +370,14 @@ class AEcoWorld {
     score_file.Update();
     
     // Print out final state
-/*     std::cout << "World Vectors:" << std::endl;
+    /*std::cout << "World Vectors:" << std::endl;
     for (auto & v : world) {
       std::cout << emp::to_string(v) << std::endl;
     }
     std::cout << "Stable World Vectors:" << std::endl;
     for (auto & v : stable_world) {
       std::cout << emp::to_string(v) << std::endl;
-    } */
+    }*/
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
@@ -895,15 +897,17 @@ class AEcoWorld {
     return g;
   }
 
-  emp::vector<double> calcAdaptabilityScore(std::set<std::string> finalCommunities, std::string fitness_measure) {
+  emp::vector<double> calcAdaptabilityScore(std::map<std::string, double> finalCommunities, std::string fitness_measure) {
     emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
     std::map<std::string, float> fitness_pr_map = calculatePageRank(fitnessGraph);
 
     double num_communities_in_pr = 0;
-    double fitness_score = 1;
-    for (std::string node : finalCommunities) {
+    double fitness_score = 0;
+    for(auto& [key, val] : finalCommunities){
+      std::string node = key;
+      float proportion = val;
       if (fitness_pr_map.find(node) != fitness_pr_map.end()) {
-        fitness_score *= fitness_pr_map[node];
+        fitness_score += (proportion * fitness_pr_map[node]);
         num_communities_in_pr += 1;
       }
       else {
@@ -932,8 +936,9 @@ class AEcoWorld {
     return map;
   }
 
-  std::set<std::string> getFinalCommunities(world_t stable_world) {
-    std::set<std::string> finalCommunities;
+std::map<std::string, double> getFinalCommunities(world_t stable_world) {
+    double size = stable_world.size();
+    std::map<std::string, double> finalCommunities;
     for(emp::vector<double> cell: stable_world){
       std::string temp = "";
       for(double species: cell){
@@ -945,7 +950,15 @@ class AEcoWorld {
         }
       }
       std::reverse(temp.begin(), temp.end());
-      finalCommunities.insert(temp);
+      if(finalCommunities.find(temp) == finalCommunities.end()){
+          finalCommunities.insert({temp, 1});
+      }
+      else{
+        finalCommunities[temp] += 1;
+      }
+    }
+    for(auto& [key, val] : finalCommunities){
+      val = val/size;
     }
     return finalCommunities;
   }

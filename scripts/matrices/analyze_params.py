@@ -7,6 +7,7 @@ import seaborn as sb
 import networkx as nx
 from scipy.stats import kstest, chisquare
 from sklearn import tree
+from scipy import stats
 
 from get_results import get_data, get_matrix_func
 from matrices import visualize_network
@@ -96,7 +97,7 @@ def param_histograms(df, score, param_names, matrix_scheme):
             bins = sorted(list(bins))
             h = np.histogram(params, bins=[bins[0]-0.001]+[x+0.001 for x in bins])
             axis[row][col].bar(range(len(bins)), h[0], label=param, alpha=0.66, width=1)
-            axis[row][col].set_xticks(np.arange(0, len(bins), 1), bins)
+            axis[row][col].set_xticks(np.arange(0, len(bins), 1), [round(x, 2) for x in bins])
         else:
             if round(max(params)) == 1:
                 axis[row][col].hist(params, bins=np.arange(0, 1.1, 0.1), label=param, alpha=0.66)
@@ -119,10 +120,11 @@ def param_histograms(df, score, param_names, matrix_scheme):
 def individual_scatter(df, score, param, color, matrix_scheme, ylim_min=0, ylim_max=5, cmap='Oranges'):
     figure, axis = plt.subplots(1, 1)
 
-    sc = axis.scatter(df[param], df[score], c=df[color], cmap=cmap)
+    sc = axis.scatter(df[param], df[score], s=2, c=df[color], cmap=cmap)
     cb = figure.colorbar(sc, ax=axis)
     cb.set_label(color)
-    axis.set_ylim(ylim_min, ylim_max)
+    #axis.set_ylim(ylim_min, ylim_max)
+    axis.set_yscale('log')
     figure.suptitle(f'{matrix_scheme} {param} and {score}')
     figure.supxlabel(param)
     figure.supylabel(score)
@@ -159,6 +161,32 @@ def mangal(df_generation, df_network):
             print(f"Adaptive {score} for {matrix_num}: {len(df.loc[(df[score[:-5]+'Adaptive'] == True) & (df['matrix_num'] == matrix_num)])}")
         print()
 
+    df['replicate2'] = df['name'].str[-5].astype(int)
+    for score in [x for x in df.columns if 'Score' in x]:
+        kruskal_stat, kruskal_p = stats.kruskal(*[df.loc[df['replicate2'] == x][score] for x in pd.unique(df['replicate2'])])
+        print(f'\t{score} statistic: {kruskal_stat}, p-value: {kruskal_p}')
+
+    group = 'name'
+    df_count = df[[group]]
+    df_count.insert(1, 'total', df.groupby(group)[group].transform('count'))
+    for score in [x for x in df.columns if 'Adaptive' in x]:
+        df_count = df_count.join(df.groupby(group)[score].sum(), on=[group])
+    df_count = df_count.drop_duplicates()
+    df_count['replicate'] = df_count['name'].str[-5].astype(int)
+    df_count['Matrix'] = df_count['name'].str.split('_').str[0]
+    plt.figure()
+    axis = sb.barplot(data=df_count, x='Matrix', y='Biomass_Adaptive', hue='replicate')
+    plt.ylabel('Count of Adaptive Biomass Results')
+    plt.title('Count of Adaptive Biomass Results by Mangal Matrix and Replicate')
+    plt.savefig(f'plots/mangal/barplot.png')
+    plt.close()
+
+
+def random_stats(df):
+    for score in [x for x in df.columns if 'Score' in x]:
+        kruskal_stat, kruskal_p = stats.kruskal(*[df.loc[df['matrix_seed'] == x][score] for x in pd.unique(df['matrix_seed'])])
+        print(f'\t{score} statistic: {kruskal_stat}, p-value: {kruskal_p}')
+
 
 def sample_visualizations(df, param_names, matrix_scheme):
     create_matrix_func = get_matrix_func(matrix_scheme)
@@ -181,14 +209,14 @@ def sample_visualizations(df, param_names, matrix_scheme):
 
 
 def scheme_plots(df, param_names, file_name):
+    param_histograms(df, 'All', param_names, file_name)
+    correlation_heatmap(df, 'All', param_names, file_name)
     for score in [x for x in df.columns if 'Score' in x]:
         df_adaptive = df.loc[df[score[:-5]+'Adaptive'] == True]
         fitness_correlation(df, score, param_names, file_name)
         param_histograms(df_adaptive, score, param_names, file_name)
         correlation_heatmap(df_adaptive, score, param_names, file_name)
         cdf(df, score, param_names, file_name)
-    param_histograms(df, 'All', param_names, file_name)
-    correlation_heatmap(df, 'All', param_names, file_name)
 
 
 def main(file_name):
@@ -199,7 +227,7 @@ def main(file_name):
 
     sample_visualizations(df_generation.loc[df_generation['Biomass_Adaptive'] == True], abiotic_params+param_names, file_name)
     visualize_decision_tree(df_generation, abiotic_params+analysis_param_names, file_name, regression=False)
-    individual_scatter(df_network.loc[df_network['Biomass_Adaptive'] == True], 'Biomass', 'mutual', 'cluster_coeff', file_name, ylim_min=0, ylim_max=None, cmap='plasma_r')
+    individual_scatter(df.loc[df['Biomass_Adaptive'] == True], 'Biomass_Score', 'clear', 'seeding', file_name, ylim_min=1, ylim_max=None, cmap='plasma_r')
 
 
 if __name__ == '__main__':

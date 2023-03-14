@@ -18,7 +18,7 @@ from motifs import create_matrix as motif_create_matrix
 def sample_params(num_samples, lower_bounds, upper_bounds, ints, constant_ntypes, seed, sampling_scheme):
     if sampling_scheme == 'lhs':
         lower_bounds = [0, 0, 0] + lower_bounds
-        upper_bounds = [1, 1, 1] + upper_bounds
+        upper_bounds = [1, 0.1, 1] + upper_bounds
 
         sampler = qmc.LatinHypercube(d=len(lower_bounds), seed=seed)
         unscaled_sample = sampler.random(n=num_samples)
@@ -71,9 +71,10 @@ def random_create_matrix(num_types, prob_edge, matrix_seed, seed):
 
 
 def search_params(matrix_scheme, seed):
+    matrix_scheme = matrix_scheme[:-1]
     interaction_matrix_file = 'interaction_matrix.dat'
     sampling_scheme = 'lhs'
-    num_samples = 100000
+    num_samples = 50000
 
     if matrix_scheme == 'klemm':
         abiotic_params, matrix_params = sample_params(num_samples, [2, 0, 0, 0, 0, 0], [9, 1, 3, 1, 1, 1], [True, False, False, False, False, False], True, int(seed), sampling_scheme)
@@ -85,6 +86,7 @@ def search_params(matrix_scheme, seed):
         matrix_params = get_mangal_params()
         abiotic_params = list(product([0.001, 0.333, 0.666, 0.999], repeat=3))*len(matrix_params)
         matrix_params = matrix_params*64
+        num_samples = len(matrix_params)
         create_matrix_func = read_mangal
     elif matrix_scheme == 'motif':
         abiotic_params, matrix_params = sample_params(num_samples, [0]*18, ([14]*9)+([3]*9), [True]*18, True, int(seed), sampling_scheme)
@@ -100,12 +102,15 @@ def search_params(matrix_scheme, seed):
     fitnesses = []
     abiotics = []
     matrices = []
-    for i in range(num_samples): #todo this breaks mangal
+    for i in range(num_samples):
         diffusion = abiotic_params[i][0]
         seeding = abiotic_params[i][1]
         clear = abiotic_params[i][2]
         param_list = matrix_params[i]
 
+        if seeding > 0.1:
+            continue
+        
         write_matrix(create_matrix_func(*param_list), interaction_matrix_file)
         chem_eco = subprocess.Popen(
             [(f'./chemical-ecology '
@@ -132,6 +137,7 @@ def search_params(matrix_scheme, seed):
         i_score = df['Invasion_Ability_Score'].values
         r_score = df['Resiliance_Score'].values
         a_score = df['Assembly_Score'].values
+        num_communities = df['Num_Final_Communities'].values
         df_aeco = pd.read_csv('a-eco_data.csv')
         biomasses = df_aeco['mean_Biomass'].values
         growth_rates = df_aeco['mean_Growth_Rate'].values
@@ -145,12 +151,12 @@ def search_params(matrix_scheme, seed):
             'Heredity_Score': h_score[0] / a_score[0] if a_score[0] != 0 else 0,
             'Invasion_Ability_Score': i_score[0] / a_score[0] if a_score[0] != 0 else 0,
             'Resilience_Score': r_score[0] / a_score[0] if a_score[0] != 0 else 0,
-            'Final_Communities_Present': df['Assembly_Final_Communities'].values[0] / df['Num_Final_Communities'].values[0]
+            'Final_Communities_Present': df['Assembly_Final_Communities'].values[0] / num_communities[0] if num_communities[0] != 0 else 0
         })
         abiotics.append([diffusion, seeding, clear])
         matrices.append(param_list)
 
-        if (i+1) % 100 == 0:
+        if (i+1) % 100 == 0 or (i+1) == num_samples:
             with open('results.txt', 'a') as f:
                 for i in range(len(fitnesses)):
                     f.write(f'{fitnesses[i]} | {abiotics[i]} | {matrices[i]}\n')

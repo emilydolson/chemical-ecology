@@ -177,7 +177,7 @@ def read_results(file_location, matrix_scheme, replicate):
     return param_list, fitness_list
 
 
-def get_data(file_name):
+def get_data(file_name, include_network=True):
     file_path = f'/mnt/gs21/scratch/{os.getlogin()}/chemical-ecology/data/{file_name}'
 
     abiotic_params = ['diffusion', 'seeding', 'clear']
@@ -211,13 +211,17 @@ def get_data(file_name):
             param_list, fitness_list = read_results(full_path, file_name, int(f))
             params.append(param_list)
             fitnesses.append(fitness_list)
-            network_params.append(get_network_properties(param_list, file_name))
+            if include_network:
+                network_params.append(get_network_properties(param_list, file_name))
         else:
             print(f'results not found for replicate {f}')
         print(f'Finished reading replicate {f}')
-        break
+        #break
     df_generation = params_to_dataframe(fitnesses, params, abiotic_params+param_names)
-    df_network = params_to_dataframe(fitnesses, network_params, abiotic_params+network_param_names)
-
     print(f'Read {len(df_generation)} samples')
-    return df_generation, df_network, abiotic_params, param_names, analysis_param_names, network_param_names
+    
+    if include_network:
+        df_network = params_to_dataframe(fitnesses, network_params, abiotic_params+network_param_names)
+        return df_generation, df_network, abiotic_params, param_names, analysis_param_names, network_param_names
+    else:
+        return df_generation, abiotic_params, param_names, analysis_param_names
