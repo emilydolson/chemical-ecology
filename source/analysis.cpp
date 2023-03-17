@@ -3,6 +3,8 @@
 //  Released under MIT license; see LICENSE
 
 #include <iostream>
+#include <map>
+#include <fstream>
 
 #include "emp/base/vector.hpp"
 #include "emp/datastructs/Graph.hpp"
@@ -12,32 +14,18 @@
 
 chemical_ecology::Config cfg;
 
-void printAdaptiveness(AEcoWorld world, std::set<std::string> finalCommunities, emp::Graph g)
+void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File)
 {
   std::map<std::string, float> map = world.calculatePageRank(g);
   std::map<std::string, float>::iterator it = map.begin();
   while (it != map.end())
   {
-    if (finalCommunities.find(it->first) != finalCommunities.end())
-      std::cout << it->first << " " << it->second << std::endl;
-    else
-      std::cout << it->first << " " << "0" << std::endl;
-    ++it;
-  }
-}
-
-void printPageRank(AEcoWorld world, emp::Graph g)
-{
-  std::map<std::string, float> map = world.calculatePageRank(g);
-  std::map<std::string, float>::iterator it = map.begin();
-  while (it != map.end())
-  {
-      std::cout << it->first << " " << it->second << std::endl;
+      File << it->first << " " << it->second << std::endl;
       ++it;
   }
 }
 
-void printGraph(emp::Graph g)
+void printGraph(emp::Graph g, ofstream& File)
 {
   emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
   for(emp::Graph::Node n: all_nodes)
@@ -45,7 +33,7 @@ void printGraph(emp::Graph g)
     emp::BitVector out_nodes = n.GetEdgeSet();
     for (int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1))
     {
-      std::cout << n.GetLabel() << " " << g.GetLabel(pos) << std::endl;
+      File << n.GetLabel() << " " << g.GetLabel(pos) << std::endl;
     }
   }
 }
@@ -54,31 +42,47 @@ int main(int argc, char* argv[])
 { 
   // Set up a configuration panel for native application
   setup_config_native(cfg, argc, argv);
-
   cfg.Write(std::cout);
-
   AEcoWorld world;
   world.Setup(cfg);
-  //world.Run();
 
-  //emp::vector<emp::vector<int>> stable_world = world.stableUpdate(20);
-  //std::set<std::string> finalCommunities = world.getFinalCommunities(stable_world);
+  // Initiate files to write to
+  ofstream GraphFile("community_fitness.txt");
+  ofstream PageRankFile("page_rank.txt");
+  ofstream FinalCommunitiesFile("final_communities.txt");
 
-  std::cout << "***Community Assembly***" << std::endl;
-  emp::Graph g = world.CalculateCommunityAssemblyGraph();
-  //printAdaptiveness(world, finalCommunities, g);
-  printGraph(g);
-
+  // Calculate community assembly and fitness graphs
+  std::map<std::string, emp::Graph> graphs;
+  emp::Graph g1 = world.CalculateCommunityAssemblyGraph();
+  graphs["Community Assembly"] = g1;
   std::vector<std::string> fitnessTypes{"Biomass", "Growth_Rate", "Heredity", "Invasion_Ability", "Resiliance"};
   for(int i = 0; i < 5; i++)
   {
-    std::cout << "***" << fitnessTypes[i] << "***" << std::endl;
     emp::Graph g2 = world.CalculateCommunityLevelFitnessLandscape(fitnessTypes[i]);
-    printGraph(g2);
-    //printAdaptiveness(world, finalCommunities, g2);
+    graphs[fitnessTypes[i]] = g2;
   }
 
-  world.WriteInteractionMatrix("interaction.dat");
+  // Write graphs and the node pageranks
+  for(auto& [graphName, graph] : graphs)
+  {
+    GraphFile << "***" << graphName << "***" << std::endl;
+    printGraph(graph, GraphFile);
+    PageRankFile << "***" << graphName << "***" << std::endl;
+    printPageRank(world, graph, PageRankFile);
+  }
 
+  // Write final communities
+  world.Run();
+  emp::vector<emp::vector<double>> stable_world = world.stableUpdate(1000);
+  std::map<std::string, double> finalCommunities = world.getFinalCommunities(stable_world);
+  for(auto& [node, proportion] : finalCommunities)
+  {
+    FinalCommunitiesFile << node << " " << proportion << std::endl;
+  }
+
+  // End
+  GraphFile.close();
+  PageRankFile.close();
+  FinalCommunitiesFile.close();
   return 0;
 }

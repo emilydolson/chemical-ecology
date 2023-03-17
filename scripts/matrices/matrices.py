@@ -42,7 +42,7 @@ def visualize_graph(matrix, output_name):
         elif weights[edge] > 0: 
             color_map.append('mediumblue')  
 
-    plt.figure(figsize=(8,8))
+    plt.figure(figsize=(5,5))
     pos = nx.circular_layout(G)
     nx.draw(G, pos=pos, with_labels=True, node_size=1000, edge_color=color_map, node_color='lightgrey')
 

@@ -329,41 +329,30 @@ class AEcoWorld {
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
-    double num_communities_in_pr = 0;
     double assembly_score = 0;
     for(auto& [key, val] : finalCommunities){
       std::string node = key;
       float proportion = val;
       if (assembly_pr_map.find(node) != assembly_pr_map.end()) {
         assembly_score += (proportion * assembly_pr_map[node]);
-        num_communities_in_pr += 1;
       }
       else {
         assembly_score *= pow(10.0, -10.0);
-        std::cout << node << " not found in community assembly graph" << std::endl;
       }
     }
 
-    emp::vector<double> biomass_score = calcAdaptabilityScore(finalCommunities, "Biomass");
-    emp::vector<double> growth_rate_score = calcAdaptabilityScore(finalCommunities, "Growth_Rate");
-    emp::vector<double> heredity_score = calcAdaptabilityScore(finalCommunities, "Heredity");
-    emp::vector<double> invasion_score = calcAdaptabilityScore(finalCommunities, "Invasion_Ability");
-    emp::vector<double> resiliance_score = calcAdaptabilityScore(finalCommunities, "Resiliance");
+    double biomass_score = calcAdaptabilityScore(finalCommunities, "Biomass");
+    double growth_rate_score = calcAdaptabilityScore(finalCommunities, "Growth_Rate");
+    double heredity_score = calcAdaptabilityScore(finalCommunities, "Heredity");
+    double invasion_score = calcAdaptabilityScore(finalCommunities, "Invasion_Ability");
+    double resiliance_score = calcAdaptabilityScore(finalCommunities, "Resiliance");
 
-    score_file.AddVar(biomass_score[0], "Biomass_Score", "Biomass_Score");
-    score_file.AddVar(growth_rate_score[0], "Growth_Rate_Score", "Growth_Rate_Score");
-    score_file.AddVar(heredity_score[0], "Heredity_Score", "Heredity_Score");
-    score_file.AddVar(invasion_score[0], "Invasion_Ability_Score", "Invasion_Ability_Score");
-    score_file.AddVar(resiliance_score[0], "Resiliance_Score", "Resiliance_Score");
+    score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
+    score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
+    score_file.AddVar(heredity_score, "Heredity_Score", "Heredity_Score");
+    score_file.AddVar(invasion_score, "Invasion_Ability_Score", "Invasion_Ability_Score");
+    score_file.AddVar(resiliance_score, "Resiliance_Score", "Resiliance_Score");
     score_file.AddVar(assembly_score, "Assembly_Score", "Assembly_Score");
-
-    score_file.AddVar(biomass_score[1], "Biomass_Final_Communities", "Biomass_Final_Communities");
-    score_file.AddVar(growth_rate_score[1], "Growth_Rate_Final_Communities", "Growth_Final_Communities");
-    score_file.AddVar(heredity_score[1], "Heredity_Final_Communities", "Heredity_Final_Communities");
-    score_file.AddVar(invasion_score[1], "Invasion_Ability_Final_Communities", "Invasion_Ability_Final_Communities");
-    score_file.AddVar(resiliance_score[1], "Resiliance_Final_Communities", "Resiliance_Final_Communities");
-    score_file.AddVar(num_communities_in_pr, "Assembly_Final_Communities", "Assembly_Score");
-    score_file.AddVar(finalCommunities.size(), "Num_Final_Communities", "Assembly_Score");
 
     score_file.PrintHeaderKeys();
 
@@ -897,30 +886,23 @@ class AEcoWorld {
     return g;
   }
 
-  emp::vector<double> calcAdaptabilityScore(std::map<std::string, double> finalCommunities, std::string fitness_measure) {
+  double calcAdaptabilityScore(std::map<std::string, double> finalCommunities, std::string fitness_measure) {
     emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
     std::map<std::string, float> fitness_pr_map = calculatePageRank(fitnessGraph);
 
-    double num_communities_in_pr = 0;
     double fitness_score = 0;
     for(auto& [key, val] : finalCommunities){
       std::string node = key;
       float proportion = val;
       if (fitness_pr_map.find(node) != fitness_pr_map.end()) {
         fitness_score += (proportion * fitness_pr_map[node]);
-        num_communities_in_pr += 1;
       }
       else {
         fitness_score *= pow(10.0, -10.0);
-        std::cout << node << " not found in " << fitness_measure << " graph" << std::endl;
       }
     }
 
-    emp::vector<double> results;
-    results.push_back(fitness_score);
-    results.push_back(num_communities_in_pr);
-
-    return results;
+    return fitness_score;
   }
 
   std::map<std::string, float> calculatePageRank(emp::Graph g) {
