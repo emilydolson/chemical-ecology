@@ -5,13 +5,26 @@ import matplotlib
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 
-def plot(dir):
+def plot(dir, class_num):
     measures = ["Biomass", "Growth_Rate", "Heredity", "Invasion_Ability", "Resiliance"]
+    # Need this to make color bar consistent accross graphs 
+    best_score = -10
+    worst_score = 10
     for measure in measures:
         data = pd.read_csv(dir + "/" + measure + ".csv")
-        data = data.round({"Diffusion": 1, "Seeding": 1, "Clear": 1})
+        max_score = data['Score'].max()
+        min_score = data['Score'].min() 
+        if max_score > best_score:
+            best_score = max_score
+        if min_score < worst_score:
+            worst_score = min_score
+
+    for measure in measures:
+        data = pd.read_csv(dir + "/" + measure + ".csv")
+        data = data.round({"Diffusion": 1, "Seeding": 2, "Clear": 1}) 
 
         # Get the unique values of Clear
         clear_values = np.unique(data["Clear"])
@@ -24,6 +37,7 @@ def plot(dir):
             
             # Pivot the data to create a matrix for the heatmap
             heatmap_data = subset.pivot(index="Seeding", columns="Diffusion", values="Score")
+            heatmap_data.index = heatmap_data.index.astype(str).str[1:]
 
             sns.heatmap(heatmap_data, cmap="YlGnBu", ax=axs.flat[i], vmin=-.3, vmax=.5, cbar=False)
             #Make heatmaps square
@@ -31,7 +45,7 @@ def plot(dir):
 
             axs.flat[i].set_title(f"Clear = {clear}")
 
-        fig.suptitle(f"Heatmaps for different Clear values of {measure}", fontsize=20)
+        fig.suptitle(f"Adaptive scores for a class {class_num} matrix", fontsize=20)
 
         #delete the empty figure that comes with the subplots
         for ax in axs.flat:
@@ -39,7 +53,7 @@ def plot(dir):
                 fig.delaxes(ax)
 
         # Create a colorbar
-        norm = plt.Normalize(-.3, .5)
+        norm = plt.Normalize(worst_score, best_score)
         sm = plt.cm.ScalarMappable(cmap="YlGnBu", norm=norm)
         fig.colorbar(sm, ax=axs, location="right", pad=.01)
 
@@ -47,4 +61,4 @@ def plot(dir):
 
 
 if __name__ == '__main__':
-    plot(sys.argv[1])
+    plot(sys.argv[1], sys.argv[2])

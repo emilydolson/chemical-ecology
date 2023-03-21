@@ -41,9 +41,9 @@ mkdir search
 cd search
 
 # Get script
-cp /mnt/home/$USER/chemical-ecology/scripts/search_world_params.py .
+cp /mnt/home/$USER/chemical-ecology/scripts/search_variance.py .
 
 # Run script
-python3 search_world_params.py $2 > outfile.txt
+python3 search_variance.py $2 > outfile.txt
 
 cp *.csv /mnt/home/$USER/chemical-ecology/searchresults/$1
