@@ -4,13 +4,14 @@ import random
 import sys
 import csv
 import numpy as np
+import statistics
 
 # Search a matrix over all parameters. Sbatch script is: sbatch search_params.sh class1test class1
 
 def search_world_params(dat_file):
     interaction_matrix_file = f'../config/{dat_file}.dat'
     measures = ["Biomass", "Growth_Rate", "Heredity", "Invasion_Ability", "Resiliance"]
-    fields = ["Diffusion", "Seeding", "Clear", "Score"]
+    fields = ["Diffusion", "Seeding", "Clear", "Variance"]
     # Create file and headers
     for m in measures:
         f_name = m + ".csv"
@@ -23,7 +24,7 @@ def search_world_params(dat_file):
             for clear in np.arange(0, 1.01, .1):
                 #Average over 5 runs
                 dfs = []
-                for _ in range(1):
+                for _ in range(5):
                     chem_eco = subprocess.Popen(
                         [(f'../chemical-ecology '
                         f'-DIFFUSION {diffusion} '
@@ -34,7 +35,7 @@ def search_world_params(dat_file):
                         f'-MAX_POP {10000} '
                         f'-WORLD_X {10} '
                         f'-WORLD_Y {10} '
-                        f'-UPDATES {5000} '
+                        f'-UPDATES {1000} '
                         f'-N_TYPES {9}')],
                         shell=True, 
                         stdout=subprocess.DEVNULL)
@@ -50,10 +51,10 @@ def search_world_params(dat_file):
                     scores = []
                     for frame in dfs:
                         scores.append(df.values[0][i] - score)
-                    adaptive_score = sum(scores)/len(scores)
+                    variance = statistics.variance(scores)
                     with open(f_name, 'a') as csvf:
                         csvwriter = csv.writer(csvf)
-                        row = [f"{diffusion}", f"{seeding}", f"{clear}", str(adaptive_score)]
+                        row = [f"{diffusion}", f"{seeding}", f"{clear}", str(variance)]
                         csvwriter.writerow(row)
                 # with open("results.txt", "a") as f:
                 #     f.write(f"D{diffusion}, S{seeding}, C{clear}, {scores}\n")

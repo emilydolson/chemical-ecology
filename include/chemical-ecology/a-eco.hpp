@@ -314,17 +314,18 @@ class AEcoWorld {
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
     }
-
-    //temp fix
+    
+    //temp fix for very small communities
     world_t stable_world_temp = stableUpdate(1000);
     world_t stable_world;
     for(size_t i = 0; i < stable_world_temp.size(); i++){
       float sum_of_elems = 0;
       for (auto& n : world[i])
         sum_of_elems += n;
-      if (sum_of_elems > 5000)
+      if (sum_of_elems > 500)
         stable_world.push_back(stable_world_temp[i]);
     }
+    
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
@@ -503,21 +504,16 @@ class AEcoWorld {
       }
     }
 
-    // Subtract material that diffused away from the current cell
+
+    //subtract diffusion
     for (int i = 0; i < N_TYPES; i++) {
       next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
       // We can't have negative population sizes
       next_world[pos][i] = std::max(next_world[pos][i], 0.0);
-      // Check whether we should randomly add one individual
-      // of this type
-      // From the community level perspective this is basically
-      // a mutation
-      // Note that this means we don't have mutations that remove
-      // a member from a community, which is why PROB_CLEAR
-      // is such an important parameter
-      if (rnd.P(seed_prob)) {
-        next_world[pos][i]++;
-      }
+    }
+    if (rnd.P(seed_prob)) {
+      int cell = rnd.GetInt(N_TYPES);
+      next_world[pos][cell]++;
     }
 
   }
@@ -917,6 +913,7 @@ class AEcoWorld {
     std::map<std::string, float> map = t.get_pr_map();
     return map;
   }
+  
 
 std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     double size = stable_world.size();
