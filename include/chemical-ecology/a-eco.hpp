@@ -314,8 +314,18 @@ class AEcoWorld {
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
     }
-
-    world_t stable_world = stableUpdate(1000);
+    
+    //temp fix for very small communities
+    world_t stable_world_temp = stableUpdate(1000);
+    world_t stable_world;
+    for(size_t i = 0; i < stable_world_temp.size(); i++){
+      float sum_of_elems = 0;
+      for (auto& n : world[i])
+        sum_of_elems += n;
+      if (sum_of_elems > 500)
+        stable_world.push_back(stable_world_temp[i]);
+    }
+    
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
@@ -329,7 +339,6 @@ class AEcoWorld {
       }
       else {
         assembly_score *= pow(10.0, -10.0);
-        std::cout << node << " not found in community assembly graph" << std::endl;
       }
     }
 
@@ -351,15 +360,14 @@ class AEcoWorld {
     score_file.Update();
     
     // Print out final state
-    std::cout << "World Vectors:" << std::endl;
+    /*std::cout << "World Vectors:" << std::endl;
     for (auto & v : world) {
       std::cout << emp::to_string(v) << std::endl;
     }
-
     std::cout << "Stable World Vectors:" << std::endl;
     for (auto & v : stable_world) {
       std::cout << emp::to_string(v) << std::endl;
-    }
+    }*/
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
@@ -690,8 +698,8 @@ class AEcoWorld {
       // Initialize empty test world
       test_world[0].resize(config->N_TYPES(), 0);
       for (int pos = comm.FindOne(); pos >= 0; pos = comm.FindOne(pos+1)) {
-        // std::cout << comm.ToBinaryString() << " " << pos 
-        test_world[0][pos] = 1; 
+        // std::cout << comm.ToBinaryString() << " " << pos
+        test_world[0][pos] = 1;
       }
 
       // Make a next_world for the test world to
@@ -740,8 +748,10 @@ class AEcoWorld {
         continue;
       }
       node_map[i] = curr_node;
-      std::bitset<9> temp(i);
-      g.SetLabel(curr_node, temp.to_string());
+      std::bitset<64> temp(i);
+      std::string temp_str = temp.to_string();
+      temp_str.erase(0, 64-N_TYPES);
+      g.SetLabel(curr_node, temp_str);
       curr_node++;
     }
 
@@ -885,7 +895,6 @@ class AEcoWorld {
       }
       else {
         fitness_score *= pow(10.0, -10.0);
-        std::cout << node << " not found in " << fitness_measure << " graph" << std::endl;
       }
     }
 
@@ -904,9 +913,9 @@ class AEcoWorld {
     std::map<std::string, float> map = t.get_pr_map();
     return map;
   }
+  
 
-  std::map<std::string, double> getFinalCommunities(world_t stable_world) {
-    //std::set<std::string> finalCommunities;
+std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
     for(emp::vector<double> cell: stable_world){
