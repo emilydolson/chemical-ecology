@@ -315,15 +315,17 @@ class AEcoWorld {
       Update(i);
     }
 
-    world_t stable_world = stableUpdate(20);
-    std::set<std::string> finalCommunities = getFinalCommunities(stable_world);
+    world_t stable_world = stableUpdate(1000);
+    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
-    double assembly_score = 1;
-    for (std::string node : finalCommunities) {
+    double assembly_score = 0;
+    for(auto& [key, val] : finalCommunities){
+      std::string node = key;
+      float proportion = val;
       if (assembly_pr_map.find(node) != assembly_pr_map.end()) {
-        assembly_score *= assembly_pr_map[node];
+        assembly_score += (proportion * assembly_pr_map[node]);
       }
       else {
         assembly_score *= pow(10.0, -10.0);
@@ -349,10 +351,15 @@ class AEcoWorld {
     score_file.Update();
     
     // Print out final state
-    //std::cout << "World Vectors:" << std::endl;
-    //for (auto & v : world) {
-      //std::cout << emp::to_string(v) << std::endl;
-    //}
+    std::cout << "World Vectors:" << std::endl;
+    for (auto & v : world) {
+      std::cout << emp::to_string(v) << std::endl;
+    }
+
+    std::cout << "Stable World Vectors:" << std::endl;
+    for (auto & v : stable_world) {
+      std::cout << emp::to_string(v) << std::endl;
+    }
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
@@ -489,21 +496,16 @@ class AEcoWorld {
       }
     }
 
-    // Subtract material that diffused away from the current cell
+
+    //subtract diffusion
     for (int i = 0; i < N_TYPES; i++) {
       next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
       // We can't have negative population sizes
       next_world[pos][i] = std::max(next_world[pos][i], 0.0);
-      // Check whether we should randomly add one individual
-      // of this type
-      // From the community level perspective this is basically
-      // a mutation
-      // Note that this means we don't have mutations that remove
-      // a member from a community, which is why PROB_CLEAR
-      // is such an important parameter
-      if (rnd.P(seed_prob)) {
-        next_world[pos][i]++;
-      }
+    }
+    if (rnd.P(seed_prob)) {
+      int cell = rnd.GetInt(N_TYPES);
+      next_world[pos][cell]++;
     }
 
   }
@@ -870,14 +872,16 @@ class AEcoWorld {
     return g;
   }
 
-  double calcAdaptabilityScore(std::set<std::string> finalCommunities, std::string fitness_measure) {
+  double calcAdaptabilityScore(std::map<std::string, double> finalCommunities, std::string fitness_measure) {
     emp::Graph fitnessGraph = CalculateCommunityLevelFitnessLandscape(fitness_measure);
     std::map<std::string, float> fitness_pr_map = calculatePageRank(fitnessGraph);
 
-    double fitness_score = 1;
-    for (std::string node : finalCommunities) {
+    double fitness_score = 0;
+    for(auto& [key, val] : finalCommunities){
+      std::string node = key;
+      float proportion = val;
       if (fitness_pr_map.find(node) != fitness_pr_map.end()) {
-        fitness_score *= fitness_pr_map[node];
+        fitness_score += (proportion * fitness_pr_map[node]);
       }
       else {
         fitness_score *= pow(10.0, -10.0);
@@ -901,12 +905,14 @@ class AEcoWorld {
     return map;
   }
 
-  std::set<std::string> getFinalCommunities(world_t stable_world) {
-    std::set<std::string> finalCommunities;
+  std::map<std::string, double> getFinalCommunities(world_t stable_world) {
+    //std::set<std::string> finalCommunities;
+    double size = stable_world.size();
+    std::map<std::string, double> finalCommunities;
     for(emp::vector<double> cell: stable_world){
       std::string temp = "";
       for(double species: cell){
-        if(species > 0.0){
+        if(species > 0.001){
           temp.append("1");
         }
         else{
@@ -914,7 +920,15 @@ class AEcoWorld {
         }
       }
       std::reverse(temp.begin(), temp.end());
-      finalCommunities.insert(temp);
+      if(finalCommunities.find(temp) == finalCommunities.end()){
+          finalCommunities.insert({temp, 1});
+      }
+      else{
+        finalCommunities[temp] += 1;
+      }
+    }
+    for(auto& [key, val] : finalCommunities){
+      val = val/size;
     }
     return finalCommunities;
   }

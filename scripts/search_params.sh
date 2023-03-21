@@ -6,6 +6,9 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=foreba10@msu.edu
 
+## FIRST ARG IS NAME OF EXPERIMENT
+## SECOND ARG IS WHICH CLASS (class1 class2 etc)
+
 ## Job name settings
 #SBATCH --job-name=help-me
 
