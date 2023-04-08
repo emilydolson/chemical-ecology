@@ -329,6 +329,9 @@ class AEcoWorld {
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
+
+    emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
+
     std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
     double assembly_score = 0;
     for(auto& [key, val] : finalCommunities){
@@ -899,6 +902,36 @@ class AEcoWorld {
     }
 
     return fitness_score;
+  }
+
+
+  emp::WeightedGraph calculateWeightedAssembly(emp::Graph g, double prob_clear, double seed_prob){
+    size_t num_communities = pow(2, N_TYPES);
+    emp::WeightedGraph wAssembly(num_communities);
+
+    emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
+    double clear_weight = prob_clear;
+    for(emp::Graph::Node n: all_nodes){
+      std::string label = n.GetLabel();
+      std::size_t num = std::stoi(label, 0, 2);
+      emp::BitVector out_nodes = n.GetEdgeSet();
+      size_t out_degree = n.GetDegree();
+      //weight is the probability of a seeding event of the needed type for the transition 
+      double out_weight = seed_prob/(double)N_TYPES;
+      for (int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1)){
+        int adj_num = std::stoi(g.GetLabel(pos), 0, 2);
+        //std::cout << n.GetLabel() << " " << g.GetLabel(pos) << std::endl;
+        //std::cout << num << " " << adj_num << " " << out_weight << std::endl;
+        wAssembly.AddEdge(num, adj_num, out_weight);
+      }
+      //Add an edge for clear probability
+      wAssembly.AddEdge(num, 0, clear_weight);
+      //Add self edge, to account for chance the cell is neither cleared nor seeded 
+      double self_weight = 1 - clear_weight - (out_weight*out_degree);
+      wAssembly.AddEdge(num, num, self_weight);
+    }
+    wAssembly.PrintDirected();
+    return wAssembly;
   }
 
   std::map<std::string, float> calculatePageRank(emp::Graph g) {
