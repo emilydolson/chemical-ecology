@@ -14,9 +14,9 @@
 
 chemical_ecology::Config cfg;
 
-void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File)
+void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly)
 {
-  std::map<std::string, float> map = world.calculatePageRank(g);
+  std::map<std::string, float> map = world.calculatePageRank(g, wAssembly);
   std::map<std::string, float>::iterator it = map.begin();
   while (it != map.end())
   {
@@ -25,15 +25,21 @@ void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File)
   }
 }
 
-void printGraph(emp::Graph g, ofstream& File)
+void printGraph(emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly, chemical_ecology::Config * config)
 {
-  emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
+  /*emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
   for(emp::Graph::Node n: all_nodes)
   {
     emp::BitVector out_nodes = n.GetEdgeSet();
     for (int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1))
     {
       File << n.GetLabel() << " " << g.GetLabel(pos) << std::endl;
+    }
+  }*/
+  for (size_t from = 0; from < wAssembly.GetSize(); from++) {
+    for (size_t to = 0; to < wAssembly.GetSize(); to++) {
+      if (wAssembly.HasEdge(from, to) == false) continue;
+      File << std::bitset<64>(from).to_string().erase(0, 64-config->N_TYPES()) << " " << std::bitset<64>(to).to_string().erase(0, 64-config->N_TYPES()) << " " << wAssembly.GetWeight(from, to) << std::endl;
     }
   }
 }
@@ -45,6 +51,7 @@ int main(int argc, char* argv[])
   cfg.Write(std::cout);
   AEcoWorld world;
   world.Setup(cfg);
+  chemical_ecology::Config * config = &cfg;
 
   // Initiate files to write to
   ofstream GraphFile("community_fitness.txt");
@@ -54,21 +61,22 @@ int main(int argc, char* argv[])
   // Calculate community assembly and fitness graphs
   std::map<std::string, emp::Graph> graphs;
   emp::Graph g1 = world.CalculateCommunityAssemblyGraph();
+  emp::WeightedGraph wAssembly = world.calculateWeightedAssembly(g1, config->PROB_CLEAR(), config->SEEDING_PROB());
   graphs["Community Assembly"] = g1;
   std::vector<std::string> fitnessTypes{"Biomass", "Growth_Rate", "Heredity", "Invasion_Ability", "Resiliance"};
-  for(int i = 0; i < 5; i++)
+  /*for(int i = 0; i < 5; i++)
   {
     emp::Graph g2 = world.CalculateCommunityLevelFitnessLandscape(fitnessTypes[i]);
     graphs[fitnessTypes[i]] = g2;
-  }
+  }*/
 
   // Write graphs and the node pageranks
   for(auto& [graphName, graph] : graphs)
   {
     GraphFile << "***" << graphName << "***" << std::endl;
-    printGraph(graph, GraphFile);
+    printGraph(graph, GraphFile, wAssembly, config);
     PageRankFile << "***" << graphName << "***" << std::endl;
-    printPageRank(world, graph, PageRankFile);
+    printPageRank(world, graph, PageRankFile, wAssembly);
   }
 
   // Write final communities

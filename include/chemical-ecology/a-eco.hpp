@@ -329,10 +329,9 @@ class AEcoWorld {
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
-
     emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
 
-    std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph);
+    std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph, wAssembly);
     double assembly_score = 0;
     for(auto& [key, val] : finalCommunities){
       std::string node = key;
@@ -930,7 +929,7 @@ class AEcoWorld {
       double self_weight = 1 - clear_weight - (out_weight*out_degree);
       wAssembly.AddEdge(num, num, self_weight);
     }
-    wAssembly.PrintDirected();
+    //wAssembly.PrintDirected();
     return wAssembly;
   }
 
@@ -947,6 +946,19 @@ class AEcoWorld {
     return map;
   }
   
+  std::map<std::string, float> calculatePageRank(emp::Graph g, emp::WeightedGraph edge_weights) {
+    Table t;
+
+    t.set_trace(false);
+    t.set_numeric(false);
+    t.set_delim(" ");
+    t.read_graph(g);
+    t.set_edge_weights(edge_weights);
+    t.weighted_pagerank();
+
+    std::map<std::string, float> map = t.get_pr_map();
+    return map;
+  }
 
 std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     double size = stable_world.size();

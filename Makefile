@@ -46,6 +46,9 @@ $(PROJECT).js: source/web.cpp include/
 analysis:	source/analysis.cpp include/
 	$(CXX) $(CFLAGS_nat) source/analysis.cpp -o analyze_communities -lstdc++fs
 
+graph_analysis:	source/custom_graph.cpp include/
+	$(CXX) $(CFLAGS_nat) source/custom_graph.cpp -o custom_graph -lstdc++fs
+
 docs:
 	cd docs && make html
 
