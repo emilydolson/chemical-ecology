@@ -16,7 +16,7 @@ chemical_ecology::Config cfg;
 
 void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly)
 {
-  std::map<std::string, float> map = world.calculatePageRank(g, wAssembly);
+  std::map<std::string, float> map = world.CalculateWeightedPageRank(wAssembly);
   std::map<std::string, float>::iterator it = map.begin();
   while (it != map.end())
   {
@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
   AEcoWorld world;
   world.Setup(cfg);
   chemical_ecology::Config * config = &cfg;
+  //world.Run();
 
   // Initiate files to write to
   ofstream GraphFile("community_fitness.txt");

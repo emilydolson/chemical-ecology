@@ -107,20 +107,10 @@ def main():
     diffusion = 0.25
     seeding = 0.25
     clear = 0.1
-    #matrix_params = [5, 4, 0.5, 2.5, 0.75, 0.1, 0.2, 0]
-    matrix_params = [9]
+    matrix_params = [3, 2, 0.5, 2.5, 0.75, 0.1, 0.2, 0]
     interaction_matrix_file = 'interaction_matrix.dat'
 
-    #write_matrix(create_matrix(*matrix_params), interaction_matrix_file)
-    write_matrix([[1,0,0,-1,0,0,0,0,0],
-                  [0,1,0,0,-1,0,0,0,0],
-                  [0,0,1,0,0,-1,0,0,0],
-                  [-1,-1,-1,0,0,0,0,0,0.7],
-                  [-1,-1,-1,0,0,0,0,.7,0],
-                  [-1,-1,-1,0,0,0,.7,0,0],
-                  [-1,-1,-1,0,0,0,0,1,1],
-                  [-1,-1,-1,0,0,0,1,0,1],
-                  [-1,-1,-1,0,0,0,1,1,.01]], interaction_matrix_file)
+    write_matrix(create_matrix(*matrix_params), interaction_matrix_file)
     chem_eco = subprocess.Popen(
         [(f'./analyze_communities '
         f'-DIFFUSION {diffusion} '

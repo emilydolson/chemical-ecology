@@ -307,6 +307,42 @@ class AEcoWorld {
     return stable_world;
   }
 
+  world_t soupWorld(int num_updates) {
+    world_t soup_world;
+    world_t next_soup_world;
+
+    soup_world.resize(1);
+    next_soup_world.resize(1);
+    soup_world[0].resize(N_TYPES);
+    next_soup_world[0].resize(N_TYPES);
+
+    for (int i = 0; i < num_updates; i++) {
+      //growth
+      DoGrowth(0, soup_world, next_soup_world);
+
+      //seeding
+      if (i < num_updates-1) {
+        int cell = rnd.GetInt(N_TYPES);
+        next_soup_world[0][cell]++;
+      }
+
+      //clear
+      /*if (rnd.P(config->PROB_CLEAR)) {
+        for (int i = 0; i < N_TYPES; i++) {
+          next_world[0][i] = 0;
+        }
+      }*/
+
+      //other stuff
+      std::swap(soup_world, next_soup_world);
+      dom_map.clear();
+      fittest.clear();
+      dominant.clear();
+    }
+
+    return soup_world;
+  }
+
   // Handle the process of running the program through
   // all time steps
   void Run() {
@@ -330,8 +366,7 @@ class AEcoWorld {
 
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
-
-    std::map<std::string, float> assembly_pr_map = calculatePageRank(assemblyGraph, wAssembly);
+    std::map<std::string, float> assembly_pr_map = CalculateWeightedPageRank(wAssembly);
     double assembly_score = 0;
     for(auto& [key, val] : finalCommunities){
       std::string node = key;
@@ -360,6 +395,12 @@ class AEcoWorld {
     score_file.PrintHeaderKeys();
 
     score_file.Update();
+
+    std::map<std::string, double> soupResults = getSoupWorlds();
+    std::cout << "Soup World Results:" << std::endl;
+    for(auto& [key, val] : soupResults){
+      std::cout << key << ": " << val << std::endl;
+    }
     
     // Print out final state
     /*std::cout << "World Vectors:" << std::endl;
@@ -903,13 +944,11 @@ class AEcoWorld {
     return fitness_score;
   }
 
-
   emp::WeightedGraph calculateWeightedAssembly(emp::Graph g, double prob_clear, double seed_prob){
     size_t num_communities = pow(2, N_TYPES);
     emp::WeightedGraph wAssembly(num_communities);
 
     emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
-    double clear_weight = prob_clear;
     for(emp::Graph::Node n: all_nodes){
       std::string label = n.GetLabel();
       std::size_t num = std::stoi(label, 0, 2);
@@ -919,17 +958,24 @@ class AEcoWorld {
       double out_weight = seed_prob/(double)N_TYPES;
       for (int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1)){
         int adj_num = std::stoi(g.GetLabel(pos), 0, 2);
-        //std::cout << n.GetLabel() << " " << g.GetLabel(pos) << std::endl;
-        //std::cout << num << " " << adj_num << " " << out_weight << std::endl;
         wAssembly.AddEdge(num, adj_num, out_weight);
+      }
+      //cell must be not seeded and cleared
+      double clear_weight = prob_clear*(1-out_weight);
+      //original assembly node points to 0
+      if (n.HasEdge(0)) {
+        out_degree -= 1;
       }
       //Add an edge for clear probability
       wAssembly.AddEdge(num, 0, clear_weight);
       //Add self edge, to account for chance the cell is neither cleared nor seeded 
       double self_weight = 1 - clear_weight - (out_weight*out_degree);
+      if (num == 0) {
+        self_weight += clear_weight;
+      }
       wAssembly.AddEdge(num, num, self_weight);
     }
-    //wAssembly.PrintDirected();
+
     return wAssembly;
   }
 
@@ -939,20 +985,20 @@ class AEcoWorld {
     t.set_trace(false);
     t.set_numeric(false);
     t.set_delim(" ");
-    t.read_graph(g);
+    //t.read_graph(g);
     t.pagerank();
 
     std::map<std::string, float> map = t.get_pr_map();
     return map;
   }
   
-  std::map<std::string, float> calculatePageRank(emp::Graph g, emp::WeightedGraph edge_weights) {
+  std::map<std::string, float> calculatePageRank(emp::WeightedGraph edge_weights) {
     Table t;
 
     t.set_trace(false);
     t.set_numeric(false);
     t.set_delim(" ");
-    t.read_graph(g);
+    t.read_graph(edge_weights);
     t.set_edge_weights(edge_weights);
     t.weighted_pagerank();
 
@@ -960,7 +1006,67 @@ class AEcoWorld {
     return map;
   }
 
-std::map<std::string, double> getFinalCommunities(world_t stable_world) {
+  std::map<std::string, float> CalculateWeightedPageRank(emp::WeightedGraph edge_weights, double alpha = 1) {
+      //initalize pagerank table
+      std::map<int, float> pagerank;
+      int N = edge_weights.GetSize();
+      emp::vector<int> not_dangling;
+      emp::vector<emp::vector<double> > better_edge_weights = edge_weights.GetWeights();
+      for (int i = 0; i < N; i++) {
+          if (std::accumulate(better_edge_weights[i].begin(), better_edge_weights[i].end(), 0.0) != 0)
+            not_dangling.push_back(i);
+          else
+            pagerank[i] = 0;
+      }
+      for (int i : not_dangling) {
+          pagerank[i] = 1.0/(not_dangling.size());
+      }
+
+      //iterate
+      double tol = 1e-6;
+      double delta = 100;
+      int iterations = 0;
+      while ((iterations < 100) && (delta > tol)) {
+          std::map<int, float> next_pagerank;
+          for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+              next_pagerank[j] += alpha * pagerank[i] * edge_weights.GetWeight(i,j);
+            }
+          }
+
+          delta = 0.0;
+          for (int i = 0; i < N; i++) {
+              delta += abs(next_pagerank[i] - pagerank[i]);
+          }
+
+          pagerank = next_pagerank;
+          iterations += 1;
+      }
+
+      //save assembly graph and pagerank for unit tests
+      ofstream GraphFile("assembly_graph.txt");
+      for (size_t from = 0; from < N; from++) {
+        for (size_t to = 0; to < N; to++) {
+          GraphFile << edge_weights.GetWeight(from,to) << ",";
+        }
+        GraphFile << std::endl;
+      }
+      GraphFile << std::endl;
+      for (int i = 0; i < N; i++) {
+          GraphFile << pagerank[i] << " ";
+      }
+
+      //convert nodes into bitstrings
+      std::map<std::string, float> final_pagerank;
+      for (int i = 0; i < N; i++) {
+          std::string label = std::bitset<64>(i).to_string();
+          final_pagerank[label.erase(0, 64-N_TYPES)] = pagerank[i];
+      }
+
+      return final_pagerank;
+  }
+
+  std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
     for(emp::vector<double> cell: stable_world){
@@ -983,6 +1089,34 @@ std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     }
     for(auto& [key, val] : finalCommunities){
       val = val/size;
+    }
+    return finalCommunities;
+  }
+
+  std::map<std::string, double> getSoupWorlds() {
+    double replicates = 100;
+    std::map<std::string, double> finalCommunities;
+    for(int i = 0; i < replicates; i++){
+      world_t soup_world = soupWorld(1000);
+      std::string temp = "";
+      for(double species: soup_world[0]){
+        if(species > 0.001){
+          temp.append("1");
+        }
+        else{
+          temp.append("0");
+        }
+      }
+      std::reverse(temp.begin(), temp.end());
+      if(finalCommunities.find(temp) == finalCommunities.end()){
+          finalCommunities.insert({temp, 1});
+      }
+      else{
+        finalCommunities[temp] += 1;
+      }
+    }
+    for(auto& [key, val] : finalCommunities){
+      val = val/replicates;
     }
     return finalCommunities;
   }
