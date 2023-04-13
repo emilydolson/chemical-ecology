@@ -50,7 +50,7 @@
 
 using namespace std;
 
-const double DEFAULT_ALPHA = 1;
+const double DEFAULT_ALPHA = 0.85;
 const double DEFAULT_CONVERGENCE = 0.00001;
 const unsigned long DEFAULT_MAX_ITERATIONS = 10000;
 const bool DEFAULT_NUMERIC = false;
@@ -80,6 +80,7 @@ private:
     map<string, size_t> nodes_to_idx; // mapping from string node IDs to numeric
     map<size_t, string> idx_to_nodes; // mapping from numeric node IDs to string
     vector<double> pr; // the pagerank table
+    emp::WeightedGraph weights; //adjacency matrix of edge weights
 
     /*
      * Trims leading and trailing \t and " " characters from str.
@@ -152,6 +153,8 @@ public:
      * Calculates the pagerank of the hyperlink matrix.
      */
     void pagerank();
+
+    void weighted_pagerank();
 
     /*
      * Returns the pagerank vector of the hyperlink matrix.
@@ -279,6 +282,8 @@ public:
     const void print_pagerank_v();
 
     const std::map<std::string, float> get_pr_map();
+
+    void set_edge_weights(emp::WeightedGraph w);
 };
 
 void Table::reset() {
@@ -295,7 +300,7 @@ Table::Table(double a, double c, size_t i, bool t, bool n, string d)
       convergence(c),
       max_iterations(i),
       delim(d),
-      numeric(n) {
+      numeric(n){
 }
 
 void Table::reserve(size_t size) {
@@ -381,6 +386,10 @@ const string Table::get_delim() {
 
 void Table::set_delim(string d) {
     delim = d;
+}
+
+void Table::set_edge_weights(emp::WeightedGraph w) {
+    weights = w;
 }
 
 /*
@@ -621,6 +630,100 @@ void Table::pagerank() {
             pr[i] = h + one_Av + one_Iv;
             diff += fabs(pr[i] - old_pr[i]);
         }
+        num_iterations++;
+        if (trace) {
+            cout << num_iterations << ": ";
+            print_pagerank();
+        }
+    }
+    
+}
+
+void Table::weighted_pagerank() {
+
+    vector<size_t>::iterator ci; // current incoming
+    double diff = 1;
+    size_t i;
+    double sum_pr; // sum of current pagerank vector elements
+    double dangling_pr; // sum of current pagerank vector elements for dangling
+    			// nodes
+    unsigned long num_iterations = 0;
+    vector<double> old_pr;
+
+    size_t num_rows = rows.size();
+    
+    if (num_rows == 0) {
+        return;
+    }
+    
+    pr.resize(num_rows);
+
+    pr[0] = 1;
+
+    if (trace) {
+        print_pagerank();
+    }
+    
+    while (diff > convergence && num_iterations < max_iterations) {
+
+        sum_pr = 0;
+        dangling_pr = 0;
+        
+        for (size_t k = 0; k < pr.size(); k++) {
+            double cpr = pr[k];
+            sum_pr += cpr;
+            if (num_outgoing[k] == 0) {
+                dangling_pr += cpr;
+            }
+        }
+
+        if (num_iterations == 0) {
+            old_pr = pr;
+        } else {
+            /* Normalize so that we start with sum equal to one */
+            for (i = 0; i < pr.size(); i++) {
+                old_pr[i] = pr[i] / sum_pr;
+            }
+        }
+
+        /*
+         * After normalisation the elements of the pagerank vector sum
+         * to one
+         */
+        sum_pr = 1;
+        
+        /* An element of the A x I vector; all elements are identical */
+        double one_Av = alpha * dangling_pr / num_rows;
+
+        /* An element of the 1 x I vector; all elements are identical */
+        double one_Iv = (1 - alpha) * sum_pr / num_rows;
+
+        /* The difference to be checked for convergence */
+        diff = 0;
+        for (i = 0; i < num_rows; i++) {
+            /* The corresponding element of the H multiplication */
+            double h = 0.0;
+            for (ci = rows[i].begin(); ci != rows[i].end(); ci++) {
+                /* The current element of the H vector */
+                double h_v = (num_outgoing[*ci])
+                    ? 1.0 / num_outgoing[*ci]
+                    : 0.0;
+                if (num_iterations == 0 && trace) {
+                    cout << "h[" << i << "," << *ci << "]=" << h_v << endl;
+                }
+                //std::cout << i << " " << *ci << " " << weights.GetWeight(i, *ci) << std::endl;
+                if (weights.GetWeight(i, *ci) > 0) {
+                    h += h_v * old_pr[*ci] * weights.GetWeight(i, *ci);
+                }
+                else {
+                    h += h_v * old_pr[*ci];
+                }
+            }
+            h *= alpha;
+            pr[i] = h + one_Av + one_Iv;
+            diff += fabs(pr[i] - old_pr[i]);
+        }
+
         num_iterations++;
         if (trace) {
             cout << num_iterations << ": ";

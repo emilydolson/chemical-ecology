@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -12,7 +13,10 @@ def get_stats(graphs, weights, communities):
 
     for graph_type, edges in graphs.items():
         graph = nx.DiGraph()
-        graph.add_edges_from(edges)
+        if len(edges[0]) == 2:
+            graph.add_edges_from(edges)
+        elif len(edges[0]) == 3:
+            graph.add_weighted_edges_from(edges)
 
         sink_nodes = [node for node in graph if graph.out_degree(node) == 0]
         sink_nodes_pageranks = [weights[graph_type][node] for node in sink_nodes]
@@ -29,7 +33,11 @@ def get_stats(graphs, weights, communities):
 
 def visualize(edges, file_name, weights, communities):
     graph = nx.DiGraph()
-    graph.add_edges_from(edges)
+
+    if len(edges[0]) == 2:
+        graph.add_edges_from(edges)
+    elif len(edges[0]) == 3:
+        graph.add_weighted_edges_from(edges)
 
     color_map = []
     node_sizes = []
@@ -96,10 +104,10 @@ def read_graphs():
 
 
 def main():
-    diffusion = 0.215
-    seeding = 0.01
-    clear = 0.5
-    matrix_params = [9, 3, 0.92, 2.5, 0.94, 0.81, 0.82, 7]
+    diffusion = 0.25
+    seeding = 0.25
+    clear = 0.1
+    matrix_params = [3, 2, 0.5, 2.5, 0.75, 0.1, 0.2, 0]
     interaction_matrix_file = 'interaction_matrix.dat'
 
     write_matrix(create_matrix(*matrix_params), interaction_matrix_file)
@@ -115,8 +123,7 @@ def main():
         f'-WORLD_Y {10} '
         f'-UPDATES {1000} '
         f'-N_TYPES {matrix_params[0]}')],
-        shell=True)#, 
-        #stdout=subprocess.DEVNULL)
+        shell=True)
     return_code = chem_eco.wait()
     if return_code != 0:
         print("Error in analyze-communities, return code:", return_code)

@@ -7,14 +7,14 @@
 #SBATCH --mail-user=leithers@msu.edu
 
 ## Job name settings
-#SBATCH --job-name=analyze_graphs
+#SBATCH --job-name=analyze_graph
 #SBATCH -o ga_%A.out
 
 ## Time requirement in format "days-hours:minutes"
 #SBATCH --time=1-0:00
 
 ## Memory requirement in megabytes. You might need to make this bigger.
-#SBATCH --mem-per-cpu=4gb
+#SBATCH --mem-per-cpu=1gb
 
 module load GNU/8.2.0-2.31.1
 
@@ -23,20 +23,19 @@ cd /mnt/scratch/$USER/chemical-ecology/data
 ## Make a directory for this condition
 ## (this line will throw an error once the directory exists, but
 ## that's harmless)
-rm -rf analyze_communities
-mkdir analyze_communities
-cd analyze_communities
+rm -rf custom_graph
+mkdir custom_graph
+cd custom_graph
 
 # Get executable
-cp /mnt/home/$USER/grant/chemical-ecology/analyze_communities_org analyze_communities
+cp /mnt/home/$USER/grant/chemical-ecology/custom_graph .
 
 # Get scripts
-cp /mnt/home/$USER/grant/chemical-ecology/scripts/analyze_graphs.py .
-cp /mnt/home/$USER/grant/chemical-ecology/scripts/matrices/matrices.py .
-cp /mnt/home/$USER/grant/chemical-ecology/scripts/matrices/klemm_lfr_graph.py .
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/custom_graph.txt .
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/analyze_custom_graph.py .
 
 # Run script
-python3 analyze_graphs.py > outfile.txt
+python3 analyze_custom_graph.py > outfile.txt
 
 cp *.png /mnt/home/$USER/grant/chemical-ecology/
 

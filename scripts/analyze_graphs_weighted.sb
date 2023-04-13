@@ -23,12 +23,12 @@ cd /mnt/scratch/$USER/chemical-ecology/data
 ## Make a directory for this condition
 ## (this line will throw an error once the directory exists, but
 ## that's harmless)
-rm -rf analyze_communities
-mkdir analyze_communities
-cd analyze_communities
+rm -rf analyze_communities_w
+mkdir analyze_communities_w
+cd analyze_communities_w
 
 # Get executable
-cp /mnt/home/$USER/grant/chemical-ecology/analyze_communities_org analyze_communities
+cp /mnt/home/$USER/grant/chemical-ecology/analyze_communities .
 
 # Get scripts
 cp /mnt/home/$USER/grant/chemical-ecology/scripts/analyze_graphs.py .
