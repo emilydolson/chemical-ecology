@@ -395,12 +395,6 @@ class AEcoWorld {
     score_file.PrintHeaderKeys();
 
     score_file.Update();
-
-    std::map<std::string, double> soupResults = getSoupWorlds();
-    std::cout << "Soup World Results:" << std::endl;
-    for(auto& [key, val] : soupResults){
-      std::cout << key << ": " << val << std::endl;
-    }
     
     // Print out final state
     /*std::cout << "World Vectors:" << std::endl;

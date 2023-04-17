@@ -14,6 +14,14 @@
 
 chemical_ecology::Config cfg;
 
+void printSoupWorld(AEcoWorld world, ofstream& File)
+{
+  std::map<std::string, double> soupResults = world.getSoupWorlds();
+  for(auto& [key, val] : soupResults){
+    File << key << " " << val << std::endl;
+  }
+}
+
 void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly)
 {
   std::map<std::string, float> map = world.CalculateWeightedPageRank(wAssembly);
@@ -49,6 +57,7 @@ int main(int argc, char* argv[])
   ofstream GraphFile("community_fitness.txt");
   ofstream PageRankFile("page_rank.txt");
   ofstream FinalCommunitiesFile("final_communities.txt");
+  ofstream SoupWorldFile("soup_world.txt");
 
   // Calculate community assembly and fitness graphs
   std::map<std::string, emp::Graph> graphs;
@@ -70,6 +79,9 @@ int main(int argc, char* argv[])
     PageRankFile << "***" << graphName << "***" << std::endl;
     printPageRank(world, graph, PageRankFile, wAssembly);
   }
+
+  // Write soup world
+  printSoupWorld(world, SoupWorldFile);
 
   // Write final communities
   world.Run();
