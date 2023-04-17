@@ -1043,19 +1043,6 @@ class AEcoWorld {
           iterations += 1;
       }
 
-      //save assembly graph and pagerank for unit tests
-      ofstream GraphFile("assembly_graph.txt");
-      for (size_t from = 0; from < N; from++) {
-        for (size_t to = 0; to < N; to++) {
-          GraphFile << edge_weights.GetWeight(from,to) << ",";
-        }
-        GraphFile << std::endl;
-      }
-      GraphFile << std::endl;
-      for (int i = 0; i < N; i++) {
-          GraphFile << pagerank[i] << " ";
-      }
-
       //convert nodes into bitstrings
       std::map<std::string, float> final_pagerank;
       for (int i = 0; i < N; i++) {

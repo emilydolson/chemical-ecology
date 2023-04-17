@@ -27,15 +27,6 @@ void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File, emp::WeightedG
 
 void printGraph(emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly, chemical_ecology::Config * config)
 {
-  /*emp::vector<emp::Graph::Node> all_nodes = g.GetNodes();
-  for(emp::Graph::Node n: all_nodes)
-  {
-    emp::BitVector out_nodes = n.GetEdgeSet();
-    for (int pos = out_nodes.FindOne(); pos >= 0 && pos < g.GetSize(); pos = out_nodes.FindOne(pos+1))
-    {
-      File << n.GetLabel() << " " << g.GetLabel(pos) << std::endl;
-    }
-  }*/
   for (size_t from = 0; from < wAssembly.GetSize(); from++) {
     for (size_t to = 0; to < wAssembly.GetSize(); to++) {
       if (wAssembly.HasEdge(from, to) == false) continue;
