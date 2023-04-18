@@ -42,7 +42,7 @@ def read_graphs():
 def main():
     diffusion = 0.0
     seeding = 0.25
-    clear = 0.1
+    clear = 0
     matrix_params = [9, 3, 0.5, 2.5, 0.75, 0.1, 0.2, 0]
     interaction_matrix_file = 'interaction_matrix.dat'
 
@@ -53,7 +53,7 @@ def main():
         f'-SEEDING_PROB {seeding} '
         f'-PROB_CLEAR {clear} '
         f'-INTERACTION_SOURCE {interaction_matrix_file} '
-        f'-REPRO_THRESHOLD {100000000} '
+        f'-REPRO_THRESHOLD {4} '
         f'-MAX_POP {10000} '
         f'-WORLD_X {10} '
         f'-WORLD_Y {10} '
@@ -77,7 +77,7 @@ def main():
     G = nx.DiGraph()
     G.add_weighted_edges_from(assembly_adj)
     our_pageranks = read_pagerank()['Community Assembly']
-    pagerank = nx.pagerank(G, weight='weight', alpha=1)
+    pagerank = nx.pagerank(G, weight='weight', alpha=1, max_iter=500)
 
     print('Node\tTrue Pagerank\tOur Pagerank\tSoup World Proportion')
     for i in our_pageranks:

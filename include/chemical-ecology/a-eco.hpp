@@ -307,7 +307,7 @@ class AEcoWorld {
     return stable_world;
   }
 
-  world_t soupWorld(int num_updates) {
+  world_t soupWorld(int num_updates, double seeding_prob, double prob_clear) {
     world_t soup_world;
     world_t next_soup_world;
 
@@ -321,17 +321,17 @@ class AEcoWorld {
       DoGrowth(0, soup_world, next_soup_world);
 
       //seeding
-      if (i < num_updates-1) {
+      if (i < num_updates-1 && rnd.P(seeding_prob)) {
         int cell = rnd.GetInt(N_TYPES);
         next_soup_world[0][cell]++;
       }
 
       //clear
-      /*if (rnd.P(config->PROB_CLEAR)) {
+      if (rnd.P(prob_clear)) {
         for (int i = 0; i < N_TYPES; i++) {
-          next_world[0][i] = 0;
+          next_soup_world[0][i] = 0;
         }
-      }*/
+      }
 
       //other stuff
       std::swap(soup_world, next_soup_world);
@@ -1020,7 +1020,7 @@ class AEcoWorld {
       double tol = 1e-6;
       double delta = 100;
       int iterations = 0;
-      while ((iterations < 100) && (delta > tol)) {
+      while ((iterations < 500) && (delta > tol)) {
           std::map<int, float> next_pagerank;
           for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
@@ -1074,11 +1074,10 @@ class AEcoWorld {
     return finalCommunities;
   }
 
-  std::map<std::string, double> getSoupWorlds() {
-    double replicates = 100;
+  std::map<std::string, double> getSoupWorlds(int replicates, int num_updates, double prob_clear, double seeding_prob) {
     std::map<std::string, double> finalCommunities;
     for(int i = 0; i < replicates; i++){
-      world_t soup_world = soupWorld(1000);
+      world_t soup_world = soupWorld(num_updates, seeding_prob, prob_clear);
       std::string temp = "";
       for(double species: soup_world[0]){
         if(species > 0.001){

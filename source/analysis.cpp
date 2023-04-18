@@ -14,9 +14,9 @@
 
 chemical_ecology::Config cfg;
 
-void printSoupWorld(AEcoWorld world, ofstream& File)
+void printSoupWorld(AEcoWorld world, ofstream& File, chemical_ecology::Config * config)
 {
-  std::map<std::string, double> soupResults = world.getSoupWorlds();
+  std::map<std::string, double> soupResults = world.getSoupWorlds(100, 1000, config->PROB_CLEAR(), config->SEEDING_PROB());
   for(auto& [key, val] : soupResults){
     File << key << " " << val << std::endl;
   }
@@ -51,7 +51,6 @@ int main(int argc, char* argv[])
   AEcoWorld world;
   world.Setup(cfg);
   chemical_ecology::Config * config = &cfg;
-  //world.Run();
 
   // Initiate files to write to
   ofstream GraphFile("community_fitness.txt");
@@ -81,7 +80,7 @@ int main(int argc, char* argv[])
   }
 
   // Write soup world
-  printSoupWorld(world, SoupWorldFile);
+  printSoupWorld(world, SoupWorldFile, config);
 
   // Write final communities
   world.Run();
