@@ -7,21 +7,53 @@ import matplotlib.pyplot as plt
 from scripts.matrices.matrices import write_matrix
 from scripts.matrices.klemm_lfr_graph import create_matrix
 
+def read_pagerank():
+    weights = {}
+    ranks = open('page_rank.txt').read().split('\n')
+    curr_graph = ''
+    for line in ranks:
+        if len(line) > 0:
+            if line[0] != '*':
+                node, weight = line.split(' ')
+                weight = round(float(weight), 5)
+                weights[curr_graph][node] = weight
+            else:
+                graph_name = line.split('***')[1]
+                weights[graph_name] = {}
+                curr_graph = graph_name
+    return weights
+
+
+def read_graphs():
+    graphs = {}
+    communities = open('community_fitness.txt').read().split('\n')
+    curr_graph = ''
+    for line in communities:
+        if len(line) > 0:
+            if line[0] != '*':
+                graphs[curr_graph].append(line.split(' '))
+            else:
+                graph_name = line.split('***')[1]
+                graphs[graph_name] = []
+                curr_graph = graph_name
+    return graphs
+
+
 def main():
-    diffusion = 0.25
+    diffusion = 0.0
     seeding = 0.25
-    clear = 0.1
-    matrix_params = [3, 2, 0.5, 2.5, 0.75, 0.1, 0.2, 0]
+    clear = 0
+    matrix_params = [9, 3, 0.5, 2.5, 0.75, 0.1, 0.2, 0]
     interaction_matrix_file = 'interaction_matrix.dat'
 
     write_matrix(create_matrix(*matrix_params), interaction_matrix_file)
     chem_eco = subprocess.Popen(
-        [(f'./chemical-ecology '
+        [(f'./analyze_communities '
         f'-DIFFUSION {diffusion} '
         f'-SEEDING_PROB {seeding} '
         f'-PROB_CLEAR {clear} '
         f'-INTERACTION_SOURCE {interaction_matrix_file} '
-        f'-REPRO_THRESHOLD {100000000} '
+        f'-REPRO_THRESHOLD {4} '
         f'-MAX_POP {10000} '
         f'-WORLD_X {10} '
         f'-WORLD_Y {10} '
@@ -30,36 +62,39 @@ def main():
         shell=True)
     return_code = chem_eco.wait()
     if return_code != 0:
-        print("Error in chemical-ecology, return code:", return_code)
+        print("Error in analyze_communities, return code:", return_code)
         sys.stdout.flush()
         exit()
 
-    assembly_graph_file = open('assembly_graph.txt').read()
-    assembly_adj = []
-    our_pageranks = []
-    i = 0
-    for line in assembly_graph_file.split('\n'):
-        if len(line) == 0:
-            i += 1
-        if i == 0:
-            row = [float(x) for x in line.split(',')[:-1]]
-            assembly_adj.append(row)
+    soup_world_file = open('soup_world.txt').read().split('\n')
+    soup_world = {}
+    for line in soup_world_file:
+        if len(line) > 0:
+            node, proportion = line.split(' ')
+            soup_world[node] = float(proportion)
+
+    assembly_adj = read_graphs()['Community Assembly']
+    G = nx.DiGraph()
+    G.add_weighted_edges_from(assembly_adj)
+    our_pageranks = read_pagerank()['Community Assembly']
+    pagerank = nx.pagerank(G, weight='weight', alpha=1, max_iter=500)
+
+    print('Node\tTrue Pagerank\tOur Pagerank\tSoup World Proportion')
+    for i in our_pageranks:
+        if i in soup_world:
+            soup_world_proportion = soup_world[i]
+        else: 
+            soup_world_proportion = 0
+        if i in pagerank:
+            true_pagerank = round(pagerank[i], 5)
         else:
-            our_pageranks = [float(x) for x in line.split()]
+            true_pagerank = 0
+        print(f'{i}:\t{true_pagerank}\t\t{round(our_pageranks[i], 5)}\t\t{soup_world_proportion}')
 
-    row_sums_to_one = [(sum(x) > 0.99 and sum(x) < 1.01) or sum(x) == 0 for x in assembly_adj]
-    if row_sums_to_one.count(False) > 0:
-        print(f'Invalid Assembly Nodes: {[i for i in range(len(assembly_adj)) if not row_sums_to_one[i]]}\n')
-
-    G = nx.DiGraph(np.array(assembly_adj))
-    pagerank = nx.pagerank(G, weight='weight', alpha=1)
-    for i in range(len(our_pageranks)):
-        print(f'{i}:\t{round(pagerank[i], 5)}\t\t{round(our_pageranks[i], 5)}')
-
-    plt.figure(figsize=(10, 10))
-    nx.draw(G, with_labels=True, edge_color='gray')
-    plt.savefig('assembly_graph.png')
-    plt.close()
+    #plt.figure(figsize=(10, 10))
+    #nx.draw(G, with_labels=True, edge_color='gray')
+    #plt.savefig('assembly_graph.png')
+    #plt.close()
 
 
 if __name__ == '__main__':
