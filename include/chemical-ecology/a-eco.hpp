@@ -217,10 +217,20 @@ class AEcoWorld {
       DoGrowth(pos, world, next_world);
     }
 
+    // We need to handle cell updates in a random order
+    // so that cells at the end of the world do not have an
+    // advantage when group repro triggers
+    int unordered[(int)world.size()];
+    for (int i = 0; i < (int)world.size(); i++) {
+      unordered[i] = i;
+    }
+
     // Handle everything that allows biomass to move from
     // one cell to another. Do so for each cell
-    for (int pos = 0; pos < (int)world.size(); pos++) {
 
+    for (int i = 0; i < (int)world.size(); i++) {
+
+      int pos = unordered[i];
       // Figure out which cells are above, below, left
       // and right of the focal cell.
       // This process is a little arduous because it
@@ -492,27 +502,34 @@ class AEcoWorld {
   //   }
   // }
 
-  // Check whether the total population of a cell is large enough
-  // for group level replication
-  bool IsReproReady(size_t pos, world_t & w) {
-    return emp::Sum(w[pos]) > config->MAX_POP()*(config->REPRO_THRESHOLD());
+  // The probability of group reproduction is proportional to 
+  // the biomass of the community 
+  bool GroupReproTriggered(size_t pos, world_t & w) {
+    double ratio = double(emp::Sum(w[pos])) / (config->MAX_POP() * config->N_TYPES());
+    if (rnd.P(ratio)){
+      return true;
+    }
+    return false;
   }
 
   // Handle movement of biomass between cells
   void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear) {
 
     // Check whether conditions for group-level replication are met
-    if (IsReproReady(pos, curr_world)) {
-      // Choose a random cell out of those that are adjacent
-      // to replicate into
-      int direction = adj[rnd.GetInt(adj.size())];
+    if (GroupReproTriggered(pos, curr_world)) {
+      // Get a random cell that is not this cell to 
+      // group level reproduce into 
+      int new_pos;
+      do {
+        new_pos = rnd.GetInt((int)curr_world.size() - 1);
+      } while (new_pos == pos);
       for (int i = 0; i < N_TYPES; i++) {
         // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
         // in the focal cell to the cell we're replicating into
         //
         // NOTE: An important decision here is whether to clear the cell first.
-        // We have chosen not to, but can revisit that choice
-        next_world[direction][i] += curr_world[pos][i] * config->REPRO_DILUTION();
+        // We have chosen to, but can revisit that choice
+        next_world[new_pos][i] = curr_world[pos][i] * config->REPRO_DILUTION();
       }
     }
 
@@ -643,7 +660,7 @@ class AEcoWorld {
     // able to do group-level reproduction (meaning the community
     // has spread across the entire test world and could keep going)
 
-    while (!IsReproReady(num_cells - 1, test_world) && time < time_limit) {
+    while (!GroupReproTriggered(num_cells - 1, test_world) && time < time_limit) {
 
       // Group level repro will never occur with the values we're using
       // Instead check if the final cell is similar enough to the beginning cell
