@@ -95,5 +95,6 @@ int main(int argc, char* argv[])
   GraphFile.close();
   PageRankFile.close();
   FinalCommunitiesFile.close();
+  SoupWorldFile.close();
   return 0;
 }

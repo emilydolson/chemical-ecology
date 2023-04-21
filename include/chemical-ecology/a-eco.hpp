@@ -272,6 +272,73 @@ class AEcoWorld {
     dominant.clear();
   }
 
+  world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob) {
+    world_t model_world;
+    world_t next_model_world;
+
+    model_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<double> & v : model_world) {
+      v.resize(N_TYPES, 0);
+    }
+    next_model_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<double> & v : next_model_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    for(int i = 0; i < num_updates; i++){
+      for (size_t pos = 0; pos < model_world.size(); pos++) {
+        DoGrowth(pos, model_world, next_model_world);
+      }
+
+      for (int pos = 0; pos < model_world.size(); pos++) {
+        if (repro) {
+          if (IsReproReady(pos, model_world)) {
+            int x = pos % config->WORLD_X();
+            int y = pos / config->WORLD_Y();
+            int left = pos - 1;  
+            int right = pos + 1;
+            if (x == 0) {
+              left += config->WORLD_X(); 
+            } else if (x == config->WORLD_X() - 1) {
+              right -= config->WORLD_X();
+            }
+            int up = pos - config->WORLD_X();
+            int down = pos + config->WORLD_X();
+            if (y == 0) {
+              up += config->WORLD_X() * (config->WORLD_Y());
+            } else if (y == config->WORLD_Y() - 1) {
+              down -= config->WORLD_X() * (config->WORLD_Y());
+            }
+            emp::vector<int> adj = {up, down, left, right};
+
+            int direction = adj[rnd.GetInt(adj.size())];
+            for (int j = 0; j < N_TYPES; j++) {
+              next_model_world[direction][j] += model_world[pos][j] * config->REPRO_DILUTION();
+            }
+          }
+        }
+
+        if (rnd.P(seeding_prob)) {
+          int cell = rnd.GetInt(N_TYPES);
+          next_model_world[pos][cell]++;
+        }
+
+        if (rnd.P(prob_clear)) {
+          for (int i = 0; i < N_TYPES; i++) {
+            next_model_world[pos][i] = 0;
+          }
+        }
+      }
+
+      std::swap(model_world, next_model_world);
+
+      dom_map.clear();
+      fittest.clear();
+      dominant.clear();
+    }
+
+    return model_world;
+  }
 
   //This function should be called to create a stable copy of the world for graph calculations
   world_t stableUpdate(int num_updates){
@@ -304,6 +371,40 @@ class AEcoWorld {
       fittest.clear();
       dominant.clear();
     }
+    return stable_world;
+  }
+
+  world_t stableUpdateCustomWorld(int num_updates, world_t custom_world, int world_x, int world_y){
+    world_t stable_world;
+    world_t next_stable_world;
+
+    stable_world.resize(world_x * world_y);
+    for (emp::vector<double> & v : next_stable_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    next_stable_world.resize(world_x * world_y);
+    for (emp::vector<double> & v : next_stable_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    //copy current world into stable world
+    for(size_t i = 0; i < custom_world.size(); i++){
+      stable_world[i].assign(custom_world[i].begin(), custom_world[i].end());
+    }
+
+    for(int i = 0; i < num_updates; i++){
+      // Handle population growth for each cell
+      for (size_t pos = 0; pos < custom_world.size(); pos++) {
+        DoGrowth(pos, stable_world, next_stable_world);
+      }
+
+      std::swap(stable_world, next_stable_world);
+      dom_map.clear();
+      fittest.clear();
+      dominant.clear();
+    }
+
     return stable_world;
   }
 
@@ -367,44 +468,42 @@ class AEcoWorld {
     emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
     emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
     std::map<std::string, float> assembly_pr_map = CalculateWeightedPageRank(wAssembly);
-    double assembly_score = 0;
-    for(auto& [key, val] : finalCommunities){
-      std::string node = key;
-      float proportion = val;
-      if (assembly_pr_map.find(node) != assembly_pr_map.end()) {
-        assembly_score += (proportion * assembly_pr_map[node]);
-      }
-      else {
-        assembly_score *= pow(10.0, -10.0);
-      }
+    
+    world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
+    world_t stableAssemblyModel = stableUpdateCustomWorld(1000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
+    world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
+    world_t stableAdaptiveModel = stableUpdateCustomWorld(1000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
+    std::map<std::string, double> assemblyFinalCommunities = getFinalCommunities(stableAssemblyModel);
+    std::map<std::string, double> adaptiveFinalCommunities = getFinalCommunities(stableAdaptiveModel);
+
+    ofstream FinalCommunitiesFile("stochastic_scores.txt");
+    FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
+    for(auto& [node, proportion] : finalCommunities)
+    {
+      FinalCommunitiesFile << node << " " << proportion << " " << assemblyFinalCommunities[node] << " " << adaptiveFinalCommunities[node] << std::endl;
+    }
+    FinalCommunitiesFile.close();
+
+    std::cout << "Assembly" << std::endl;
+    for(auto& [node, proportion] : assemblyFinalCommunities)
+    {
+      std::cout << node << " " << proportion << std::endl;
+    }
+    std::cout << "Adaptive" << std::endl;
+    for(auto& [node, proportion] : adaptiveFinalCommunities)
+    {
+      std::cout << node << " " << proportion << std::endl;
     }
 
-    double biomass_score = calcAdaptabilityScore(finalCommunities, "Biomass");
-    double growth_rate_score = calcAdaptabilityScore(finalCommunities, "Growth_Rate");
-    double heredity_score = calcAdaptabilityScore(finalCommunities, "Heredity");
-    double invasion_score = calcAdaptabilityScore(finalCommunities, "Invasion_Ability");
-    double resiliance_score = calcAdaptabilityScore(finalCommunities, "Resiliance");
-
-    score_file.AddVar(biomass_score, "Biomass_Score", "Biomass_Score");
-    score_file.AddVar(growth_rate_score, "Growth_Rate_Score", "Growth_Rate_Score");
-    score_file.AddVar(heredity_score, "Heredity_Score", "Heredity_Score");
-    score_file.AddVar(invasion_score, "Invasion_Ability_Score", "Invasion_Ability_Score");
-    score_file.AddVar(resiliance_score, "Resiliance_Score", "Resiliance_Score");
-    score_file.AddVar(assembly_score, "Assembly_Score", "Assembly_Score");
-
-    score_file.PrintHeaderKeys();
-
-    score_file.Update();
+    //score_file.AddVar(assembly_score, "Assembly_Score", "Assembly_Score");
+    //score_file.PrintHeaderKeys();
+    //score_file.Update();
     
     // Print out final state
-    /*std::cout << "World Vectors:" << std::endl;
-    for (auto & v : world) {
-      std::cout << emp::to_string(v) << std::endl;
-    }
-    std::cout << "Stable World Vectors:" << std::endl;
-    for (auto & v : stable_world) {
-      std::cout << emp::to_string(v) << std::endl;
-    }*/
+    // std::cout << "World Vectors:" << std::endl;
+    // for (auto & v : world) {
+    //   std::cout << emp::to_string(v) << std::endl;
+    // }
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
