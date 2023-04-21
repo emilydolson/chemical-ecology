@@ -571,6 +571,11 @@ class AEcoWorld {
   // The probability of group reproduction is proportional to 
   // the biomass of the community 
   bool GroupReproTriggered(size_t pos, world_t & w) {
+    //Group repro must be enabled
+    if(!(config->GROUP_REPRO())){
+      return false;
+    }
+    //If it is enabled, there is a chance of group repro proportional to the cell's biomass
     double ratio = double(emp::Sum(w[pos])) / (config->MAX_POP() * config->N_TYPES());
     if (rnd.P(ratio)){
       return true;

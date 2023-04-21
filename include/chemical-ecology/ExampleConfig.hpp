@@ -14,7 +14,7 @@ namespace chemical_ecology {
     VALUE(MAX_POP, int, 10000, "Maximum population size for one type in one cell"),
     VALUE(DIFFUSION, double, 1, "Proportion of each population that diffuses to adjacent cells"),
     VALUE(SEEDING_PROB, double, .001, "Probability that a member of a given species will randomly be introduced to a cell"),
-    VALUE(REPRO_THRESHOLD, double, 1000000, "Total population required for reproduction; expressed as a multiplier on MAX_POP"),
+    VALUE(GROUP_REPRO, bool, false, "True if proportional group level reproduction is enabled this run"),
     VALUE(REPRO_DILUTION, double, .1, "Proportion of contents to propogate on reproduction"),
     VALUE(PROB_CLEAR, double, .25, "Probability of cell being cleared out"),    
 
