@@ -295,35 +295,20 @@ class AEcoWorld {
       v.resize(N_TYPES, 0);
     }
 
-    for(int i = 0; i < num_updates; i++){
+    for(int i = 0; i < num_updates; i++) {
       for (size_t pos = 0; pos < model_world.size(); pos++) {
         DoGrowth(pos, model_world, next_model_world);
       }
 
       for (int pos = 0; pos < model_world.size(); pos++) {
         if (repro) {
-          if (IsReproReady(pos, model_world)) {
-            int x = pos % config->WORLD_X();
-            int y = pos / config->WORLD_Y();
-            int left = pos - 1;  
-            int right = pos + 1;
-            if (x == 0) {
-              left += config->WORLD_X(); 
-            } else if (x == config->WORLD_X() - 1) {
-              right -= config->WORLD_X();
-            }
-            int up = pos - config->WORLD_X();
-            int down = pos + config->WORLD_X();
-            if (y == 0) {
-              up += config->WORLD_X() * (config->WORLD_Y());
-            } else if (y == config->WORLD_Y() - 1) {
-              down -= config->WORLD_X() * (config->WORLD_Y());
-            }
-            emp::vector<int> adj = {up, down, left, right};
-
-            int direction = adj[rnd.GetInt(adj.size())];
+          if (GroupReproTriggered(pos, model_world)) {
+            int new_pos;
+            do {
+              new_pos = rnd.GetInt((int)model_world.size() - 1);
+            } while (new_pos == pos);
             for (int j = 0; j < N_TYPES; j++) {
-              next_model_world[direction][j] += model_world[pos][j] * config->REPRO_DILUTION();
+              next_model_world[new_pos][j] = model_world[pos][j] * config->REPRO_DILUTION();
             }
           }
         }
@@ -334,8 +319,8 @@ class AEcoWorld {
         }
 
         if (rnd.P(prob_clear)) {
-          for (int i = 0; i < N_TYPES; i++) {
-            next_model_world[pos][i] = 0;
+          for (int j = 0; j < N_TYPES; j++) {
+            next_model_world[pos][j] = 0;
           }
         }
       }
@@ -583,24 +568,6 @@ class AEcoWorld {
     }
   }
 
-  // Allows the assembly graph to handle growth
-  // void GraphDoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
-  //   for (int i = 0; i < N_TYPES; i++) {
-  //     double modifier = 0;
-  //     for (int j = 0; j < N_TYPES; j++) {
-  //       // Sum up growth rate modifier for current type 
-  //       modifier += interactions[i][j] * curr_world[pos][j];
-  //     }
-
-  //     // Grow linearly until we hit the cap
-  //     int new_pop = floor(modifier*curr_world[pos][i]); // * ((double)(MAX_POP - pos[i])/MAX_POP));
-  //     // Population size cannot be negative
-  //     next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0.0);
-  //     // Population size capped at MAX_POP
-  //     next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
-  //   }
-  // }
-
   // The probability of group reproduction is proportional to 
   // the biomass of the community 
   bool GroupReproTriggered(size_t pos, world_t & w) {
@@ -657,13 +624,13 @@ class AEcoWorld {
       }
     }
 
-
     //subtract diffusion
     for (int i = 0; i < N_TYPES; i++) {
       next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
       // We can't have negative population sizes
       next_world[pos][i] = std::max(next_world[pos][i], 0.0);
     }
+    
     if (rnd.P(seed_prob)) {
       int cell = rnd.GetInt(N_TYPES);
       next_world[pos][cell]++;
