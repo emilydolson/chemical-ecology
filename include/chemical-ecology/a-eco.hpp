@@ -75,6 +75,7 @@ class AEcoWorld {
     std::map<emp::vector<double>, CellData> dom_map;
     emp::vector<double> fittest;
     emp::vector<double> dominant;
+    world_t worldState;
 
   public:
   // Default constructor just has to set name of output file
@@ -190,6 +191,7 @@ class AEcoWorld {
     data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].count;}, "dominant_count", "dominant_count");
     data_file.AddFun((std::function<int()>)[this](){return dom_map[dominant].heredity;}, "dominant_heredity", "dominant_heredity");
     data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(dominant);}, "dominantCommunity", "dominant community");
+    data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
     // Add function that runs before each row is printed in the datafile
     // to ensure fitnesses have been calculated (it's expensive so we don't
     // want to do it every update if we aren't going to use that data)
@@ -269,6 +271,7 @@ class AEcoWorld {
     curr_update = ud;
     
     // Give data_file the opportunity to write to the file
+    worldState = next_world;
     data_file.Update(curr_update);
 
     // We're done calculating the type counts for the next
@@ -280,6 +283,7 @@ class AEcoWorld {
     dom_map.clear();
     fittest.clear();
     dominant.clear();
+    worldState.clear();
   }
 
   world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob) {
@@ -465,9 +469,9 @@ class AEcoWorld {
     std::map<std::string, float> assembly_pr_map = CalculateWeightedPageRank(wAssembly);
     
     world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
-    world_t stableAssemblyModel = stableUpdateCustomWorld(1000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
+    world_t stableAssemblyModel = stableUpdateCustomWorld(10000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
     world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
-    world_t stableAdaptiveModel = stableUpdateCustomWorld(1000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
+    world_t stableAdaptiveModel = stableUpdateCustomWorld(10000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
     std::map<std::string, double> assemblyFinalCommunities = getFinalCommunities(stableAssemblyModel);
     std::map<std::string, double> adaptiveFinalCommunities = getFinalCommunities(stableAdaptiveModel);
 
@@ -494,11 +498,15 @@ class AEcoWorld {
     //score_file.PrintHeaderKeys();
     //score_file.Update();
     
-    // Print out final state
-    // std::cout << "World Vectors:" << std::endl;
-    // for (auto & v : world) {
-    //   std::cout << emp::to_string(v) << std::endl;
-    // }
+    //Print out final state
+    std::cout << "World Vectors:" << std::endl;
+    for (auto & v : world) {
+      std::cout << emp::to_string(v) << std::endl;
+    }
+    std::cout << "Stable World Vectors:" << std::endl;
+    for (auto & v : stable_world) {
+      std::cout << emp::to_string(v) << std::endl;
+    }
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
@@ -856,6 +864,8 @@ class AEcoWorld {
     }
 
     for (auto c : communities) {
+      //std::cout << c.first << " " << c.second.stable << " " << c.second.transitions_to << std::endl;
+
       if (!communities[c.second.transitions_to].stable) {
         n_stable++;
         communities[c.second.transitions_to].stable = true;
@@ -1141,14 +1151,17 @@ class AEcoWorld {
     for(emp::vector<double> cell: stable_world){
       std::string temp = "";
       for(double species: cell){
-        if(species > 0.001){
+      //for(int i = cell.size(); i --> 0;){
+        //double species = cell[i];
+        /*if(species > 0.001){
           temp.append("1");
         }
         else{
           temp.append("0");
-        }
+        }*/
+        temp.append(std::to_string(species)+" ");
       }
-      std::reverse(temp.begin(), temp.end());
+      //std::reverse(temp.begin(), temp.end());
       if(finalCommunities.find(temp) == finalCommunities.end()){
           finalCommunities.insert({temp, 1});
       }
