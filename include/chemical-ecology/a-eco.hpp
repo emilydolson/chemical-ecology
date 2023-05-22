@@ -63,10 +63,11 @@ class AEcoWorld {
     int N_TYPES;
     double MAX_POP;
     int curr_update;
+    int curr_update2;
 
     // Set up data tracking
     emp::DataFile data_file;
-    emp::DataFile score_file;
+    emp::DataFile stochastic_data_file;
     emp::DataNode<double, emp::data::Stats> growth_rate_node;
     emp::DataNode<double, emp::data::Stats> synergy_node;
     emp::DataNode<double, emp::data::Stats> heredity_node;
@@ -76,10 +77,12 @@ class AEcoWorld {
     emp::vector<double> fittest;
     emp::vector<double> dominant;
     world_t worldState;
+    world_t stochasticWorldState;
+    std::string worldType;
 
   public:
   // Default constructor just has to set name of output file
-  AEcoWorld() : data_file("a-eco_data.csv"), score_file("scores.csv") {;}
+  AEcoWorld() : data_file("a-eco_data.csv"), stochastic_data_file("a-eco_model_data.csv") {;}
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -200,6 +203,11 @@ class AEcoWorld {
     data_file.SetTimingRepeat(10);
     // Print column names to data_file
     data_file.PrintHeaderKeys();
+
+    stochastic_data_file.AddVar(curr_update2, "Time", "Time");
+    stochastic_data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
+    stochastic_data_file.AddVar(worldType, "worldType", "world type");
+    stochastic_data_file.PrintHeaderKeys();
   }
 
   // Handle an individual time step
@@ -290,6 +298,11 @@ class AEcoWorld {
     world_t model_world;
     world_t next_model_world;
 
+    if(repro)
+      worldType = "Repro";
+    else
+      worldType = "Soup";
+
     model_world.resize(config->WORLD_X() * config->WORLD_Y());
     for (emp::vector<double> & v : model_world) {
       v.resize(N_TYPES, 0);
@@ -329,11 +342,15 @@ class AEcoWorld {
         }
       }
 
+      if(i%10 == 0){
+        curr_update2 = i;
+        stochasticWorldState = next_model_world;
+        stochastic_data_file.Update(curr_update2);
+      }
+
       std::swap(model_world, next_model_world);
 
-      dom_map.clear();
-      fittest.clear();
-      dominant.clear();
+      stochasticWorldState.clear();
     }
 
     return model_world;
@@ -399,9 +416,6 @@ class AEcoWorld {
       }
 
       std::swap(stable_world, next_stable_world);
-      dom_map.clear();
-      fittest.clear();
-      dominant.clear();
     }
 
     return stable_world;
@@ -435,9 +449,6 @@ class AEcoWorld {
 
       //other stuff
       std::swap(soup_world, next_soup_world);
-      dom_map.clear();
-      fittest.clear();
-      dominant.clear();
     }
 
     return soup_world;
@@ -499,14 +510,14 @@ class AEcoWorld {
     //score_file.Update();
     
     //Print out final state
-    std::cout << "World Vectors:" << std::endl;
+    /*std::cout << "World Vectors:" << std::endl;
     for (auto & v : world) {
       std::cout << emp::to_string(v) << std::endl;
     }
     std::cout << "Stable World Vectors:" << std::endl;
     for (auto & v : stable_world) {
       std::cout << emp::to_string(v) << std::endl;
-    }
+    }*/
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later

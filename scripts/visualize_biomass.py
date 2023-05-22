@@ -4,10 +4,8 @@ import re
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def main(file_path):
-    df = pd.read_csv(f'{file_path}/a-eco_data.csv')
-    world_states_str = df['worldState'].tolist()
 
+def format_and_plot(world_states_str, plot_name):
     #convert string representation into list
     world_states = []
     for world_state in world_states_str:
@@ -30,16 +28,31 @@ def main(file_path):
     for cell in biomasses:
         for species_i in range(len(cell)):
             if row == 0 and col == 0:
-                axis[row][col].plot(cell[species_i], label=species_i)
+                axis[row][col].plot(cell[species_i], label=species_i, alpha=0.75)
             else:
-                axis[row][col].plot(cell[species_i])
+                axis[row][col].plot(cell[species_i], alpha=0.75)
         row += 1
         if row % 10 == 0:
             col += 1
             row = 0
     figure.legend(fontsize=32)
-    plt.savefig('biomass_plot.png')
+    plt.savefig(plot_name)
     plt.close()
+
+
+def main(file_path):
+    df = pd.read_csv(f'{file_path}/a-eco_data.csv')
+    world_states_str = df['worldState'].tolist()
+    format_and_plot(world_states_str, 'biomass_plot.png')
+
+    df = pd.read_csv(f'{file_path}/a-eco_model_data.csv')
+    df_repro = df.loc[df['worldType'] == 'Repro']
+    df_soup = df.loc[df['worldType'] == 'Soup']
+
+    soup_world_states_str = df['stochasticWorldState'].tolist()
+    format_and_plot(soup_world_states_str, 'biomass_plot_soup.png')
+    repro_world_states_str = df['stochasticWorldState'].tolist()
+    format_and_plot(repro_world_states_str, 'biomass_plot_repro.png')
 
 
 if __name__ == '__main__':
