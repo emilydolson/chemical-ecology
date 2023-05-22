@@ -28,9 +28,10 @@ def plot(dir, class_num):
 
         # Get the unique values of Clear
         clear_values = np.unique(data["Clear"])
+        clear_values = clear_values[:-1]
 
-        fig, axs = plt.subplots(nrows=2, ncols=6, figsize=(30, 10))
-        fig.subplots_adjust(hspace=.02, wspace=.2)
+        fig, axs = plt.subplots(nrows=2, ncols=5, figsize=(30, 10))
+        fig.subplots_adjust(hspace=.2, wspace=.2)
 
         for i, clear in enumerate(clear_values):
             subset = data[data["Clear"] == clear]
@@ -43,22 +44,47 @@ def plot(dir, class_num):
             #Make heatmaps square
             axs.flat[i].set_aspect('equal')
 
-            axs.flat[i].set_title(f"Clear = {clear}")
+            axs.flat[i].set_title(f"Clear = {clear}", fontsize=20)
 
-        fig.suptitle(f"Adaptive scores for a class {class_num} matrix", fontsize=20)
+            # Remove x-axis label
+            axs.flat[i].set(xlabel='')
+
+            # Remove y-axis label
+            axs.flat[i].set(ylabel='')
+
+            axs.flat[i].tick_params(axis='both', labelsize=18)
+
+        fig.suptitle(f"Adaptive scores for a class {class_num} matrix", fontsize=30, y=1)
 
         #delete the empty figure that comes with the subplots
         for ax in axs.flat:
             if not bool(ax.has_data()):
                 fig.delaxes(ax)
+            # Get the x-axis tick labels
+            x_tick_labels = ax.get_xticklabels()
+
+            for i, label in enumerate(x_tick_labels):
+                if i != 0 and i != 5 and i != 10:
+                    label.set_visible(False)
+
+            # Get the y-axis tick labels
+            y_tick_labels = ax.get_yticklabels()
+
+            for i, label in enumerate(y_tick_labels):
+                if i != 0 and i != 5 and i != 10:
+                    label.set_visible(False)
+
 
         # Create a colorbar
         norm = plt.Normalize(worst_score, best_score)
         sm = plt.cm.ScalarMappable(cmap="YlGnBu", norm=norm)
         fig.colorbar(sm, ax=axs, location="right", pad=.01)
 
-        plt.savefig(dir + "/" + f"{measure}_hmap.png", bbox_inches="tight", pad_inches=0.1)
+        fig.text(0.09, 0.5, 'Seeding', va='center', rotation='vertical', fontsize=30)
+        fig.text(0.5, 0, 'Diffusion', ha='center', fontsize=30)
+        plt.savefig(dir + "/" + f"{measure}_hmap.png", bbox_inches="tight", pad_inches=0.1, dpi=300)
 
 
+#dir, class num
 if __name__ == '__main__':
     plot(sys.argv[1], sys.argv[2])
