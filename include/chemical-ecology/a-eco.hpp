@@ -272,7 +272,7 @@ class AEcoWorld {
       // Actually call function that handles between-cell
       // movement
       emp::vector<int> adj = {up, down, left, right};
-      DoRepro(pos, adj, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR());
+      DoRepro(pos, adj, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR(), config->DIFFUSION(), false);
     }
 
     // Update our time tracker
@@ -294,15 +294,43 @@ class AEcoWorld {
     worldState.clear();
   }
 
+  //Depth first search allows us to recursively find sub communities
+  void dfs(int root, emp::vector<bool>& visited, emp::vector<emp::vector<double>>& interactions, emp::vector<int>& component){
+    visited[root] = true;
+    component.push_back(root);
+
+    for(int i = 0; i < interactions[root].size(); i++){
+      //Check for incoming and outgoing edges
+      if((interactions[root][i] != 0 && (!visited[i])) || (interactions[i][root] != 0 && (!visited[i]))){
+        dfs(i, visited, interactions, component);
+      }
+    }
+  }
+
+  //Species cannot be a part of a community they have no interaction with
+  //Find the connected components of the interaction matrix, and determine sub-communites
+  emp::vector<emp::vector<int>> findSubCommunities(emp::vector<emp::vector<double> > interactions){
+    emp::vector<bool> visited(interactions.size(), false);
+    emp::vector<emp::vector<int>> components;
+
+    for (int i = 0; i < interactions.size(); i++) {
+      if (!visited[i]) {
+        vector<int> component;
+        dfs(i, visited, interactions, component);
+        components.push_back(component);
+      }
+    }
+    return components;
+  }
+  
+
   world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob) {
     world_t model_world;
     world_t next_model_world;
-
     if(repro)
       worldType = "Repro";
     else
       worldType = "Soup";
-
     model_world.resize(config->WORLD_X() * config->WORLD_Y());
     for (emp::vector<double> & v : model_world) {
       v.resize(N_TYPES, 0);
@@ -313,33 +341,17 @@ class AEcoWorld {
     }
 
     for(int i = 0; i < num_updates; i++) {
+      //handle in cell growth
       for (size_t pos = 0; pos < model_world.size(); pos++) {
         DoGrowth(pos, model_world, next_model_world);
       }
-
+      //handle abiotic parameters and group repro
+      //adj will be empty for each pos, since there is no spatial structure
+      //diffusion will be zero for the same reason
+      emp::vector<int> adj = {};
+      double diff = 0.0;
       for (int pos = 0; pos < model_world.size(); pos++) {
-        if (repro) {
-          if (GroupReproTriggered(pos, model_world)) {
-            int new_pos;
-            do {
-              new_pos = rnd.GetInt((int)model_world.size() - 1);
-            } while (new_pos == pos);
-            for (int j = 0; j < N_TYPES; j++) {
-              next_model_world[new_pos][j] = model_world[pos][j] * config->REPRO_DILUTION();
-            }
-          }
-        }
-
-        if (rnd.P(seeding_prob)) {
-          int cell = rnd.GetInt(N_TYPES);
-          next_model_world[pos][cell]++;
-        }
-
-        if (rnd.P(prob_clear)) {
-          for (int j = 0; j < N_TYPES; j++) {
-            next_model_world[pos][j] = 0;
-          }
-        }
+        DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
       }
 
       if(i%10 == 0){
@@ -421,42 +433,23 @@ class AEcoWorld {
     return stable_world;
   }
 
-  world_t soupWorld(int num_updates, double seeding_prob, double prob_clear) {
-    world_t soup_world;
-    world_t next_soup_world;
-
-    soup_world.resize(1);
-    next_soup_world.resize(1);
-    soup_world[0].resize(N_TYPES);
-    next_soup_world[0].resize(N_TYPES);
-
-    for (int i = 0; i < num_updates; i++) {
-      //growth
-      DoGrowth(0, soup_world, next_soup_world);
-
-      //seeding
-      if (i < num_updates-1 && rnd.P(seeding_prob)) {
-        int cell = rnd.GetInt(N_TYPES);
-        next_soup_world[0][cell]++;
-      }
-
-      //clear
-      if (rnd.P(prob_clear)) {
-        for (int i = 0; i < N_TYPES; i++) {
-          next_soup_world[0][i] = 0;
-        }
-      }
-
-      //other stuff
-      std::swap(soup_world, next_soup_world);
-    }
-
-    return soup_world;
-  }
-
   // Handle the process of running the program through
   // all time steps
   void Run() {
+
+    emp::vector<emp::vector<double>> mtx = GetInteractions();
+    emp::vector<emp::vector<int>> subCommunities = findSubCommunities(mtx);
+    if(subCommunities.size() != 1){
+      std::cout << "Sub-communities detected!:" << " ";
+      for (const auto& row : subCommunities) {
+        std::cout << "sub_community:" << " ";
+        for (const auto& element : row) {
+          std::cout << element << " ";
+        }
+        std::cout << std::endl;
+      }
+    }
+
     // Call update the specified number of times
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
@@ -494,6 +487,12 @@ class AEcoWorld {
     }
     FinalCommunitiesFile.close();
 
+    std::cout << "World" << std::endl;
+    for(auto& [node, proportion] : finalCommunities)
+    {
+      std::cout << node << " " << proportion << std::endl;
+    }
+
     std::cout << "Assembly" << std::endl;
     for(auto& [node, proportion] : assemblyFinalCommunities)
     {
@@ -509,15 +508,17 @@ class AEcoWorld {
     //score_file.PrintHeaderKeys();
     //score_file.Update();
     
-    //Print out final state
-    /*std::cout << "World Vectors:" << std::endl;
-    for (auto & v : world) {
-      std::cout << emp::to_string(v) << std::endl;
+    //Print out final state if in verbose mode
+    if(config->V()){
+      std::cout << "World Vectors:" << std::endl;
+      for (auto & v : world) {
+        std::cout << emp::to_string(v) << std::endl;
+      }
+      std::cout << "Stable World Vectors:" << std::endl;
+      for (auto & v : stable_world) {
+        std::cout << emp::to_string(v) << std::endl;
+      }
     }
-    std::cout << "Stable World Vectors:" << std::endl;
-    for (auto & v : stable_world) {
-      std::cout << emp::to_string(v) << std::endl;
-    }*/
 
     // Store interaction matrix in a file in case we
     // want to do stuff with it later
@@ -571,10 +572,11 @@ class AEcoWorld {
 
   // Handles population growth of each type within a cell
   void DoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
+    //For each species i
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
       for (int j = 0; j < N_TYPES; j++) {
-        // Sum up growth rate modifier for current type 
+        // Sum up growth rate modifier for type i 
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
@@ -589,9 +591,9 @@ class AEcoWorld {
 
   // The probability of group reproduction is proportional to 
   // the biomass of the community 
-  bool GroupReproTriggered(size_t pos, world_t & w) {
+  bool GroupReproTriggered(size_t pos, world_t & w, bool GROUP_REPRO) {
     //Group repro must be enabled
-    if(!(config->GROUP_REPRO())){
+    if(!GROUP_REPRO){
       return false;
     }
     //If it is enabled, there is a chance of group repro proportional to the cell's biomass
@@ -603,12 +605,11 @@ class AEcoWorld {
   }
 
   // Handle movement of biomass between cells
-  void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear) {
+  void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear, double diffusion, bool GROUP_REPRO) {
 
     // Check whether conditions for group-level replication are met
-    if (GroupReproTriggered(pos, curr_world)) {
-      // Get a random cell that is not this cell to 
-      // group level reproduce into 
+    if (GroupReproTriggered(pos, curr_world, GROUP_REPRO)) {
+      // Get a random cell that is not this cell to group level reproduce into 
       int new_pos;
       do {
         new_pos = rnd.GetInt((int)curr_world.size() - 1);
@@ -616,7 +617,6 @@ class AEcoWorld {
       for (int i = 0; i < N_TYPES; i++) {
         // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
         // in the focal cell to the cell we're replicating into
-        //
         // NOTE: An important decision here is whether to clear the cell first.
         // We have chosen to, but can revisit that choice
         next_world[new_pos][i] = curr_world[pos][i] * config->REPRO_DILUTION();
@@ -631,33 +631,37 @@ class AEcoWorld {
     }
 
     // Handle diffusion
-    for (int direction : adj) {
-      for (int i = 0; i < N_TYPES; i++) {
-        // Calculate amount diffusing
-        double avail = curr_world[pos][i] * config->DIFFUSION();
-        
-        // Send 1/4 of it in the direction we're currently processing
-        next_world[direction][i] +=  avail / 4;
-        // if (avail/4 > 0 && adj.size() == 4) {
-        //   std::cout << pos <<  " " << i << " Diffusing: " << next_world[direction][i] << " " << avail/4 << std::endl;
-        // }
+    // Only diffuse in the real world
+    // The adj vector should be empty for stochastic worlds, which do not have spatial structure
+    if(adj.size() > 0){
+      for (int direction : adj) {
+        for (int i = 0; i < N_TYPES; i++) {
+          // Calculate amount diffusing
+          double avail = curr_world[pos][i] * diffusion;
+          
+          // Send 1/4 of it in the direction we're currently processing
+          next_world[direction][i] +=  avail / 4;
+          // if (avail/4 > 0 && adj.size() == 4) {
+          //   std::cout << pos <<  " " << i << " Diffusing: " << next_world[direction][i] << " " << avail/4 << std::endl;
+          // }
 
-        // make sure final value is legal number
-        next_world[direction][i] = std::min(next_world[direction][i], MAX_POP);
-        next_world[direction][i] = std::max(next_world[direction][i], 0.0);
+          // make sure final value is legal number
+          next_world[direction][i] = std::min(next_world[direction][i], MAX_POP);
+          next_world[direction][i] = std::max(next_world[direction][i], 0.0);
+        }
+      }
+
+      //subtract diffusion
+      for (int i = 0; i < N_TYPES; i++) {
+        next_world[pos][i] -= curr_world[pos][i] * diffusion;
+        // We can't have negative population sizes
+        next_world[pos][i] = std::max(next_world[pos][i], 0.0);
       }
     }
-
-    //subtract diffusion
-    for (int i = 0; i < N_TYPES; i++) {
-      next_world[pos][i] -= curr_world[pos][i] * config->DIFFUSION();
-      // We can't have negative population sizes
-      next_world[pos][i] = std::max(next_world[pos][i], 0.0);
-    }
-    
+    //Seed in
     if (rnd.P(seed_prob)) {
-      int cell = rnd.GetInt(N_TYPES);
-      next_world[pos][cell]++;
+      int species = rnd.GetInt(N_TYPES);
+      next_world[pos][species]++;
     }
 
   }
@@ -750,7 +754,7 @@ class AEcoWorld {
     // able to do group-level reproduction (meaning the community
     // has spread across the entire test world and could keep going)
 
-    while (!GroupReproTriggered(num_cells - 1, test_world) && time < time_limit) {
+    while (!GroupReproTriggered(num_cells - 1, test_world, false) && time < time_limit) {
 
       // Group level repro will never occur with the values we're using
       // Instead check if the final cell is similar enough to the beginning cell
@@ -781,7 +785,7 @@ class AEcoWorld {
         // allow seeding or clearing because the goal is
         // to evaluate this cell's community in a clean
         // environment
-        DoRepro(pos, adj, test_world, next_world, 0, 0);
+        DoRepro(pos, adj, test_world, next_world, 0, 0, config->DIFFUSION(), false);
       }
       // We've finished calculating next_world so we can swap it
       // into test_world
@@ -1182,33 +1186,6 @@ class AEcoWorld {
     }
     for(auto& [key, val] : finalCommunities){
       val = val/size;
-    }
-    return finalCommunities;
-  }
-
-  std::map<std::string, double> getSoupWorlds(int replicates, int num_updates, double prob_clear, double seeding_prob) {
-    std::map<std::string, double> finalCommunities;
-    for(int i = 0; i < replicates; i++){
-      world_t soup_world = soupWorld(num_updates, seeding_prob, prob_clear);
-      std::string temp = "";
-      for(double species: soup_world[0]){
-        if(species > 0.001){
-          temp.append("1");
-        }
-        else{
-          temp.append("0");
-        }
-      }
-      std::reverse(temp.begin(), temp.end());
-      if(finalCommunities.find(temp) == finalCommunities.end()){
-          finalCommunities.insert({temp, 1});
-      }
-      else{
-        finalCommunities[temp] += 1;
-      }
-    }
-    for(auto& [key, val] : finalCommunities){
-      val = val/replicates;
     }
     return finalCommunities;
   }

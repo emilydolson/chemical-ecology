@@ -17,7 +17,9 @@ int main(int argc, char* argv[])
 { 
   // Set up a configuration panel for native application
   setup_config_native(cfg, argc, argv);
-  cfg.Write(std::cout);
+  if(cfg.V()){
+    cfg.Write(std::cout);
+  }
 
   AEcoWorld world;
   world.Setup(cfg);
