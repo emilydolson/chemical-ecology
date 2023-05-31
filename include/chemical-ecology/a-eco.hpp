@@ -3,6 +3,7 @@
 #include <iostream>
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
+#include "emp/math/random_utils.hpp"
 #include "emp/datastructs/Graph.hpp"
 #include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
@@ -86,6 +87,9 @@ class AEcoWorld {
 
   // Initialize vector that keeps track of grid
   world_t world;
+  
+  // List of any isolated communities
+  emp::vector<emp::vector<int>> subCommunities;
 
   // Getter for interaction matrix
   emp::vector<emp::vector<double> > GetInteractions() {
@@ -208,6 +212,10 @@ class AEcoWorld {
     stochastic_data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
     stochastic_data_file.AddVar(worldType, "worldType", "world type");
     stochastic_data_file.PrintHeaderKeys();
+
+    // Make sure you get sub communities after setting up the matrix
+    // otherwise the matrix will be empty when this is called
+    subCommunities = findSubCommunities();
   }
 
   // Handle an individual time step
@@ -309,7 +317,8 @@ class AEcoWorld {
 
   //Species cannot be a part of a community they have no interaction with
   //Find the connected components of the interaction matrix, and determine sub-communites
-  emp::vector<emp::vector<int>> findSubCommunities(emp::vector<emp::vector<double> > interactions){
+  emp::vector<emp::vector<int>> findSubCommunities(){
+    emp::vector<emp::vector<double> > interactions = GetInteractions();
     emp::vector<bool> visited(interactions.size(), false);
     emp::vector<emp::vector<int>> components;
 
@@ -436,15 +445,13 @@ class AEcoWorld {
   // Handle the process of running the program through
   // all time steps
   void Run() {
-
-    emp::vector<emp::vector<double>> mtx = GetInteractions();
-    emp::vector<emp::vector<int>> subCommunities = findSubCommunities(mtx);
+    //If there are any sub communities, we should know about them
     if(subCommunities.size() != 1){
-      std::cout << "Sub-communities detected!:" << " ";
-      for (const auto& row : subCommunities) {
+      std::cout << "Sub-communities detected!: \n" << " ";
+      for (const auto& community : subCommunities) {
         std::cout << "sub_community:" << " ";
-        for (const auto& element : row) {
-          std::cout << element << " ";
+        for (const auto& species : community) {
+          std::cout << species << " ";
         }
         std::cout << std::endl;
       }
@@ -591,36 +598,43 @@ class AEcoWorld {
 
   // The probability of group reproduction is proportional to 
   // the biomass of the community 
-  bool GroupReproTriggered(size_t pos, world_t & w, bool GROUP_REPRO) {
-    //Group repro must be enabled
-    if(!GROUP_REPRO){
-      return false;
+  void doGroupRepro(size_t pos, world_t & w, world_t & next_w) {
+    //Get these values once so they can be reused 
+    int max_pop = config->MAX_POP();
+    int types = config->N_TYPES();
+    double dilution = config->REPRO_DILUTION();
+
+    //Need to do GR in a random order, so the last sub-community does not have more repro power
+    emp::Shuffle(rnd, subCommunities);
+    for (const auto& community : subCommunities) {
+      double pop = 0;
+      for (const auto& species : community) {
+        pop += w[pos][species];
+      }
+      double ratio = pop/(max_pop*types);
+      // If group repro 
+      if (rnd.P(ratio)){
+        // Get a random cell that is not this cell to group level reproduce into 
+        size_t new_pos;
+        do {
+          new_pos = rnd.GetInt((int)w.size() - 1);
+        } while (new_pos == pos);
+        for (int i = 0; i < N_TYPES; i++) {
+          // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
+          // in the focal cell to the cell we're replicating into
+          // NOTE: An important decision here is whether to clear the cell first.
+          // We have chosen to, but can revisit that choice
+          next_w[new_pos][i] = w[pos][i] * dilution;
+        }
+      }
     }
-    //If it is enabled, there is a chance of group repro proportional to the cell's biomass
-    double ratio = double(emp::Sum(w[pos])) / (config->MAX_POP() * config->N_TYPES());
-    if (rnd.P(ratio)){
-      return true;
-    }
-    return false;
   }
 
   // Handle movement of biomass between cells
   void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear, double diffusion, bool GROUP_REPRO) {
-
-    // Check whether conditions for group-level replication are met
-    if (GroupReproTriggered(pos, curr_world, GROUP_REPRO)) {
-      // Get a random cell that is not this cell to group level reproduce into 
-      int new_pos;
-      do {
-        new_pos = rnd.GetInt((int)curr_world.size() - 1);
-      } while (new_pos == pos);
-      for (int i = 0; i < N_TYPES; i++) {
-        // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
-        // in the focal cell to the cell we're replicating into
-        // NOTE: An important decision here is whether to clear the cell first.
-        // We have chosen to, but can revisit that choice
-        next_world[new_pos][i] = curr_world[pos][i] * config->REPRO_DILUTION();
-      }
+    // Handle group repro for adaptive world
+    if(GROUP_REPRO){
+      doGroupRepro(pos, curr_world, next_world);
     }
 
     // Each cell has a chance of being cleared on every time step
@@ -754,7 +768,7 @@ class AEcoWorld {
     // able to do group-level reproduction (meaning the community
     // has spread across the entire test world and could keep going)
 
-    while (!GroupReproTriggered(num_cells - 1, test_world, false) && time < time_limit) {
+    while (time < time_limit) {
 
       // Group level repro will never occur with the values we're using
       // Instead check if the final cell is similar enough to the beginning cell
