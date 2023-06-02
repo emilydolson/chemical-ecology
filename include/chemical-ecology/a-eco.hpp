@@ -378,40 +378,7 @@ class AEcoWorld {
   }
 
   //This function should be called to create a stable copy of the world for graph calculations
-  world_t stableUpdate(int num_updates){
-    world_t stable_world;
-    world_t next_stable_world;
-
-    stable_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : next_stable_world) {
-      v.resize(N_TYPES, 0);
-    }
-
-    next_stable_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : next_stable_world) {
-      v.resize(N_TYPES, 0);
-    }
-
-    //copy current world into stable world
-    for(size_t i = 0; i < world.size(); i++){
-      stable_world[i].assign(world[i].begin(), world[i].end());
-    }
-
-    for(int i = 0; i < num_updates; i++){
-      // Handle population growth for each cell
-      for (size_t pos = 0; pos < world.size(); pos++) {
-        DoGrowth(pos, stable_world, next_stable_world);
-      }
-
-      std::swap(stable_world, next_stable_world);
-      dom_map.clear();
-      fittest.clear();
-      dominant.clear();
-    }
-    return stable_world;
-  }
-
-  world_t stableUpdateCustomWorld(int num_updates, world_t custom_world, int world_x, int world_y){
+  world_t stableUpdate(int num_updates, world_t custom_world, int world_x, int world_y){
     world_t stable_world;
     world_t next_stable_world;
 
@@ -462,29 +429,44 @@ class AEcoWorld {
       Update(i);
     }
     
-    //temp fix for very small communities
-    world_t stable_world_temp = stableUpdate(1000);
-    world_t stable_world;
-    for(size_t i = 0; i < stable_world_temp.size(); i++){
-      float sum_of_elems = 0;
-      for (auto& n : world[i])
-        sum_of_elems += n;
-      if (sum_of_elems > 500)
-        stable_world.push_back(stable_world_temp[i]);
-    }
+    world_t stable_world = stableUpdate(10000, world, config->WORLD_X(), config->WORLD_Y());
     
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
 
-    emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
-    emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
-    std::map<std::string, float> assembly_pr_map = CalculateWeightedPageRank(wAssembly);
-    
-    world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
-    world_t stableAssemblyModel = stableUpdateCustomWorld(10000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
-    world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
-    world_t stableAdaptiveModel = stableUpdateCustomWorld(10000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
-    std::map<std::string, double> assemblyFinalCommunities = getFinalCommunities(stableAssemblyModel);
-    std::map<std::string, double> adaptiveFinalCommunities = getFinalCommunities(stableAdaptiveModel);
+    // emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
+    // emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
+    // std::map<std::string, float> assembly_pr_map = CalculateWeightedPageRank(wAssembly);
+    std::map<std::string, double> assemblyFinalCommunities;
+    std::map<std::string, double> adaptiveFinalCommunities;
+    // Average n stochastic worlds
+    int n = 10;
+    for(int i = 0; i < n; i++){
+      world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t stableAssemblyModel = stableUpdate(10000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
+      world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t stableAdaptiveModel = stableUpdate(10000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
+      std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
+      std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
+      for(auto& [node, proportion] : assemblyCommunities){
+        if(assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()){
+          assemblyFinalCommunities.insert({node, proportion});
+        }
+        else{
+          assemblyFinalCommunities[node] += proportion;
+        }
+      }
+      for(auto& [node, proportion] : adaptiveCommunities){
+        if(adaptiveFinalCommunities.find(node) == adaptiveFinalCommunities.end()){
+          adaptiveFinalCommunities.insert({node, proportion});
+        }
+        else{
+          adaptiveFinalCommunities[node] += proportion;
+        }
+      }
+    }
+    // Actually average the summed proportions
+    for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(n);
+    for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(n);
 
     ofstream FinalCommunitiesFile("stochastic_scores.txt");
     FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
@@ -587,8 +569,8 @@ class AEcoWorld {
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
-      // Grow linearly until we hit the cap
-      double new_pop = modifier*curr_world[pos][i]; // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      // Logistic Growth
+      double new_pop = modifier*curr_world[pos][i] * (1 - (curr_world[pos][i]/MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // Population size cannot be negative
       next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0.0);
       // Population size capped at MAX_POP
