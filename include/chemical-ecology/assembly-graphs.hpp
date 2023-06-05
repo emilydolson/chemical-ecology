@@ -19,6 +19,13 @@ fitness landscapes, and pageranks.
 
 After the switch to stochastic models, this code is no longer in use, 
 but it remains a possible area of exploration in the future.
+
+Functions were called with the follwing 3 lines in the Run() fuction of a-eco:
+
+//emp::Graph assemblyGraph = CalculateCommunityAssemblyGraph();
+//emp::WeightedGraph wAssembly = calculateWeightedAssembly(assemblyGraph, config->PROB_CLEAR(), config->SEEDING_PROB());
+//std::map<std::string, float> assembly_pr_map = CalculateWeightedPageRank(wAssembly);
+
 ***************************************/
 
 emp::Graph CalculateCommunityAssemblyGraph() {

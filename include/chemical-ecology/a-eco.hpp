@@ -70,63 +70,6 @@ class AEcoWorld {
   // List of any isolated communities
   emp::vector<emp::vector<int>> subCommunities;
 
-  // Getter for interaction matrix
-  emp::vector<emp::vector<double> > GetInteractions() {
-    return interactions;
-  }
-
-  // Set interaction value between types x and y to w
-  void SetInteraction(int x, int y, double w) {
-    interactions[x][y] = w;
-  }
-
-  // Set the interaction matrix to contain random values
-  // (with probabilities determined by configs)
-  void SetupRandomInteractions() {
-    // interaction matrix will ultimately have size
-    // N_TYPES x N_TYPES
-    interactions.resize(N_TYPES);
-
-    for (int i = 0; i < N_TYPES; i++) {
-      interactions[i].resize(N_TYPES);
-      for (int j = 0; j < N_TYPES; j++) {
-        // PROB_INTERACTION determines probability of there being
-        // an interaction between a given pair of types.
-        // Controls sparsity of interaction matrix
-        if (rnd.P(config->PROB_INTERACTION())){
-          // If there's an interaction, it is a random double
-          // between -INTERACTION_MAGNITUDE and INTERACTION_MAGNITUDE
-          interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
-        }
-      }
-    }
-  }
-
-  // Load an interaction matrix from the specified file
-  void LoadInteractionMatrix(std::string filename) {    
-    emp::File infile(filename);
-    emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
-
-    interactions.resize(N_TYPES);
-    for (int i = 0; i < N_TYPES; i++) {
-      interactions[i].resize(N_TYPES);
-      for (int j = 0; j < N_TYPES; j++) {
-        interactions[i][j] = interaction_data[i][j];
-      }
-    }
-  }
-
-  // Store the current interaction matrix in a file
-  void WriteInteractionMatrix(std::string filename) {
-    emp::File outfile;
-    
-    for (int i = 0; i < N_TYPES; i++) {
-      outfile += emp::join(interactions[i], ",");
-    }
-    
-    outfile.Write(filename);
-  }
-
   // Setup the world according to the specified configuration
   void Setup(chemical_ecology::Config & cfg) {
     // Store cfg for future reference
@@ -168,6 +111,99 @@ class AEcoWorld {
     // Make sure you get sub communities after setting up the matrix
     // otherwise the matrix will be empty when this is called
     subCommunities = findSubCommunities();
+  }
+
+  // Handle the process of running the program through
+  // all time steps
+  void Run() {
+    //If there are any sub communities, we should know about them
+    if(subCommunities.size() != 1){
+      std::cout << "Sub-communities detected!: " << "\n";
+      for (const auto& community : subCommunities) {
+        std::cout << "sub_community:" << " ";
+        for (const auto& species : community) {
+          std::cout << species << " ";
+        }
+        std::cout << std::endl;
+      }
+    }
+
+    // Call update the specified number of times
+    for (int i = 0; i < config->UPDATES(); i++) {
+      Update(i);
+    }
+    
+    world_t stable_world = stableUpdate(10000, world, config->WORLD_X(), config->WORLD_Y());
+    
+    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
+    std::map<std::string, double> assemblyFinalCommunities;
+    std::map<std::string, double> adaptiveFinalCommunities;
+    // Run n stochastic worlds
+    int n = 10;
+    for(int i = 0; i < n; i++){
+      world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t stableAssemblyModel = stableUpdate(10000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
+      world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t stableAdaptiveModel = stableUpdate(10000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
+      std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
+      std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
+      for(auto& [node, proportion] : assemblyCommunities){
+        if(assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()){
+          assemblyFinalCommunities.insert({node, proportion});
+        }
+        else{
+          assemblyFinalCommunities[node] += proportion;
+        }
+      }
+      for(auto& [node, proportion] : adaptiveCommunities){
+        if(adaptiveFinalCommunities.find(node) == adaptiveFinalCommunities.end()){
+          adaptiveFinalCommunities.insert({node, proportion});
+        }
+        else{
+          adaptiveFinalCommunities[node] += proportion;
+        }
+      }
+    }
+    // Average the summed proportions
+    for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(n);
+    for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(n);
+
+    std::ofstream FinalCommunitiesFile("stochastic_scores.txt");
+    FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
+    for(auto& [node, proportion] : finalCommunities)
+    {
+      FinalCommunitiesFile << node << " " << proportion << " " << assemblyFinalCommunities[node] << " " << adaptiveFinalCommunities[node] << std::endl;
+    }
+    FinalCommunitiesFile.close();
+
+    std::cout << "World" << std::endl;
+    for(auto& [node, proportion] : finalCommunities)
+    {
+      std::cout << node << " " << proportion << std::endl;
+    }
+
+    std::cout << "Assembly" << std::endl;
+    for(auto& [node, proportion] : assemblyFinalCommunities)
+    {
+      std::cout << node << " " << proportion << std::endl;
+    }
+    std::cout << "Adaptive" << std::endl;
+    for(auto& [node, proportion] : adaptiveFinalCommunities)
+    {
+      std::cout << node << " " << proportion << std::endl;
+    }
+    
+    //Print out final state if in verbose mode
+    if(config->V()){
+      std::cout << "World Vectors:" << std::endl;
+      for (auto & v : world) {
+        std::cout << emp::to_string(v) << std::endl;
+      }
+      std::cout << "Stable World Vectors:" << std::endl;
+      for (auto & v : stable_world) {
+        std::cout << emp::to_string(v) << std::endl;
+      }
+    }
   }
 
   // Handle an individual time step
@@ -248,230 +284,6 @@ class AEcoWorld {
 
     // Clean-up data trackers
     worldState.clear();
-  }
-
-  //Depth first search allows us to recursively find sub communities
-  void dfs(int root, emp::vector<bool>& visited, emp::vector<emp::vector<double>>& interactions, emp::vector<int>& component){
-    visited[root] = true;
-    component.push_back(root);
-
-    for(size_t i = 0; i < interactions[root].size(); i++){
-      //Check for incoming and outgoing edges
-      if((interactions[root][i] != 0 && (!visited[i])) || (interactions[i][root] != 0 && (!visited[i]))){
-        dfs(i, visited, interactions, component);
-      }
-    }
-  }
-
-  //Species cannot be a part of a community they have no interaction with
-  //Find the connected components of the interaction matrix, and determine sub-communites
-  emp::vector<emp::vector<int>> findSubCommunities(){
-    emp::vector<emp::vector<double> > interactions = GetInteractions();
-    emp::vector<bool> visited(interactions.size(), false);
-    emp::vector<emp::vector<int>> components;
-
-    for (size_t i = 0; i < interactions.size(); i++) {
-      if (!visited[i]) {
-        emp::vector<int> component;
-        dfs(i, visited, interactions, component);
-        components.push_back(component);
-      }
-    }
-    return components;
-  }
-  
-
-  world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob) {
-    world_t model_world;
-    world_t next_model_world;
-    if(repro)
-      worldType = "Repro";
-    else
-      worldType = "Soup";
-    model_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : model_world) {
-      v.resize(N_TYPES, 0);
-    }
-    next_model_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : next_model_world) {
-      v.resize(N_TYPES, 0);
-    }
-
-    for(int i = 0; i < num_updates; i++) {
-      //handle in cell growth
-      for (size_t pos = 0; pos < model_world.size(); pos++) {
-        DoGrowth(pos, model_world, next_model_world);
-      }
-      //handle abiotic parameters and group repro
-      //adj will be empty for each pos, since there is no spatial structure
-      //diffusion will be zero for the same reason
-      emp::vector<int> adj = {};
-      double diff = 0.0;
-      for (size_t pos = 0; pos < model_world.size(); pos++) {
-        DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
-      }
-
-      if(i%10 == 0){
-        curr_update2 = i;
-        stochasticWorldState = next_model_world;
-        stochastic_data_file.Update(curr_update2);
-      }
-
-      std::swap(model_world, next_model_world);
-
-      stochasticWorldState.clear();
-    }
-
-    return model_world;
-  }
-
-  //This function should be called to create a stable copy of the world for graph calculations
-  world_t stableUpdate(int num_updates, world_t custom_world, int world_x, int world_y){
-    world_t stable_world;
-    world_t next_stable_world;
-
-    stable_world.resize(world_x * world_y);
-    for (emp::vector<double> & v : next_stable_world) {
-      v.resize(N_TYPES, 0);
-    }
-
-    next_stable_world.resize(world_x * world_y);
-    for (emp::vector<double> & v : next_stable_world) {
-      v.resize(N_TYPES, 0);
-    }
-
-    //copy current world into stable world
-    for(size_t i = 0; i < custom_world.size(); i++){
-      stable_world[i].assign(custom_world[i].begin(), custom_world[i].end());
-    }
-
-    for(int i = 0; i < num_updates; i++){
-      // Handle population growth for each cell
-      for (size_t pos = 0; pos < custom_world.size(); pos++) {
-        DoGrowth(pos, stable_world, next_stable_world);
-      }
-
-      std::swap(stable_world, next_stable_world);
-    }
-
-    return stable_world;
-  }
-
-  // Handle the process of running the program through
-  // all time steps
-  void Run() {
-    //If there are any sub communities, we should know about them
-    if(subCommunities.size() != 1){
-      std::cout << "Sub-communities detected!: " << "\n";
-      for (const auto& community : subCommunities) {
-        std::cout << "sub_community:" << " ";
-        for (const auto& species : community) {
-          std::cout << species << " ";
-        }
-        std::cout << std::endl;
-      }
-    }
-
-    // Call update the specified number of times
-    for (int i = 0; i < config->UPDATES(); i++) {
-      Update(i);
-    }
-    
-    world_t stable_world = stableUpdate(10000, world, config->WORLD_X(), config->WORLD_Y());
-    
-    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
-    std::map<std::string, double> assemblyFinalCommunities;
-    std::map<std::string, double> adaptiveFinalCommunities;
-    // Average n stochastic worlds
-    int n = 10;
-    for(int i = 0; i < n; i++){
-      world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
-      world_t stableAssemblyModel = stableUpdate(10000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
-      world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
-      world_t stableAdaptiveModel = stableUpdate(10000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
-      std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
-      std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
-      for(auto& [node, proportion] : assemblyCommunities){
-        if(assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()){
-          assemblyFinalCommunities.insert({node, proportion});
-        }
-        else{
-          assemblyFinalCommunities[node] += proportion;
-        }
-      }
-      for(auto& [node, proportion] : adaptiveCommunities){
-        if(adaptiveFinalCommunities.find(node) == adaptiveFinalCommunities.end()){
-          adaptiveFinalCommunities.insert({node, proportion});
-        }
-        else{
-          adaptiveFinalCommunities[node] += proportion;
-        }
-      }
-    }
-    // Actually average the summed proportions
-    for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(n);
-    for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(n);
-
-    std::ofstream FinalCommunitiesFile("stochastic_scores.txt");
-    FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
-    for(auto& [node, proportion] : finalCommunities)
-    {
-      FinalCommunitiesFile << node << " " << proportion << " " << assemblyFinalCommunities[node] << " " << adaptiveFinalCommunities[node] << std::endl;
-    }
-    FinalCommunitiesFile.close();
-
-    std::cout << "World" << std::endl;
-    for(auto& [node, proportion] : finalCommunities)
-    {
-      std::cout << node << " " << proportion << std::endl;
-    }
-
-    std::cout << "Assembly" << std::endl;
-    for(auto& [node, proportion] : assemblyFinalCommunities)
-    {
-      std::cout << node << " " << proportion << std::endl;
-    }
-    std::cout << "Adaptive" << std::endl;
-    for(auto& [node, proportion] : adaptiveFinalCommunities)
-    {
-      std::cout << node << " " << proportion << std::endl;
-    }
-    
-    //Print out final state if in verbose mode
-    if(config->V()){
-      std::cout << "World Vectors:" << std::endl;
-      for (auto & v : world) {
-        std::cout << emp::to_string(v) << std::endl;
-      }
-      std::cout << "Stable World Vectors:" << std::endl;
-      for (auto & v : stable_world) {
-        std::cout << emp::to_string(v) << std::endl;
-      }
-    }
-  }
-
-  double doCalcGrowthRate(emp::vector<double> community){
-    double growth_rate = 0;
-    for (int i = 0; i < N_TYPES; i++) {
-      double modifier = 0;
-      for (int j = 0; j < N_TYPES; j++) {
-        // Each type contributes to the growth rate modifier
-        // of each other type based on the product of its
-        // interaction value with that type and its population size
-        modifier += interactions[i][j] * community[j];
-      }
-
-      // Add this type's overall growth rate to the cell-level
-      // growth-rate
-      growth_rate += (modifier*(community[i]/MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
-    }
-    return growth_rate;
-  }
-
-  // Calculate the growth rate (one measurement of fitness)
-  // for a given cell
-  double CalcGrowthRate(size_t pos, world_t & curr_world) {
-    return doCalcGrowthRate(curr_world[pos]);
   }
 
   // Handles population growth of each type within a cell
@@ -574,7 +386,82 @@ class AEcoWorld {
       int species = rnd.GetInt(N_TYPES);
       next_world[pos][species]++;
     }
+  }
 
+  //This function should be called to create a stable copy of the world 
+  world_t stableUpdate(int num_updates, world_t custom_world, int world_x, int world_y){
+    world_t stable_world;
+    world_t next_stable_world;
+
+    stable_world.resize(world_x * world_y);
+    for (emp::vector<double> & v : next_stable_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    next_stable_world.resize(world_x * world_y);
+    for (emp::vector<double> & v : next_stable_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    //copy current world into stable world
+    for(size_t i = 0; i < custom_world.size(); i++){
+      stable_world[i].assign(custom_world[i].begin(), custom_world[i].end());
+    }
+
+    for(int i = 0; i < num_updates; i++){
+      // Handle population growth for each cell
+      for (size_t pos = 0; pos < custom_world.size(); pos++) {
+        DoGrowth(pos, stable_world, next_stable_world);
+      }
+
+      std::swap(stable_world, next_stable_world);
+    }
+
+    return stable_world;
+  }
+
+  world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob) {
+    world_t model_world;
+    world_t next_model_world;
+    if(repro)
+      worldType = "Repro";
+    else
+      worldType = "Soup";
+    model_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<double> & v : model_world) {
+      v.resize(N_TYPES, 0);
+    }
+    next_model_world.resize(config->WORLD_X() * config->WORLD_Y());
+    for (emp::vector<double> & v : next_model_world) {
+      v.resize(N_TYPES, 0);
+    }
+
+    for(int i = 0; i < num_updates; i++) {
+      //handle in cell growth
+      for (size_t pos = 0; pos < model_world.size(); pos++) {
+        DoGrowth(pos, model_world, next_model_world);
+      }
+      //handle abiotic parameters and group repro
+      //adj will be empty for each pos, since there is no spatial structure
+      //diffusion will be zero for the same reason
+      emp::vector<int> adj = {};
+      double diff = 0.0;
+      for (size_t pos = 0; pos < model_world.size(); pos++) {
+        DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
+      }
+
+      if(i%10 == 0){
+        curr_update2 = i;
+        stochasticWorldState = next_model_world;
+        stochastic_data_file.Update(curr_update2);
+      }
+
+      std::swap(model_world, next_model_world);
+
+      stochasticWorldState.clear();
+    }
+
+    return model_world;
   }
 
   std::map<std::string, double> getFinalCommunities(world_t stable_world) {
@@ -598,8 +485,121 @@ class AEcoWorld {
     return finalCommunities;
   }
 
+  // Helper functions not related to the running of the worlds go down here 
+
+  //Species cannot be a part of a community they have no interaction with
+  //Find the connected components of the interaction matrix, and determine sub-communites
+  emp::vector<emp::vector<int>> findSubCommunities(){
+    emp::vector<emp::vector<double> > interactions = GetInteractions();
+    emp::vector<bool> visited(interactions.size(), false);
+    emp::vector<emp::vector<int>> components;
+
+    for (size_t i = 0; i < interactions.size(); i++) {
+      if (!visited[i]) {
+        emp::vector<int> component;
+        dfs(i, visited, interactions, component);
+        components.push_back(component);
+      }
+    }
+    return components;
+  }
+
+  //Depth first search allows us to recursively find sub communities (connected components in the interaction matrix)
+  void dfs(int root, emp::vector<bool>& visited, emp::vector<emp::vector<double>>& interactions, emp::vector<int>& component){
+    visited[root] = true;
+    component.push_back(root);
+
+    for(size_t i = 0; i < interactions[root].size(); i++){
+      //Both incoming and outgoing edges count as interactions 
+      if((interactions[root][i] != 0 && (!visited[i])) || (interactions[i][root] != 0 && (!visited[i]))){
+        dfs(i, visited, interactions, component);
+      }
+    }
+  }
+
+  // Calculate the growth rate (one measurement of fitness)
+  // for a given cell
+  double CalcGrowthRate(size_t pos, world_t & curr_world) {
+    return doCalcGrowthRate(curr_world[pos]);
+  }
+
+  double doCalcGrowthRate(emp::vector<double> community){
+    double growth_rate = 0;
+    for (int i = 0; i < N_TYPES; i++) {
+      double modifier = 0;
+      for (int j = 0; j < N_TYPES; j++) {
+        // Each type contributes to the growth rate modifier
+        // of each other type based on the product of its
+        // interaction value with that type and its population size
+        modifier += interactions[i][j] * community[j];
+      }
+
+      // Add this type's overall growth rate to the cell-level
+      // growth-rate
+      growth_rate += (modifier*(community[i]/MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+    }
+    return growth_rate;
+  }
+
   // Getter for current update/time step
   int GetTime() {
     return curr_update;
+  }
+
+  // Getter for interaction matrix
+  emp::vector<emp::vector<double> > GetInteractions() {
+    return interactions;
+  }
+
+  // Set interaction value between types x and y to w
+  void SetInteraction(int x, int y, double w) {
+    interactions[x][y] = w;
+  }
+
+  // Set the interaction matrix to contain random values
+  // (with probabilities determined by configs)
+  void SetupRandomInteractions() {
+    // interaction matrix will ultimately have size
+    // N_TYPES x N_TYPES
+    interactions.resize(N_TYPES);
+
+    for (int i = 0; i < N_TYPES; i++) {
+      interactions[i].resize(N_TYPES);
+      for (int j = 0; j < N_TYPES; j++) {
+        // PROB_INTERACTION determines probability of there being
+        // an interaction between a given pair of types.
+        // Controls sparsity of interaction matrix
+        if (rnd.P(config->PROB_INTERACTION())){
+          // If there's an interaction, it is a random double
+          // between -INTERACTION_MAGNITUDE and INTERACTION_MAGNITUDE
+          interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
+        }
+      }
+    }
+  }
+
+  // Load an interaction matrix from the specified file
+  void LoadInteractionMatrix(std::string filename) {    
+    emp::File infile(filename);
+    emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
+
+    interactions.resize(N_TYPES);
+    for (int i = 0; i < N_TYPES; i++) {
+      interactions[i].resize(N_TYPES);
+      for (int j = 0; j < N_TYPES; j++) {
+        interactions[i][j] = interaction_data[i][j];
+      }
+    }
+  }
+
+  // Store the current interaction matrix in a file
+  void WriteInteractionMatrix(std::string filename) {
+    emp::File outfile;
+    
+    for (int i = 0; i < N_TYPES; i++) {
+      outfile += emp::join(interactions[i], ",");
+    }
+    
+    outfile.Write(filename);
   }
 };
