@@ -133,7 +133,7 @@ class AEcoWorld {
       Update(i);
     }
     
-    world_t stable_world = stableUpdate(10000, world, config->WORLD_X(), config->WORLD_Y());
+    world_t stable_world = stableUpdate(world, config->WORLD_X(), config->WORLD_Y());
     
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
     std::map<std::string, double> assemblyFinalCommunities;
@@ -142,9 +142,9 @@ class AEcoWorld {
     int n = 10;
     for(int i = 0; i < n; i++){
       world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
-      world_t stableAssemblyModel = stableUpdate(10000, assemblyModel, config->WORLD_X(), config->WORLD_Y());
+      world_t stableAssemblyModel = stableUpdate(assemblyModel, config->WORLD_X(), config->WORLD_Y());
       world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
-      world_t stableAdaptiveModel = stableUpdate(10000, adaptiveModel, config->WORLD_X(), config->WORLD_Y());
+      world_t stableAdaptiveModel = stableUpdate(adaptiveModel, config->WORLD_X(), config->WORLD_Y());
       std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
       std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
       for(auto& [node, proportion] : assemblyCommunities){
@@ -389,7 +389,7 @@ class AEcoWorld {
   }
 
   //This function should be called to create a stable copy of the world 
-  world_t stableUpdate(int num_updates, world_t custom_world, int world_x, int world_y){
+  world_t stableUpdate(world_t custom_world, int world_x, int world_y, int max_updates=10000){
     world_t stable_world;
     world_t next_stable_world;
 
@@ -408,10 +408,22 @@ class AEcoWorld {
       stable_world[i].assign(custom_world[i].begin(), custom_world[i].end());
     }
 
-    for(int i = 0; i < num_updates; i++){
+    for(int i = 0; i < max_updates; i++){
       // Handle population growth for each cell
       for (size_t pos = 0; pos < custom_world.size(); pos++) {
         DoGrowth(pos, stable_world, next_stable_world);
+      }
+
+      // We can stop iterating early if the world has already stabilized
+      double delta = 0;
+      double epsilon = .01;
+      for (size_t j = 0; j < stable_world.size(); j++){
+        delta += emp::EuclideanDistance(stable_world[j], next_stable_world[j]);
+      }
+      // If the change from one world to the next is very small, return early
+      if(delta < epsilon){
+        std::cout << "stabilized early" << i << " " << std::endl;
+        return stable_world;
       }
 
       std::swap(stable_world, next_stable_world);
