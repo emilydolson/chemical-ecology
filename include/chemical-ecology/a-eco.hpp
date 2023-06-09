@@ -52,6 +52,7 @@ class AEcoWorld {
     int curr_update2;
 
     // Set up data tracking
+    emp::DataFile data_file;
     emp::DataFile stochastic_data_file;
     emp::DataNode<double, emp::data::Stats> biomass_node;
     emp::vector<double> fittest;
@@ -62,7 +63,7 @@ class AEcoWorld {
 
   public:
   // Default constructor just has to set name of output file
-  AEcoWorld() : stochastic_data_file("a-eco_model_data.csv") {;}
+  AEcoWorld() : data_file("a-eco_data.csv"), stochastic_data_file("a-eco_model_data.csv") {;}
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -101,11 +102,17 @@ class AEcoWorld {
     } else {
       LoadInteractionMatrix(config->INTERACTION_SOURCE());
     }
+    
+    data_file.AddVar(curr_update, "Time", "Time");
+    data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
+    data_file.SetTimingRepeat(10);
+    data_file.PrintHeaderKeys();
 
     stochastic_data_file.AddVar(curr_update2, "Time", "Time");
     //Takes all communities in the current world, and prints them to a file along with their stochastic world proportions
-    // stochastic_data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
-    // stochastic_data_file.AddVar(worldType, "worldType", "world type");
+    stochastic_data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
+    stochastic_data_file.AddVar(worldType, "worldType", "world type");
+    stochastic_data_file.SetTimingRepeat(10);
     stochastic_data_file.PrintHeaderKeys();
 
     // Make sure you get sub communities after setting up the matrix
@@ -141,9 +148,9 @@ class AEcoWorld {
     // Run n stochastic worlds
     int n = 10;
     for(int i = 0; i < n; i++){
-      world_t assemblyModel = StochasticModel(1000, false, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
       world_t stableAssemblyModel = stableUpdate(assemblyModel, config->WORLD_X(), config->WORLD_Y());
-      world_t adaptiveModel = StochasticModel(1000, true, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
       world_t stableAdaptiveModel = stableUpdate(adaptiveModel, config->WORLD_X(), config->WORLD_Y());
       std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
       std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
@@ -276,6 +283,7 @@ class AEcoWorld {
     
     // Give data_file the opportunity to write to the file
     worldState = next_world;
+    data_file.Update(curr_update);
 
     // We're done calculating the type counts for the next
     // time step. We can now swap our counts for the next
@@ -444,7 +452,7 @@ class AEcoWorld {
     return stable_world;
   }
 
-  world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob) {
+  world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob, int iter) {
     world_t model_world;
     world_t next_model_world;
     if(repro)
@@ -474,7 +482,8 @@ class AEcoWorld {
         DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
       }
 
-      if(i%10 == 0){
+      //Only plot the first runs of each
+      if(i%10 == 0 && iter == 0){
         curr_update2 = i;
         stochasticWorldState = next_model_world;
         stochastic_data_file.Update(curr_update2);
@@ -482,7 +491,9 @@ class AEcoWorld {
 
       std::swap(model_world, next_model_world);
 
-      stochasticWorldState.clear();
+      if(iter == 0){
+        stochasticWorldState.clear();
+      }
     }
 
     return model_world;

@@ -49,9 +49,9 @@ def main(file_path):
     df_repro = df.loc[df['worldType'] == 'Repro']
     df_soup = df.loc[df['worldType'] == 'Soup']
 
-    soup_world_states_str = df['stochasticWorldState'].tolist()
+    soup_world_states_str = df_soup['stochasticWorldState'].tolist()
     format_and_plot(soup_world_states_str, 'biomass_plot_soup.png')
-    repro_world_states_str = df['stochasticWorldState'].tolist()
+    repro_world_states_str = df_repro['stochasticWorldState'].tolist()
     format_and_plot(repro_world_states_str, 'biomass_plot_repro.png')
 
 
