@@ -168,29 +168,29 @@ class AEcoWorld {
     for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(n);
     for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(n);
 
-    std::ofstream FinalCommunitiesFile("stochastic_scores.txt");
-    FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
-    for(auto& [node, proportion] : finalCommunities)
-    {
-      FinalCommunitiesFile << node << " " << proportion << " " << assemblyFinalCommunities[node] << " " << adaptiveFinalCommunities[node] << std::endl;
-    }
-    FinalCommunitiesFile.close();
+    // std::ofstream FinalCommunitiesFile("stochastic_scores.txt");
+    // FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
+    // for(auto& [node, proportion] : finalCommunities)
+    // {
+    //   FinalCommunitiesFile << node << " " << proportion << " " << assemblyFinalCommunities[node] << " " << adaptiveFinalCommunities[node] << std::endl;
+    // }
+    // FinalCommunitiesFile.close();
 
     std::cout << "World" << std::endl;
     for(auto& [node, proportion] : finalCommunities)
     {
-      std::cout << node << " " << proportion << std::endl;
+      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
 
     std::cout << "Assembly" << std::endl;
     for(auto& [node, proportion] : assemblyFinalCommunities)
     {
-      std::cout << node << " " << proportion << std::endl;
+      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
     std::cout << "Adaptive" << std::endl;
     for(auto& [node, proportion] : adaptiveFinalCommunities)
     {
-      std::cout << node << " " << proportion << std::endl;
+      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
     
     //Print out final state if in verbose mode
@@ -416,19 +416,31 @@ class AEcoWorld {
 
       // We can stop iterating early if the world has already stabilized
       double delta = 0;
-      double epsilon = .01;
+      double epsilon = .0001;
       for (size_t j = 0; j < stable_world.size(); j++){
         delta += emp::EuclideanDistance(stable_world[j], next_stable_world[j]);
       }
       // If the change from one world to the next is very small, return early
       if(delta < epsilon){
-        std::cout << "stabilized early" << i << " " << std::endl;
+        for (size_t pos = 0; pos < stable_world.size(); pos++) {
+          for (size_t s = 0; s < stable_world[pos].size(); s++) {
+            if (stable_world[pos][s] < 1) {
+              stable_world[pos][s] = 0.0;
+            }
+          }
+        }
         return stable_world;
       }
-
       std::swap(stable_world, next_stable_world);
     }
-
+    std::cout << "\n Max number of stable updates reached" << std::endl;
+    for (size_t pos = 0; pos < stable_world.size(); pos++) {
+      for (size_t s = 0; s < stable_world[pos].size(); s++) {
+        if (stable_world[pos][s] < 1) {
+          stable_world[pos][s] = 0.0;
+        }
+      }
+    }
     return stable_world;
   }
 
@@ -480,17 +492,47 @@ class AEcoWorld {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
     for(emp::vector<double> cell: stable_world){
-      std::string temp = "";
-      for(double species: cell){
-        temp.append(std::to_string(species)+" ");
+      std::string comm = "";
+      for(size_t i = 0; i < cell.size(); i++){
+        std::string count = std::to_string(cell[i]);
+        // Formatting to make the strings more legible
+        count.erase(count.find_last_not_of('0') + 1, std::string::npos);
+        count.erase(count.find_last_not_of('.') + 1, std::string::npos);
+        // Check if the species is present, and if it is make sure it has interactions
+        if(count.compare("0") != 0){
+          int sc = -1;
+          for(size_t j = 0; j < subCommunities.size(); j++){
+            for(int x : subCommunities[j]){
+              if(x == i){
+                sc = j;
+              }
+            }
+          }
+          bool interacts = false;
+          for(int m : subCommunities[sc]){
+            if(cell[m] != 0 && m != i){
+              comm.append(count + " ");
+              interacts = true;
+              break;
+            }
+          }
+          if(!interacts){
+            comm.append("PWI ");
+          }
+        }
+        // If there are zero present
+        else{
+          comm.append("0 ");
+        }
       }
-      if(finalCommunities.find(temp) == finalCommunities.end()){
-          finalCommunities.insert({temp, 1});
+      if(finalCommunities.find(comm) == finalCommunities.end()){
+          finalCommunities.insert({comm, 1});
       }
       else{
-        finalCommunities[temp] += 1;
+        finalCommunities[comm] += 1;
       }
     }
+    // Get proportion
     for(auto& [key, val] : finalCommunities){
       val = val/size;
     }
