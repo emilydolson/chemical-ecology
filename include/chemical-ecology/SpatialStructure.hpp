@@ -116,17 +116,50 @@ public:
     emp_assert(VerifyConnectionConsistency());
   }
 
+  // Create a connection between positions, from ==> to
   void Connect(size_t from, size_t to) {
-    // TODO
+    // Check position validity
+    emp_assert(from < GetNumPositions());
+    emp_assert(to < GetNumPositions());
+    // Do nothing if connection already exists
+    if (IsConnected(from, to)) {
+      return;
+    }
+    // Otherwise, connect from to to.
+    connection_matrix[from][to] = true;
+    auto& neighbors = ordered_connections[from];
+    neighbors.insert(
+      std::upper_bound(neighbors.begin(), neighbors.end(), to),
+      to
+    );
+    emp_assert(VerifyConnectionConsistency());
   }
 
+  // Remove connection between positions, from ==> to
   void Disconnect(size_t from, size_t to) {
-    // TODO
+    // Check position validity
+    emp_assert(from < GetNumPositions());
+    emp_assert(to < GetNumPositions());
+    // Do nothing if connection does not exist
+    if (!IsConnected(from, to)) {
+      return;
+    }
+    // Otherwise, remove connection from => to
+    connection_matrix[from][to] = false;
+    auto& neighbors = ordered_connections[from];
+    auto to_remove = std::equal_range(
+      neighbors.begin(),
+      neighbors.end(),
+      to
+    );
+    neighbors.erase(to_remove.first, to_remove.second);
+    emp_assert(VerifyConnectionConsistency());
   }
 
+  // Return whether or not there is a (directed) connection between "from" position
+  // and "to" position.
   bool IsConnected(size_t from, size_t to) {
-    // TODO
-    return false;
+    return connection_matrix[from][to];
   }
 
   // Get the total number of positions in the spatial structure
