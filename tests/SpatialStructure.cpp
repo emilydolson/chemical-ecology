@@ -19,6 +19,7 @@ TEST_CASE("Can define spatial structure from a connection mapping") {
   };
   ring_structure.SetStructure(ring_map);
   // ring_structure.Print(std::cout);
+  // ring_structure.Print(std::cout, false);
 
   REQUIRE(!ring_structure.IsConnected(0, 0));
   REQUIRE(ring_structure.IsConnected(0, 1));

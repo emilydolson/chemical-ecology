@@ -201,13 +201,22 @@ public:
   }
 
   void PrintConnectionMatrix(std::ostream& os) const {
-    // TODO
+    emp_assert(VerifyConnectionConsistency());
+    const size_t num_positions = GetNumPositions();
+    for (size_t from = 0; from < num_positions; ++from) {
+      os << "|";
+      for (size_t to = 0; to < num_positions; ++to) {
+        if (to) os << " ";
+        os << (size_t)connection_matrix[from][to];
+      }
+      os << "|" << std::endl;
+    }
   }
 
   // Print mapping of "from" positions to "to" positions
   void PrintConnectionMapping(std::ostream& os) const {
     emp_assert(VerifyConnectionConsistency());
-    const size_t num_positions = ordered_connections.size();
+    const size_t num_positions = GetNumPositions();
     for (size_t from = 0; from < num_positions; ++from) {
       const auto& neighbors = ordered_connections[from];
       os << from << ":";
