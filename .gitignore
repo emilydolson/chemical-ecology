@@ -16,6 +16,7 @@
 *tmp.*
 
 .DS_Store
+.vscode/
 a.out
 a.out.js
 web/chemical-ecology.js
