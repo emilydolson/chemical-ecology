@@ -128,13 +128,30 @@ TEST_CASE("Can get a random neighbor") {
 
 }
 
-TEST_CASE("Can read structure from csv") {
+TEST_CASE("Can read structure from csv that lists edges") {
   const std::string csv_path = "data/spatial-structure-edges.csv";
 
   chemical_ecology::SpatialStructure structure;
 
   structure.LoadStructureFromEdgeCSV(csv_path);
   // structure.Print(std::cout);
+  REQUIRE(structure.GetNumPositions() == 5);
+  REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{1, 2, 3});
+  REQUIRE(structure.GetNeighbors(1) == emp::vector<size_t>{0, 2});
+  REQUIRE(structure.GetNeighbors(2) == emp::vector<size_t>{0});
+  REQUIRE(structure.GetNeighbors(3) == emp::vector<size_t>{});
+  REQUIRE(structure.GetNeighbors(4) == emp::vector<size_t>{});
+
+}
+
+TEST_CASE("Can read structure from matrix file") {
+  const std::string mat_path = "data/spatial-structure-matrix.dat";
+
+  chemical_ecology::SpatialStructure structure;
+
+  structure.LoadStructureFromMatrix(mat_path);
+  // structure.Print(std::cout);
+  // structure.Print(std::cout, false);
   REQUIRE(structure.GetNumPositions() == 5);
   REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{1, 2, 3});
   REQUIRE(structure.GetNeighbors(1) == emp::vector<size_t>{0, 2});

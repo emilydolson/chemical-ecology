@@ -192,13 +192,17 @@ public:
     return { neighbor };
   }
 
+  // Loads spatial structure from csv file specified by filepath.
+  // File should have "from" and "to" columns (labeled in header).
+  // All other columns are ignored. See tests/data/spatial-structure-edges.csv
+  // for an example of the expected format.
   void LoadStructureFromEdgeCSV(const std::string& filepath) {
     emp::File file(filepath);
     // Read header
     std::string header_str = file.front();
     emp::vector<std::string> line;
     emp::slice(header_str, line, ',');
-    std::cout << line << std::endl;
+    // std::cout << line << std::endl;
 
     emp_assert(emp::Has(line, {"from"}));
     emp_assert(emp::Has(line, {"to"}));
@@ -234,7 +238,7 @@ public:
     }
     const size_t num_positions = node_names.size();
     std::sort(node_names.begin(), node_names.end());
-    std::cout << node_names << std::endl;
+    // std::cout << node_names << std::endl;
     // Create mapping from names to position
     std::unordered_map<std::string, size_t> name_to_position;
     for (size_t pos = 0; pos < num_positions; ++pos) {
@@ -253,8 +257,36 @@ public:
     SetStructure(connections);
   }
 
-  void LoadStructureFromMatrix(/* TODO */) {
-    // TODO
+  // Load spatial structure from matrix file format.
+  // See tests/data/spatial-structure-matrix.dat for example expected format.
+  void LoadStructureFromMatrix(const std::string& filepath) {
+    emp::File file(filepath);
+    file.RemoveEmpty();
+    emp::vector< emp::vector<bool> > matrix;
+    emp::vector< std::string > line_components;
+    for (size_t i = 0; i < file.GetNumLines(); ++i) {
+      std::string line_str = file[i];
+      // Remove all whitespace
+      emp::remove_whitespace(line_str);
+      // Handle comments
+      line_str = emp::string_get(line_str, "#");
+      // If line is now empty, skip
+      if (line_str == emp::empty_string()) {
+        continue;
+      }
+      // If here, this line should represent a row
+      emp::slice(line_str, line_components, ',');
+      matrix.emplace_back(
+        emp::vector<bool>(
+          line_components.size(),
+          false
+        )
+      );
+      for (size_t to = 0; to < line_components.size(); ++to) {
+        matrix.back()[to] = line_components[to] != "0";
+      }
+    }
+    SetStructure(matrix);
   }
 
   // Print spatial structure connectivity. Defaults to mapping format.
@@ -271,12 +303,12 @@ public:
     emp_assert(VerifyConnectionConsistency());
     const size_t num_positions = GetNumPositions();
     for (size_t from = 0; from < num_positions; ++from) {
-      os << "|";
+      // os << "|";
       for (size_t to = 0; to < num_positions; ++to) {
-        if (to) os << " ";
+        if (to) os << ",";
         os << (size_t)connection_matrix[from][to];
       }
-      os << "|" << std::endl;
+      os << std::endl;
     }
   }
 
