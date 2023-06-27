@@ -28,3 +28,9 @@ node_modules/
 coverage_include/
 
 local/
+
+*.csv
+
+chemical-ecology
+debug_file
+/chemical-ecology.cfg
