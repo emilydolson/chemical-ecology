@@ -10,7 +10,7 @@
 #include "emp/datastructs/Graph.hpp"
 
 #include "chemical-ecology/a-eco.hpp"
-#include "chemical-ecology/ExampleConfig.hpp"
+#include "chemical-ecology/Config.hpp"
 
 chemical_ecology::Config cfg;
 
@@ -44,7 +44,7 @@ void printGraph(emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly, chem
 }
 
 int main(int argc, char* argv[])
-{ 
+{
   // Set up a configuration panel for native application
   setup_config_native(cfg, argc, argv);
   cfg.Write(std::cout);

@@ -7,7 +7,7 @@
 #include "emp/web/UrlParams.hpp"
 #include "emp/web/web.hpp"
 
-#include "chemical-ecology/ExampleConfig.hpp"
+#include "chemical-ecology/Config.hpp"
 
 void use_existing_config_file(chemical_ecology::Config & config, emp::ArgManager & am) {
   if(std::filesystem::exists("chemical-ecology.cfg")) {

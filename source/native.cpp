@@ -7,14 +7,14 @@
 #include "emp/base/vector.hpp"
 
 #include "chemical-ecology/a-eco.hpp"
-#include "chemical-ecology/ExampleConfig.hpp"
+#include "chemical-ecology/Config.hpp"
 
 // This is the main function for the NATIVE version of Artificial Ecology for Chemical Ecology Project.
 
 chemical_ecology::Config cfg;
 
 int main(int argc, char* argv[])
-{ 
+{
   // Set up a configuration panel for native application
   setup_config_native(cfg, argc, argv);
   if(cfg.V()){
