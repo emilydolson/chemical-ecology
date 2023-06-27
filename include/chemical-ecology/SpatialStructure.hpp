@@ -13,10 +13,14 @@
 #include <algorithm>
 #include <unordered_set>
 #include <optional>
+#include <string>
 #include "emp/base/vector.hpp"
 #include "emp/datastructs/vector_utils.hpp"
 #include "emp/math/Random.hpp"
 #include "emp/math/random_utils.hpp"
+#include "emp/tools/string_utils.hpp"
+
+#include "emp/io/File.hpp"
 
 namespace chemical_ecology {
 
@@ -188,10 +192,72 @@ public:
     return { neighbor };
   }
 
-  void LoadStructure(/* TODO */) {
+  void LoadStructureFromEdgeCSV(const std::string& filepath) {
+    emp::File file(filepath);
+    // Read header
+    std::string header_str = file.front();
+    emp::vector<std::string> line;
+    emp::slice(header_str, line, ',');
+    std::cout << line << std::endl;
+
+    emp_assert(emp::Has(line, {"from"}));
+    emp_assert(emp::Has(line, {"to"}));
+
+    // Get position of from and to columns
+    const size_t from_idx = (size_t)emp::FindValue(line, {"from"});
+    size_t to_idx = (size_t)emp::FindValue(line, {"to"});
+
+    // Read all node names
+    std::unordered_set<std::string> node_name_set;
+    emp::vector<std::string> node_names;
+    emp::vector< std::pair<std::string, std::string> > edges;
+    for (size_t i = 1; i < file.GetNumLines(); ++i) {
+      std::string line_str = file[i];
+      emp::slice(line_str, line, ',');
+      const std::string from_str = line[from_idx];
+      const std::string to_str = line[to_idx];
+      const bool valid_from = from_str != "NONE" && from_str != "";
+      const bool valid_to = to_str != "NONE" && to_str != "";
+      if (valid_from) {
+        node_name_set.emplace(from_str);
+      }
+      if (valid_to) {
+        node_name_set.emplace(to_str);
+      }
+      if (valid_from && valid_to) {
+        edges.emplace_back(from_str, to_str);
+      }
+    }
+    // Order node names
+    for (const auto& val : node_name_set) {
+      node_names.emplace_back(val);
+    }
+    const size_t num_positions = node_names.size();
+    std::sort(node_names.begin(), node_names.end());
+    std::cout << node_names << std::endl;
+    // Create mapping from names to position
+    std::unordered_map<std::string, size_t> name_to_position;
+    for (size_t pos = 0; pos < num_positions; ++pos) {
+      name_to_position[node_names[pos]] = pos;
+    }
+    // Begin reading edges
+    emp::vector< emp::vector<size_t> > connections(
+      num_positions,
+      emp::vector<size_t>(0)
+    );
+    for (const auto& pair : edges) {
+      const size_t from = name_to_position[pair.first];
+      const size_t to = name_to_position[pair.second];
+      connections[from].emplace_back(to);
+    }
+    SetStructure(connections);
+  }
+
+  void LoadStructureFromMatrix(/* TODO */) {
     // TODO
   }
 
+  // Print spatial structure connectivity. Defaults to mapping format.
   void Print(std::ostream& os, bool as_mapping = true) const {
     if (as_mapping) {
       PrintConnectionMapping(os);
@@ -200,6 +266,7 @@ public:
     }
   }
 
+  // Print spatial structure connectivity as connection matrix.
   void PrintConnectionMatrix(std::ostream& os) const {
     emp_assert(VerifyConnectionConsistency());
     const size_t num_positions = GetNumPositions();
