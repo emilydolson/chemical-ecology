@@ -31,6 +31,6 @@ local/
 
 *.csv
 
-chemical-ecology
+/chemical-ecology
 debug_file
 /chemical-ecology.cfg
