@@ -93,8 +93,27 @@ public:
     emp_assert(VerifyConnectionConsistency());
   }
 
+  // Configure spatial structure from a connection matrix (maps [from][to])
   void SetStructure(const emp::vector< emp::vector<bool> >& in_struct) {
-    // TODO
+    // Configure connection matrix (copy from parameter)
+    const size_t num_positions = in_struct.size();
+    connection_matrix = in_struct;
+    // Configure ordered connections
+    ordered_connections.clear();
+    ordered_connections.resize(
+      num_positions,
+      emp::vector<size_t>(0)
+    );
+    for (size_t from = 0; from < num_positions; ++from) {
+      emp_assert(connection_matrix.size() == num_positions, "Connection matrix must be square");
+      for (size_t to = 0; to < num_positions; ++to) {
+        const bool connected = connection_matrix[from][to];
+        if (connected) {
+          ordered_connections[from].emplace_back(to);
+        }
+      }
+    }
+    emp_assert(VerifyConnectionConsistency());
   }
 
   void Connect(size_t from, size_t to) {
@@ -110,7 +129,18 @@ public:
     return false;
   }
 
-  size_t GetRandomNeighbor(emp::Random& rnd, size_t from) {
+  // Get the total number of positions in the spatial structure
+  size_t GetNumPositions() {
+    return connection_matrix.size();
+  }
+
+  // Get an ordered list of neighbors for given position
+  const emp::vector<size_t>& GetNeighbors(size_t pos) {
+    emp_assert(pos < ordered_connections.size());
+    return ordered_connections[pos];
+  }
+
+  size_t GetRandomNeighbor(emp::Random& rnd, size_t pos) {
     // TODO
     return 0;
   }
