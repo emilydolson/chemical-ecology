@@ -68,7 +68,7 @@ protected:
 public:
 
   // Configure spatial structure from mapping of "from" positions to "to" positions
-  void SetStructure(emp::vector< emp::vector<size_t> >& in_struct) {
+  void SetStructure(const emp::vector< emp::vector<size_t> >& in_struct) {
     // Configure ordered connections (copy over and sort connections)
     const size_t num_positions = in_struct.size();
     ordered_connections = in_struct;
@@ -93,7 +93,7 @@ public:
     emp_assert(VerifyConnectionConsistency());
   }
 
-  void SetStructure(emp::vector< emp::vector<bool> >& in_struct) {
+  void SetStructure(const emp::vector< emp::vector<bool> >& in_struct) {
     // TODO
   }
 
