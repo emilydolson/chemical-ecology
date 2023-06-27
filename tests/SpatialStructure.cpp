@@ -7,6 +7,7 @@
 #include "chemical-ecology/SpatialStructure.hpp"
 
 #include "emp/base/vector.hpp"
+#include "emp/math/Random.hpp"
 
 TEST_CASE("Can define spatial structure from a connection mapping") {
   chemical_ecology::SpatialStructure ring_structure;
@@ -97,4 +98,31 @@ TEST_CASE("Can make new connections and remove existing connections") {
   REQUIRE(ring_structure.IsConnected(2, 0));
   REQUIRE(!ring_structure.IsConnected(2, 1));
   REQUIRE(!ring_structure.IsConnected(2, 2));
+}
+
+TEST_CASE("Can get a random neighbor") {
+  chemical_ecology::SpatialStructure structure;
+  emp::Random rnd(5);
+
+  structure.SetStructure(
+    emp::vector< emp::vector<size_t> >{
+      /* 0 -> */ {1, 2, 3},
+      /* 1 -> */ {4},
+      /* 2 -> */ {},
+      /* 3 -> */ {},
+      /* 4 -> */ {}
+    }
+  );
+
+  for (size_t i = 0; i < 100; ++i) {
+    const size_t neighbor = structure.GetRandomNeighbor(rnd, 0).value();
+    REQUIRE(emp::Has(structure.GetNeighbors(0), neighbor));
+  }
+
+  auto result = structure.GetRandomNeighbor(rnd, 1);
+  REQUIRE(result.value() == 4);
+
+  result = structure.GetRandomNeighbor(rnd, 2);
+  REQUIRE(!result);
+
 }

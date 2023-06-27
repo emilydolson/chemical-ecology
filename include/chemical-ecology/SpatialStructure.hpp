@@ -12,7 +12,9 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
+#include <optional>
 #include "emp/base/vector.hpp"
+#include "emp/datastructs/vector_utils.hpp"
 #include "emp/math/Random.hpp"
 #include "emp/math/random_utils.hpp"
 
@@ -158,24 +160,32 @@ public:
 
   // Return whether or not there is a (directed) connection between "from" position
   // and "to" position.
-  bool IsConnected(size_t from, size_t to) {
+  bool IsConnected(size_t from, size_t to) const {
     return connection_matrix[from][to];
   }
 
   // Get the total number of positions in the spatial structure
-  size_t GetNumPositions() {
+  size_t GetNumPositions() const {
     return connection_matrix.size();
   }
 
   // Get an ordered list of neighbors for given position
-  const emp::vector<size_t>& GetNeighbors(size_t pos) {
+  const emp::vector<size_t>& GetNeighbors(size_t pos) const {
     emp_assert(pos < ordered_connections.size());
     return ordered_connections[pos];
   }
 
-  size_t GetRandomNeighbor(emp::Random& rnd, size_t pos) {
-    // TODO
-    return 0;
+  // Returns a random neighbor of given position. If no valid neighbors, returns
+  // nullopt.
+  std::optional<size_t> GetRandomNeighbor(emp::Random& rnd, size_t pos) const {
+    emp_assert(pos < GetNumPositions()) ;
+    const auto& neighbors = ordered_connections[pos];
+    if (neighbors.empty()) {
+      return std::nullopt;
+    }
+    const size_t neighbor = neighbors[rnd.GetUInt(neighbors.size())];
+    emp_assert(neighbor < GetNumPositions());
+    return { neighbor };
   }
 
   void LoadStructure(/* TODO */) {
