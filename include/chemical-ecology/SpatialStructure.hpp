@@ -295,7 +295,7 @@ public:
   }
 
   // Print spatial structure connectivity as connection matrix.
-  void PrintConnectionMatrix(std::ostream& os) const {
+  void PrintConnectionMatrix(std::ostream& os = std::cout) const {
     emp_assert(VerifyConnectionConsistency());
     const size_t num_positions = GetNumPositions();
     for (size_t from = 0; from < num_positions; ++from) {
@@ -309,7 +309,7 @@ public:
   }
 
   // Print mapping of "from" positions to "to" positions
-  void PrintConnectionMapping(std::ostream& os) const {
+  void PrintConnectionMapping(std::ostream& os = std::cout) const {
     emp_assert(VerifyConnectionConsistency());
     const size_t num_positions = GetNumPositions();
     for (size_t from = 0; from < num_positions; ++from) {
@@ -353,16 +353,28 @@ void ConfigureToroidalGrid(SpatialStructure& structure, size_t width, size_t hei
       neighbor_set.end(),
       std::back_inserter(grid_connections[pos])
     );
-    // std::cout << "pos: "
-    //   << pos << " (" << pos_x << "," << pos_y << ")" << "; neighbors: "
-    //     << "left:" << left_pos << " right:" << right_pos << " up:" << up_pos << " down:" << down_pos << std::endl;
   }
 
   structure.SetStructure(grid_connections);
 }
 
-void ConfigureWellMixed(SpatialStructure& structure) {
-  // TODO
+// Build well-mixed structure of given size
+void ConfigureFullyConnected(SpatialStructure& structure, size_t size) {
+  emp_assert(size > 0, "Size must be greater than 0");
+
+  // Create matrix with all possible edges
+  emp::vector< emp::vector<bool> > matrix(
+    size,
+    emp::vector<bool>(size, true)
+  );
+
+  // Remove self-connections
+  for (size_t i = 0; i < size; ++i) {
+    matrix[i][i] = false;
+  }
+
+  structure.SetStructure(matrix);
+
 }
 
 } // End chemical_ecology namespace

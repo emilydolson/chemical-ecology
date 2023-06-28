@@ -190,3 +190,24 @@ TEST_CASE("Can configure toroidal grid structure") {
   // structure.Print(std::cout);
 
 }
+
+TEST_CASE("Can configure fully connected structure") {
+  chemical_ecology::SpatialStructure structure;
+
+  chemical_ecology::ConfigureFullyConnected(structure, 1);
+  REQUIRE(structure.GetNumPositions() == 1);
+  REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{});
+
+  chemical_ecology::ConfigureFullyConnected(structure, 2);
+  REQUIRE(structure.GetNumPositions() == 2);
+  REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{1});
+  REQUIRE(structure.GetNeighbors(1) == emp::vector<size_t>{0});
+
+  chemical_ecology::ConfigureFullyConnected(structure, 4);
+  REQUIRE(structure.GetNumPositions() == 4);
+  REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{1, 2, 3});
+  REQUIRE(structure.GetNeighbors(1) == emp::vector<size_t>{0, 2, 3});
+  REQUIRE(structure.GetNeighbors(2) == emp::vector<size_t>{0, 1, 3});
+  REQUIRE(structure.GetNeighbors(3) == emp::vector<size_t>{0, 1, 2});
+
+}
