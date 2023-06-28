@@ -7,7 +7,7 @@
 #include "emp/base/vector.hpp"
 #include "emp/datastructs/Graph.hpp"
 
-#include "chemical-ecology/a-eco.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
 #include "chemical-ecology/Config.hpp"
 
 chemical_ecology::Config cfg;

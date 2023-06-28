@@ -6,7 +6,7 @@
 #include "emp/base/vector.hpp"
 #include "emp/datastructs/Graph.hpp"
 
-#include "chemical-ecology/a-eco.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
 
 void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File)
 {
@@ -20,7 +20,7 @@ void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File)
 }
 
 int main(int argc, char* argv[])
-{ 
+{
   // Read custom assembly graph
   std::ifstream graph_file("custom_graph.txt");
   std::string file_line;

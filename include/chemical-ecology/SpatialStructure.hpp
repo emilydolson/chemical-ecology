@@ -24,13 +24,6 @@
 
 namespace chemical_ecology {
 
-// Functionality:
-
-// Internals:
-// - Track spatial structure as
-//   - vector of vectors (for easy random access)
-//   - vector of maps
-
 class SpatialStructure {
 public:
 

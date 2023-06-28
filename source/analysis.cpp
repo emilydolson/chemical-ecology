@@ -9,12 +9,12 @@
 #include "emp/base/vector.hpp"
 #include "emp/datastructs/Graph.hpp"
 
-#include "chemical-ecology/a-eco.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
 #include "chemical-ecology/Config.hpp"
 
 chemical_ecology::Config cfg;
 
-void printSoupWorld(AEcoWorld world, ofstream& File, chemical_ecology::Config * config)
+void printSoupWorld(chemical_ecology::AEcoWorld world, std::ofstream& File, chemical_ecology::Config * config)
 {
   std::map<std::string, double> soupResults = world.getSoupWorlds(100, 1000, config->PROB_CLEAR(), config->SEEDING_PROB());
   for(auto& [key, val] : soupResults){
@@ -22,7 +22,7 @@ void printSoupWorld(AEcoWorld world, ofstream& File, chemical_ecology::Config * 
   }
 }
 
-void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly)
+void printPageRank(chemical_ecology::AEcoWorld world, emp::Graph g, std::ofstream& File, emp::WeightedGraph wAssembly)
 {
   std::map<std::string, float> map = world.CalculateWeightedPageRank(wAssembly);
   std::map<std::string, float>::iterator it = map.begin();
@@ -33,7 +33,7 @@ void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File, emp::WeightedG
   }
 }
 
-void printGraph(emp::Graph g, ofstream& File, emp::WeightedGraph wAssembly, chemical_ecology::Config * config)
+void printGraph(emp::Graph g, std::ofstream& File, emp::WeightedGraph wAssembly, chemical_ecology::Config * config)
 {
   for (size_t from = 0; from < wAssembly.GetSize(); from++) {
     for (size_t to = 0; to < wAssembly.GetSize(); to++) {
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
   // Set up a configuration panel for native application
   setup_config_native(cfg, argc, argv);
   cfg.Write(std::cout);
-  AEcoWorld world;
+  chemical_ecology::AEcoWorld world;
   world.Setup(cfg);
   chemical_ecology::Config * config = &cfg;
 

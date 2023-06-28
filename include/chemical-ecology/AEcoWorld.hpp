@@ -13,6 +13,8 @@
 #include "chemical-ecology/config_setup.hpp"
 #include "chemical-ecology/SpatialStructure.hpp"
 
+namespace chemical_ecology {
+
 // TERMINOLOGY NOTES:
 //
 // - Cell = location in the world grid
@@ -670,4 +672,7 @@ class AEcoWorld {
 
     outfile.Write(filename);
   }
-};
+
+}; // End AEcoWorld class definition
+
+} // End chemical_ecology namespace

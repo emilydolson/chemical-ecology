@@ -15,7 +15,7 @@
 #include "emp/datastructs/Graph.hpp"
 
 #include "chemical-ecology/config_setup.hpp"
-#include "chemical-ecology/a-eco.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
 #include "chemical-ecology/Config.hpp"
 
 namespace UI = emp::web;
@@ -34,7 +34,7 @@ D3::SequentialPowScale heredity_scale;
 
 
 chemical_ecology::Config cfg;
-AEcoWorld world;
+chemical_ecology::AEcoWorld world;
 emp::WeightedGraph interactions;
 D3::Selection heatmap;
 

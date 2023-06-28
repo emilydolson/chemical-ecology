@@ -6,7 +6,7 @@
 
 #include "emp/base/vector.hpp"
 
-#include "chemical-ecology/a-eco.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
 #include "chemical-ecology/Config.hpp"
 
 // This is the main function for the NATIVE version of Artificial Ecology for Chemical Ecology Project.
@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
     cfg.Write(std::cout);
   }
 
-  AEcoWorld world;
+  chemical_ecology::AEcoWorld world;
   world.Setup(cfg);
   world.Run();
 
