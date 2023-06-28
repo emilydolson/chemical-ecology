@@ -161,3 +161,32 @@ TEST_CASE("Can read structure from matrix file") {
 
 }
 
+TEST_CASE("Can configure toroidal grid structure") {
+  chemical_ecology::SpatialStructure structure;
+  chemical_ecology::ConfigureToroidalGrid(structure, 2, 2);
+  REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{1, 2});
+  REQUIRE(structure.GetNeighbors(1) == emp::vector<size_t>{0, 3});
+  REQUIRE(structure.GetNeighbors(2) == emp::vector<size_t>{0, 3});
+  REQUIRE(structure.GetNeighbors(3) == emp::vector<size_t>{1, 2});
+
+  chemical_ecology::ConfigureToroidalGrid(structure, 3, 3);
+  // structure.Print(std::cout);
+  REQUIRE(structure.GetNeighbors(0) == emp::vector<size_t>{1, 2, 3, 6});
+  REQUIRE(structure.GetNeighbors(1) == emp::vector<size_t>{0, 2, 4, 7});
+  REQUIRE(structure.GetNeighbors(2) == emp::vector<size_t>{0, 1, 5, 8});
+  REQUIRE(structure.GetNeighbors(3) == emp::vector<size_t>{0, 4, 5, 6});
+  REQUIRE(structure.GetNeighbors(4) == emp::vector<size_t>{1, 3, 5, 7});
+  REQUIRE(structure.GetNeighbors(5) == emp::vector<size_t>{2, 3, 4, 8});
+  REQUIRE(structure.GetNeighbors(6) == emp::vector<size_t>{0, 3, 7, 8});
+  REQUIRE(structure.GetNeighbors(7) == emp::vector<size_t>{1, 4, 6, 8});
+  REQUIRE(structure.GetNeighbors(8) == emp::vector<size_t>{2, 5, 6, 7});
+
+  chemical_ecology::ConfigureToroidalGrid(structure, 4, 3);
+  REQUIRE(structure.GetNeighbors(11) == emp::vector<size_t>{3, 7, 8, 10});
+  // structure.Print(std::cout);
+
+  chemical_ecology::ConfigureToroidalGrid(structure, 3, 4);
+  REQUIRE(structure.GetNeighbors(11) == emp::vector<size_t>{2, 8, 9, 10});
+  // structure.Print(std::cout);
+
+}

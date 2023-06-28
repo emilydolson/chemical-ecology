@@ -26,14 +26,7 @@ namespace chemical_ecology {
 
 class SpatialStructure;
 
-void ConfigureToroidalGrid(SpatialStructure& structure) {
-
-}
-
-void ConfigureWellMixed(SpatialStructure& structure) {
-
-}
-
+// Implements a 2D spatial structure
 class SpatialStructure {
 public:
 
@@ -331,5 +324,45 @@ public:
   }
 
 }; // End SpatialStructure class
+
+// -- Simple structure configurations --
+void ConfigureToroidalGrid(SpatialStructure& structure, size_t width, size_t height) {
+  emp_assert(width > 0, "Width must be greater than 0");
+  emp_assert(height > 0, "Height must be greater than 0");
+
+  // Build 2D toroidal grid
+  const size_t grid_size = width * height;
+  emp::vector< emp::vector<size_t> > grid_connections(
+    grid_size,
+    emp::vector<size_t>(0)
+  );
+  for (size_t pos = 0; pos < grid_size; ++pos) {
+    // Get x,y cooridinates associated with current position
+    const size_t pos_x = pos % width;
+    const size_t pos_y = pos / width;
+    // Calculate horizontal neighbors, handle wrap-around
+    const size_t left_pos = (pos_x != 0) ? (pos - 1) : (pos - 1) + width;
+    const size_t right_pos = (pos_x != width - 1) ? (pos + 1) : (pos + 1) - width;
+    // Calculate vertical neighbors, handle wrap-around
+    const size_t up_pos = (pos_y != 0) ? (pos - width) : grid_size - (width - pos_x); // (pos - width) + (width * height);
+    const size_t down_pos = (pos_y != height - 1) ? (pos + width) : (pos + width) - grid_size;
+    // Add connections (remove duplicates)
+    std::set<size_t> neighbor_set = {left_pos, right_pos, up_pos, down_pos};
+    std::copy(
+      neighbor_set.begin(),
+      neighbor_set.end(),
+      std::back_inserter(grid_connections[pos])
+    );
+    // std::cout << "pos: "
+    //   << pos << " (" << pos_x << "," << pos_y << ")" << "; neighbors: "
+    //     << "left:" << left_pos << " right:" << right_pos << " up:" << up_pos << " down:" << down_pos << std::endl;
+  }
+
+  structure.SetStructure(grid_connections);
+}
+
+void ConfigureWellMixed(SpatialStructure& structure) {
+  // TODO
+}
 
 } // End chemical_ecology namespace
