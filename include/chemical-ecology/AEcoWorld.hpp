@@ -3,12 +3,15 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
 #include "emp/math/random_utils.hpp"
 #include "emp/datastructs/Graph.hpp"
 #include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
+#include "emp/base/Ptr.hpp"
+
 #include "emp/datastructs/map_utils.hpp"
 #include "chemical-ecology/config_setup.hpp"
 #include "chemical-ecology/SpatialStructure.hpp"
@@ -47,7 +50,7 @@ class AEcoWorld {
     emp::Random rnd;
 
     // All configuration information is stored in config
-    chemical_ecology::Config * config = nullptr;
+    emp::Ptr<chemical_ecology::Config> config = nullptr;
 
     // These values are set in the config but we have local
     // copies for efficiency in accessing their values
