@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "emp/config/config.hpp"
 
 namespace chemical_ecology {
@@ -24,6 +26,11 @@ namespace chemical_ecology {
     VALUE(INTERACTION_SOURCE, std::string, "config/proof_of_concept_interaction_matrix.dat", "Where to load interaction matrix from; empty string will generate randomly"),
     VALUE(INTERACTION_MAGNITUDE, double, 1, "Range of interaction intensities (from negative of this value to positive of this value"),
     VALUE(PROB_INTERACTION, double, .1, "Probability of there being an interaction between any given pair of species"),
+
+    GROUP(SPATIAL_STRUCTURE_SETTINGS, "Settings related to connectivity of communities in the world"),
+    VALUE(SPATIAL_STRUCTURE, std::string, "default", "Specifies spatial structure to use. Options:\n  'default' (toroidal grid)\n  'well-mixed' (all connected to all)\n  'load' (loads spatial structure from specified file)"),
+    VALUE(SPATIAL_STRUCTURE_LOAD_MODE, std::string, "edges", "Species loading mode for spatial structure. Options:\n  'edges'\n  'matrix'"),
+    VALUE(SPATIAL_STRUCTURE_FILE, std::string, "spatial-structure-edges.csv", "File to load spatial structure from. File format must be consistent with specified SPATIAL_STRUCTURE_LOAD_MODE"),
 
     GROUP(OUTPUT_SETTINGS, "Settings related to data output"),
     VALUE(OUTPUT_DIR, std::string, "./output/", "What directory are we dumping data?"),

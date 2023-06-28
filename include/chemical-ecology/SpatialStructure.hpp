@@ -24,6 +24,16 @@
 
 namespace chemical_ecology {
 
+class SpatialStructure;
+
+void ConfigureToroidalGrid(SpatialStructure& structure) {
+
+}
+
+void ConfigureWellMixed(SpatialStructure& structure) {
+
+}
+
 class SpatialStructure {
 public:
 
