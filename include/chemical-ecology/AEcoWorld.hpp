@@ -29,55 +29,57 @@ namespace chemical_ecology {
 
 // A class to handle running the simple ecology
 class AEcoWorld {
-  private:
-    // The world is a vector of cells (where each cell is
-    // represented as a vector ints representing the count of
-    // each type in each cell).
+private:
+  // The world is a vector of cells (where each cell is
+  // represented as a vector ints representing the count of
+  // each type in each cell).
 
-    // Although the world is stored as a flat vector of cells
-    // it represents a grid of cells
-    using world_t = emp::vector< emp::vector<double> >;
+  // Although the world is stored as a flat vector of cells
+  // it represents a grid of cells
+  using world_t = emp::vector< emp::vector<double> >;
 
-    // The matrix of interactions between types
-    // The diagonal of this matrix represents the
-    // intrinsic growth rate (r) of each type
-    emp::vector< emp::vector<double> > interactions;
+  // The matrix of interactions between types
+  // The diagonal of this matrix represents the
+  // intrinsic growth rate (r) of each type
+  emp::vector< emp::vector<double> > interactions;
 
-    chemical_ecology::SpatialStructure spatial_structure;
+  chemical_ecology::SpatialStructure spatial_structure;
 
-    // A random number generator for all our random number
-    // generating needs
-    emp::Random rnd;
+  // A random number generator for all our random number
+  // generating needs
+  emp::Random rnd;
 
-    // All configuration information is stored in config
-    emp::Ptr<chemical_ecology::Config> config = nullptr;
+  // All configuration information is stored in config
+  emp::Ptr<chemical_ecology::Config> config = nullptr;
 
-    // These values are set in the config but we have local
-    // copies for efficiency in accessing their values
-    int N_TYPES;
-    double MAX_POP;
-    int curr_update;
-    int curr_update2;
-
-    // Set up data tracking
-    emp::DataFile data_file;
-    emp::DataFile stochastic_data_file;
-    emp::DataNode<double, emp::data::Stats> biomass_node;
-    emp::vector<double> fittest;
-    emp::vector<double> dominant;
-    world_t worldState;
-    world_t stochasticWorldState;
-    std::string worldType;
-
-  public:
-  // Default constructor just has to set name of output file
-  AEcoWorld() : data_file("a-eco_data.csv"), stochastic_data_file("a-eco_model_data.csv") {;}
+  // These values are set in the config but we have local
+  // copies for efficiency in accessing their values
+  int N_TYPES;
+  double MAX_POP;
+  int curr_update;
+  int curr_update2;
 
   // Initialize vector that keeps track of grid
   world_t world;
 
   // List of any isolated communities
   emp::vector<emp::vector<int>> subCommunities;
+
+  // Set up data tracking
+  emp::DataFile data_file;
+  emp::DataFile stochastic_data_file;
+  emp::DataNode<double, emp::data::Stats> biomass_node;
+  emp::vector<double> fittest;
+  emp::vector<double> dominant;
+  world_t worldState;
+  world_t stochasticWorldState;
+  std::string worldType;
+
+public:
+  // Default constructor just has to set name of output file
+  AEcoWorld() : data_file("a-eco_data.csv"), stochastic_data_file("a-eco_model_data.csv") {;}
+
+  const world_t& GetWorld() const { return world; }
 
   // Setup the world according to the specified configuration
   void Setup(chemical_ecology::Config & cfg) {

@@ -99,7 +99,7 @@ void DrawWorldCanvas() {
         int type_y_id = type / (int)n_type_sqrt;
         double x_pos = x*org_x + type_x_id*type_x;
         double y_pos = y*org_y + type_y_id*type_y;
-        int count = world.world[org_id][type];
+        int count = world.GetWorld()[org_id][type];
         canvas.Rect(x_pos, y_pos, type_x, type_y, square_colors[type].ApplyScale<std::string>(count), "white", .01);
       }
      }
