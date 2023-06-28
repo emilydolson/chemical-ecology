@@ -286,7 +286,7 @@ public:
   }
 
   // Print spatial structure connectivity. Defaults to mapping format.
-  void Print(std::ostream& os, bool as_mapping = true) const {
+  void Print(std::ostream& os = std::cout, bool as_mapping = true) const {
     if (as_mapping) {
       PrintConnectionMapping(os);
     } else {

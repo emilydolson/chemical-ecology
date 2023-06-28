@@ -81,6 +81,9 @@ private:
 
   // Configures spatial structure based on world configuration.
   void SetupSpatialStructure();
+  void SetupSpatialStructure_Default();
+  void SetupSpatialStructure_WellMixed();
+  void SetupSpatialStructure_Load();
 
 public:
 
@@ -119,6 +122,7 @@ public:
 
     // Setup spatial structure
     SetupSpatialStructure();
+    // spatial_structure.Print();
 
     // Setup interaction matrix based on the method
     // specified in the configuration file
@@ -707,9 +711,47 @@ public:
 }; // End AEcoWorld class definition
 
 void AEcoWorld::SetupSpatialStructure() {
+  if (config->SPATIAL_STRUCTURE() == "default") {
+    SetupSpatialStructure_Default();
+  } else if (config->SPATIAL_STRUCTURE() == "well-mixed") {
+    SetupSpatialStructure_WellMixed();
+  } else if (config->SPATIAL_STRUCTURE() == "load") {
+    SetupSpatialStructure_Load();
+  } else {
+    std::cout << "Unknown spatial structure: " << config->SPATIAL_STRUCTURE() << std::endl;
+    std::cout << "Exiting." << std::endl;
+    exit(-1);
+  }
+}
 
+// Configures spatial structure as 2d toroidal grid
+void AEcoWorld::SetupSpatialStructure_Default() {
+  ConfigureToroidalGrid(
+    spatial_structure,
+    config->WORLD_X(),
+    config->WORLD_Y()
+  );
+}
 
+// Configures spatial structure to be fully connected
+void AEcoWorld::SetupSpatialStructure_WellMixed() {
+  ConfigureFullyConnected(
+    spatial_structure,
+    config->WORLD_X() * config->WORLD_Y()
+  );
+}
 
+// Loads spatial structure from file
+void AEcoWorld::SetupSpatialStructure_Load() {
+  if (config->SPATIAL_STRUCTURE_LOAD_MODE() == "edges") {
+    spatial_structure.LoadStructureFromEdgeCSV(config->SPATIAL_STRUCTURE_FILE());
+  } else if (config->SPATIAL_STRUCTURE_LOAD_MODE() == "matrix") {
+    spatial_structure.LoadStructureFromMatrix(config->SPATIAL_STRUCTURE_FILE());
+  } else {
+    std::cout << "Unknown spatial structure load mode: " << config->SPATIAL_STRUCTURE_LOAD_MODE() << std::endl;
+    std::cout << "Exiting." << std::endl;
+    exit(-1);
+  }
 }
 
 } // End chemical_ecology namespace
