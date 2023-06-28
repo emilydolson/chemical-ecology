@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <sys/stat.h>
 
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
@@ -37,13 +38,14 @@ private:
   // Although the world is stored as a flat vector of cells
   // it represents a grid of cells
   using world_t = emp::vector< emp::vector<double> >;
+  using config_t = Config;
 
   // The matrix of interactions between types
   // The diagonal of this matrix represents the
   // intrinsic growth rate (r) of each type
   emp::vector< emp::vector<double> > interactions;
 
-  chemical_ecology::SpatialStructure spatial_structure;
+  SpatialStructure spatial_structure;
 
   // A random number generator for all our random number
   // generating needs
@@ -66,8 +68,10 @@ private:
   emp::vector<emp::vector<int>> subCommunities;
 
   // Set up data tracking
-  emp::DataFile data_file;
-  emp::DataFile stochastic_data_file;
+  std::string output_dir;
+  emp::Ptr<emp::DataFile> data_file = nullptr;
+  emp::Ptr<emp::DataFile> stochastic_data_file = nullptr;
+
   emp::DataNode<double, emp::data::Stats> biomass_node;
   emp::vector<double> fittest;
   emp::vector<double> dominant;
@@ -77,58 +81,73 @@ private:
 
 public:
   // Default constructor just has to set name of output file
-  AEcoWorld() : data_file("a-eco_data.csv"), stochastic_data_file("a-eco_model_data.csv") {;}
+  // AEcoWorld() :
+  //   data_file(), stochastic_data_file("a-eco_model_data.csv") {;}
 
-  const world_t& GetWorld() const { return world; }
+  ~AEcoWorld() {
+    if (data_file != nullptr) data_file.Delete();
+    if (stochastic_data_file != nullptr) stochastic_data_file.Delete();
+  }
 
   // Setup the world according to the specified configuration
-  void Setup(chemical_ecology::Config & cfg) {
-    // Store cfg for future reference
-    config = &cfg;
+  void Setup(config_t& cfg) {
+  // Store cfg for future reference
+  config = &cfg;
 
-    // Set local config variables based on given configuration
-    N_TYPES = config->N_TYPES();
-    MAX_POP = double(config->MAX_POP());
+  // Set local config variables based on given configuration
+  N_TYPES = config->N_TYPES();
+  MAX_POP = double(config->MAX_POP());
 
-    // Set seed to configured value for reproducibility
-    rnd.ResetSeed(config->SEED());
+  // Set seed to configured value for reproducibility
+  rnd.ResetSeed(config->SEED());
 
-    // world vector needs a spot for each cell in the grid
-    world.resize(config->WORLD_X() * config->WORLD_Y());
-    // Initialize world vector
-    for (emp::vector<double> & v : world) {
-      v.resize(N_TYPES);
-      for (double & count : v) {
-        // The quantity of each type in each cell is either 0 or 1
-        // The probability of it being 1 is controlled by SEEDING_PROB
-        count = rnd.P(config->SEEDING_PROB());
-      }
+  // world vector needs a spot for each cell in the grid
+  world.resize(config->WORLD_X() * config->WORLD_Y());
+  // Initialize world vector
+  for (emp::vector<double> & v : world) {
+    v.resize(N_TYPES);
+    for (double & count : v) {
+      // The quantity of each type in each cell is either 0 or 1
+      // The probability of it being 1 is controlled by SEEDING_PROB
+      count = rnd.P(config->SEEDING_PROB());
     }
-
-    // Setup interaction matrix based on the method
-    // specified in the configuration file
-    if (config->INTERACTION_SOURCE() == "") {
-      SetupRandomInteractions();
-    } else {
-      LoadInteractionMatrix(config->INTERACTION_SOURCE());
-    }
-
-    data_file.AddVar(curr_update, "Time", "Time");
-    data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
-    data_file.SetTimingRepeat(10);
-    data_file.PrintHeaderKeys();
-
-    stochastic_data_file.AddVar(curr_update2, "Time", "Time");
-    //Takes all communities in the current world, and prints them to a file along with their stochastic world proportions
-    stochastic_data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
-    stochastic_data_file.AddVar(worldType, "worldType", "world type");
-    stochastic_data_file.SetTimingRepeat(10);
-    stochastic_data_file.PrintHeaderKeys();
-
-    // Make sure you get sub communities after setting up the matrix
-    // otherwise the matrix will be empty when this is called
-    subCommunities = findSubCommunities();
   }
+
+  // Setup interaction matrix based on the method
+  // specified in the configuration file
+  if (config->INTERACTION_SOURCE() == "") {
+    SetupRandomInteractions();
+  } else {
+    LoadInteractionMatrix(config->INTERACTION_SOURCE());
+  }
+
+  // Configure output directory path, create directory
+  output_dir = config->OUTPUT_DIR();
+  mkdir(output_dir.c_str(), ACCESSPERMS);
+  if(output_dir.back() != '/') {
+      output_dir += '/';
+  }
+
+  data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_data.csv");
+  data_file->AddVar(curr_update, "Time", "Time");
+  data_file->AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
+  data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
+  data_file->PrintHeaderKeys();
+
+  stochastic_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_model_data.csv");
+  stochastic_data_file->AddVar(curr_update2, "Time", "Time");
+  // Takes all communities in the current world, and prints them to a file along with their stochastic world proportions
+  stochastic_data_file->AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
+  stochastic_data_file->AddVar(worldType, "worldType", "world type");
+  stochastic_data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
+  stochastic_data_file->PrintHeaderKeys();
+
+  // Make sure you get sub communities after setting up the matrix
+  // otherwise the matrix will be empty when this is called
+  subCommunities = findSubCommunities();
+}
+
+  const world_t& GetWorld() const { return world; }
 
   // Handle the process of running the program through
   // all time steps
@@ -293,7 +312,7 @@ public:
 
     // Give data_file the opportunity to write to the file
     worldState = next_world;
-    data_file.Update(curr_update);
+    data_file->Update(curr_update);
 
     // We're done calculating the type counts for the next
     // time step. We can now swap our counts for the next
@@ -496,7 +515,7 @@ public:
       if(i%10 == 0 && iter == 0){
         curr_update2 = i;
         stochasticWorldState = next_model_world;
-        stochastic_data_file.Update(curr_update2);
+        stochastic_data_file->Update(curr_update2);
       }
 
       std::swap(model_world, next_model_world);

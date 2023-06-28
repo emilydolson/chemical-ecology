@@ -14,16 +14,20 @@ namespace chemical_ecology {
     VALUE(MAX_POP, int, 10000, "Maximum population size for one type in one cell"),
     VALUE(DIFFUSION, double, 1, "Proportion of each population that diffuses to adjacent cells"),
     VALUE(SEEDING_PROB, double, .001, "Probability that a member of a given species will randomly be introduced to a cell"),
-    VALUE(PROB_CLEAR, double, .25, "Probability of cell being cleared out"),    
+    VALUE(PROB_CLEAR, double, .25, "Probability of cell being cleared out"),
     VALUE(REPRO_DILUTION, double, .1, "Proportion of contents to propogate on reproduction"),
-    //Group repro enabled for all adaptive stochastic worlds under current architecture 
+    //Group repro enabled for all adaptive stochastic worlds under current architecture
     //VALUE(GROUP_REPRO, bool, false, "True if proportional group level reproduction is enabled this run"),
     VALUE(V, bool, false, "True if running in verbose mode (Will print out all world vectors)"),
 
     GROUP(INTERACTION_SETTINGS, "Interaction Sources"),
-    VALUE(INTERACTION_SOURCE, std::string, "config/proof_of_concept_interaction_matrix.dat", "Where to load interaction matrix from; empty string will generate randomly"),    
+    VALUE(INTERACTION_SOURCE, std::string, "config/proof_of_concept_interaction_matrix.dat", "Where to load interaction matrix from; empty string will generate randomly"),
     VALUE(INTERACTION_MAGNITUDE, double, 1, "Range of interaction intensities (from negative of this value to positive of this value"),
     VALUE(PROB_INTERACTION, double, .1, "Probability of there being an interaction between any given pair of species"),
+
+    GROUP(OUTPUT_SETTINGS, "Settings related to data output"),
+    VALUE(OUTPUT_DIR, std::string, "./output/", "What directory are we dumping data?"),
+    VALUE(OUTPUT_RESOLUTION, size_t, 10, "How often should we output data?")
 
   );
 }
