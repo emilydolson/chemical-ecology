@@ -29,6 +29,7 @@ node_modules/
 coverage_include/
 
 local/
+output/
 
 *.csv
 
