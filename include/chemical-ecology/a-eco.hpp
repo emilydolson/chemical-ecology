@@ -1,16 +1,17 @@
 #pragma once
 
 #include <iostream>
+#include <string>
+#include <math.h>
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
 #include "emp/math/random_utils.hpp"
 #include "emp/datastructs/Graph.hpp"
 #include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
-#include "chemical-ecology/config_setup.hpp"
 #include "emp/datastructs/map_utils.hpp"
-#include <string>
-#include <math.h>
+#include "chemical-ecology/config_setup.hpp"
+#include "chemical-ecology/SpatialStructure.hpp"
 
 // TERMINOLOGY NOTES:
 //
@@ -18,7 +19,7 @@
 // - Type = a type of thing that can live in a cell
 //          (e.g. a chemical or a species). Usually
 //          called a species in practice
-// - Community = a set of types that interact and can 
+// - Community = a set of types that interact and can
 //                coexist in the world
 
 // A class to handle running the simple ecology
@@ -26,16 +27,18 @@ class AEcoWorld {
   private:
     // The world is a vector of cells (where each cell is
     // represented as a vector ints representing the count of
-    // each type in each cell). 
-    
+    // each type in each cell).
+
     // Although the world is stored as a flat vector of cells
     // it represents a grid of cells
-    using world_t = emp::vector<emp::vector<double> >;
+    using world_t = emp::vector< emp::vector<double> >;
 
     // The matrix of interactions between types
-    // The diagonal of this matrix represents the 
+    // The diagonal of this matrix represents the
     // intrinsic growth rate (r) of each type
-    emp::vector<emp::vector<double> > interactions;
+    emp::vector< emp::vector<double> > interactions;
+
+    chemical_ecology::SpatialStructure spatial_structure;
 
     // A random number generator for all our random number
     // generating needs
@@ -67,7 +70,7 @@ class AEcoWorld {
 
   // Initialize vector that keeps track of grid
   world_t world;
-  
+
   // List of any isolated communities
   emp::vector<emp::vector<int>> subCommunities;
 
@@ -102,7 +105,7 @@ class AEcoWorld {
     } else {
       LoadInteractionMatrix(config->INTERACTION_SOURCE());
     }
-    
+
     data_file.AddVar(curr_update, "Time", "Time");
     data_file.AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
     data_file.SetTimingRepeat(10);
@@ -139,9 +142,9 @@ class AEcoWorld {
     for (int i = 0; i < config->UPDATES(); i++) {
       Update(i);
     }
-    
+
     world_t stable_world = stableUpdate(world, config->WORLD_X(), config->WORLD_Y());
-    
+
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
@@ -199,7 +202,7 @@ class AEcoWorld {
     {
       std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
-    
+
     //Print out final state if in verbose mode
     if(config->V()){
       std::cout << "World Vectors:" << std::endl;
@@ -217,7 +220,7 @@ class AEcoWorld {
   // ud = which time step we're on
   void Update(int ud) {
 
-    // Create a new world object to store the values 
+    // Create a new world object to store the values
     // for the next time step
     world_t next_world;
     next_world.resize(config->WORLD_X() * config->WORLD_Y());
@@ -250,17 +253,17 @@ class AEcoWorld {
       // needs to handle toroidal wraparound
       int x = pos % config->WORLD_X(); // x coordinate
       int y = pos / config->WORLD_Y(); // y coordinate
-      int left = pos - 1;  // Assuming no wraparound    
+      int left = pos - 1;  // Assuming no wraparound
       int right = pos + 1; // Assuming no wraparound
 
       // Check whether we need to adjust left and right
       // cell ids for wraparound
       if (x == 0) {
-        left += config->WORLD_X(); 
+        left += config->WORLD_X();
       } else if (x == config->WORLD_X() - 1) {
         right -= config->WORLD_X();
       }
- 
+
       // Calculate up and down assuming no wraparound
       int up = pos - config->WORLD_X();
       int down = pos + config->WORLD_X();
@@ -280,14 +283,14 @@ class AEcoWorld {
 
     // Update our time tracker
     curr_update = ud;
-    
+
     // Give data_file the opportunity to write to the file
     worldState = next_world;
     data_file.Update(curr_update);
 
     // We're done calculating the type counts for the next
     // time step. We can now swap our counts for the next
-    // time step into the main world variable 
+    // time step into the main world variable
     std::swap(world, next_world);
 
     // Clean-up data trackers
@@ -300,7 +303,7 @@ class AEcoWorld {
     for (int i = 0; i < N_TYPES; i++) {
       double modifier = 0;
       for (int j = 0; j < N_TYPES; j++) {
-        // Sum up growth rate modifier for type i 
+        // Sum up growth rate modifier for type i
         modifier += interactions[i][j] * curr_world[pos][j];
       }
 
@@ -313,10 +316,10 @@ class AEcoWorld {
     }
   }
 
-  // The probability of group reproduction is proportional to 
-  // the biomass of the community 
+  // The probability of group reproduction is proportional to
+  // the biomass of the community
   void doGroupRepro(size_t pos, world_t & w, world_t & next_w) {
-    //Get these values once so they can be reused 
+    //Get these values once so they can be reused
     int max_pop = config->MAX_POP();
     int types = config->N_TYPES();
     double dilution = config->REPRO_DILUTION();
@@ -329,9 +332,9 @@ class AEcoWorld {
         pop += w[pos][species];
       }
       double ratio = pop/(max_pop*types);
-      // If group repro 
+      // If group repro
       if (rnd.P(ratio)){
-        // Get a random cell that is not this cell to group level reproduce into 
+        // Get a random cell that is not this cell to group level reproduce into
         size_t new_pos;
         do {
           new_pos = rnd.GetInt((int)w.size() - 1);
@@ -369,7 +372,7 @@ class AEcoWorld {
         for (int i = 0; i < N_TYPES; i++) {
           // Calculate amount diffusing
           double avail = curr_world[pos][i] * diffusion;
-          
+
           // Send 1/4 of it in the direction we're currently processing
           next_world[direction][i] +=  avail / 4;
           // if (avail/4 > 0 && adj.size() == 4) {
@@ -396,7 +399,7 @@ class AEcoWorld {
     }
   }
 
-  //This function should be called to create a stable copy of the world 
+  //This function should be called to create a stable copy of the world
   world_t stableUpdate(world_t custom_world, int world_x, int world_y, int max_updates=10000){
     world_t stable_world;
     world_t next_stable_world;
@@ -550,7 +553,7 @@ class AEcoWorld {
     return finalCommunities;
   }
 
-  // Helper functions not related to the running of the worlds go down here 
+  // Helper functions not related to the running of the worlds go down here
 
   //Species cannot be a part of a community they have no interaction with
   //Find the connected components of the interaction matrix, and determine sub-communites
@@ -575,7 +578,7 @@ class AEcoWorld {
     component.push_back(root);
 
     for(size_t i = 0; i < interactions[root].size(); i++){
-      //Both incoming and outgoing edges count as interactions 
+      //Both incoming and outgoing edges count as interactions
       if((interactions[root][i] != 0 && (!visited[i])) || (interactions[i][root] != 0 && (!visited[i]))){
         dfs(i, visited, interactions, component);
       }
@@ -644,7 +647,7 @@ class AEcoWorld {
   }
 
   // Load an interaction matrix from the specified file
-  void LoadInteractionMatrix(std::string filename) {    
+  void LoadInteractionMatrix(std::string filename) {
     emp::File infile(filename);
     emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
 
@@ -660,11 +663,11 @@ class AEcoWorld {
   // Store the current interaction matrix in a file
   void WriteInteractionMatrix(std::string filename) {
     emp::File outfile;
-    
+
     for (int i = 0; i < N_TYPES; i++) {
       outfile += emp::join(interactions[i], ",");
     }
-    
+
     outfile.Write(filename);
   }
 };
