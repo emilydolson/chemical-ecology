@@ -169,6 +169,10 @@ public:
     return connection_matrix.size();
   }
 
+  const emp::vector< emp::vector<bool> >& GetConnectionMatrix() const {
+    return connection_matrix;
+  }
+
   // Get an ordered list of neighbors for given position
   const emp::vector<size_t>& GetNeighbors(size_t pos) const {
     emp_assert(pos < ordered_connections.size());

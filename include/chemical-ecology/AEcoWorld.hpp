@@ -46,7 +46,9 @@ private:
   // intrinsic growth rate (r) of each type
   emp::vector< emp::vector<double> > interactions;
 
-  SpatialStructure spatial_structure;
+  SpatialStructure diffusion_spatial_structure;
+  SpatialStructure group_repro_spatial_structure;
+  size_t world_size = 0;
 
   // A random number generator for all our random number
   // generating needs
@@ -57,7 +59,7 @@ private:
 
   // These values are set in the config but we have local
   // copies for efficiency in accessing their values
-  int N_TYPES;
+  size_t N_TYPES;
   double MAX_POP;
   int curr_update;
   int curr_update2;
@@ -85,11 +87,18 @@ private:
 
   // Configures spatial structure based on world configuration.
   void SetupSpatialStructure();
-  void SetupSpatialStructure_Default();
-  void SetupSpatialStructure_WellMixed();
-  void SetupSpatialStructure_Load();
+  void SetupSpatialStructure_ToroidalGrid(SpatialStructure& spatial_structure);
+  void SetupSpatialStructure_WellMixed(SpatialStructure& spatial_structure);
+  void SetupSpatialStructure_Load(
+    SpatialStructure& spatial_structure,
+    const std::string& file_path,
+    const std::string& load_mode
+  );
 
 public:
+
+  // TODO
+  // - Output run configuration, output world size
 
   AEcoWorld() = default;
 
@@ -111,16 +120,22 @@ public:
     // Set seed to configured value for reproducibility
     rnd.ResetSeed(config->SEED());
 
+    // Setup spatial structure (configures world size)
+    world_size = 0; // World size not valid until after setting up spatial structure
+    SetupSpatialStructure();
+
     // world vector needs a spot for each cell in the grid
-    world.resize(config->WORLD_X() * config->WORLD_Y());
+    world.resize(
+      world_size,
+      emp::vector<double>(N_TYPES, 0.0)
+    );
 
     // Initialize world vector
     for (emp::vector<double>& v : world) {
-      v.resize(N_TYPES);
       for (double& count : v) {
         // The quantity of each type in each cell is either 0 or 1
         // The probability of it being 1 is controlled by SEEDING_PROB
-        count = rnd.P(config->SEEDING_PROB());
+        count = (double)rnd.P(config->SEEDING_PROB());
       }
     }
 
@@ -131,10 +146,6 @@ public:
       position_activation_order.end(),
       0
     );
-
-    // Setup spatial structure
-    SetupSpatialStructure();
-    // spatial_structure.Print();
 
     // Setup interaction matrix based on the method
     // specified in the configuration file
@@ -191,7 +202,7 @@ public:
       Update(i); // @AML: BOOKMARK
     }
 
-    world_t stable_world = stableUpdate(world, config->WORLD_X(), config->WORLD_Y());
+    world_t stable_world(stableUpdate(world));
 
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
     std::map<std::string, double> assemblyFinalCommunities;
@@ -200,9 +211,9 @@ public:
     int n = 10;
     for(int i = 0; i < n; i++){
       world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
-      world_t stableAssemblyModel = stableUpdate(assemblyModel, config->WORLD_X(), config->WORLD_Y());
+      world_t stableAssemblyModel = stableUpdate(assemblyModel);
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
-      world_t stableAdaptiveModel = stableUpdate(adaptiveModel, config->WORLD_X(), config->WORLD_Y());
+      world_t stableAdaptiveModel = stableUpdate(adaptiveModel);
       std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
       std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
       for(auto& [node, proportion] : assemblyCommunities){
@@ -270,11 +281,10 @@ public:
 
     // Create a new world object to store the values
     // for the next time step
-    world_t next_world;
-    next_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double>& v : next_world) {
-      v.resize(N_TYPES, 0);
-    }
+    world_t next_world(
+      world_size,
+      emp::vector<double>(N_TYPES, 0)
+    );
 
     // Handle population growth for each cell
     for (size_t pos = 0; pos < world.size(); pos++) {
@@ -293,38 +303,19 @@ public:
 
       int pos = (int)position_activation_order[i];
 
-      // Figure out which cells are above, below, left
-      // and right of the focal cell.
-      // This process is a little arduous because it
-      // needs to handle toroidal wraparound
-      int x = pos % config->WORLD_X(); // x coordinate
-      int y = pos / config->WORLD_Y(); // y coordinate
-      int left = pos - 1;  // Assuming no wraparound
-      int right = pos + 1; // Assuming no wraparound
-
-      // Check whether we need to adjust left and right
-      // cell ids for wraparound
-      if (x == 0) {
-        left += config->WORLD_X();
-      } else if (x == config->WORLD_X() - 1) {
-        right -= config->WORLD_X();
-      }
-
-      // Calculate up and down assuming no wraparound
-      int up = pos - config->WORLD_X();
-      int down = pos + config->WORLD_X();
-
-      // Adjust for wraparound if necessary
-      if (y == 0) {
-        up += config->WORLD_X() * (config->WORLD_Y());
-      } else if (y == config->WORLD_Y() - 1) {
-        down -= config->WORLD_X() * (config->WORLD_Y());
-      }
-
       // Actually call function that handles between-cell
       // movement
-      emp::vector<int> adj = {up, down, left, right};
-      DoRepro(pos, adj, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR(), config->DIFFUSION(), false);
+      // ORIGINAL CALL:
+      //  - DoRepro(pos, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR(), config->DIFFUSION(), false);
+      // (1) Do group reproduction?
+      //  - Note: group repro was never possible here
+      // (2) Do cell clearing
+      DoClearing(pos, world, next_world, config->PROB_CLEAR());
+      // (3) Do diffusion
+      DoDiffusion(pos, world, next_world, config->DIFFUSION());
+      // (4) Do seeding
+      DoSeeding(pos, world, next_world, config->SEEDING_PROB());
+
     }
 
     // Update our time tracker
@@ -346,9 +337,9 @@ public:
   // Handles population growth of each type within a cell
   void DoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
     //For each species i
-    for (int i = 0; i < N_TYPES; i++) {
+    for (size_t i = 0; i < N_TYPES; i++) {
       double modifier = 0;
-      for (int j = 0; j < N_TYPES; j++) {
+      for (size_t j = 0; j < N_TYPES; j++) {
         // Sum up growth rate modifier for type i
         modifier += interactions[i][j] * curr_world[pos][j];
       }
@@ -364,10 +355,10 @@ public:
 
   // The probability of group reproduction is proportional to
   // the biomass of the community
-  void doGroupRepro(size_t pos, world_t & w, world_t & next_w) {
+  void DoGroupRepro(size_t pos, world_t & w, world_t & next_w) {
     //Get these values once so they can be reused
     int max_pop = config->MAX_POP();
-    int types = config->N_TYPES();
+    size_t types = config->N_TYPES();
     double dilution = config->REPRO_DILUTION();
 
     //Need to do GR in a random order, so the last sub-community does not have more repro power
@@ -385,7 +376,7 @@ public:
         do {
           new_pos = rnd.GetInt((int)w.size() - 1);
         } while (new_pos == pos);
-        for (int i = 0; i < N_TYPES; i++) {
+        for (size_t i = 0; i < N_TYPES; i++) {
           // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
           // in the focal cell to the cell we're replicating into
           // NOTE: An important decision here is whether to clear the cell first.
@@ -396,76 +387,75 @@ public:
     }
   }
 
-  // Handle movement of biomass between cells
-  void DoRepro(size_t pos, emp::vector<int> & adj, world_t & curr_world, world_t & next_world, double seed_prob, double prob_clear, double diffusion, bool GROUP_REPRO) {
-    // Handle group repro for adaptive world
-    if(GROUP_REPRO){
-      doGroupRepro(pos, curr_world, next_world);
-    }
-
+  void DoClearing(size_t pos, world_t& curr_world, world_t& next_world, double prob_clear) {
     // Each cell has a chance of being cleared on every time step
     if (rnd.P(prob_clear)) {
-      for (int i = 0; i < N_TYPES; i++) {
+      for (size_t i = 0; i < N_TYPES; i++) {
         next_world[pos][i] = 0;
       }
     }
+  }
 
+  void DoDiffusion(size_t pos, world_t& curr_world, world_t& next_world, double diffusion) {
     // Handle diffusion
     // Only diffuse in the real world
     // The adj vector should be empty for stochastic worlds, which do not have spatial structure
-    if(adj.size() > 0){
-      for (int direction : adj) {
-        for (int i = 0; i < N_TYPES; i++) {
+    const auto& neighbors = diffusion_spatial_structure.GetNeighbors(pos);
+    const size_t num_neighbors = neighbors.size();
+    if (num_neighbors > 0) {
+      // Diffuse to neighbors
+      for (size_t neighbor : neighbors) {
+        for (size_t i = 0; i < N_TYPES; ++i) {
+
           // Calculate amount diffusing
           double avail = curr_world[pos][i] * diffusion;
 
-          // Send 1/4 of it in the direction we're currently processing
-          next_world[direction][i] +=  avail / 4;
-          // if (avail/4 > 0 && adj.size() == 4) {
-          //   std::cout << pos <<  " " << i << " Diffusing: " << next_world[direction][i] << " " << avail/4 << std::endl;
-          // }
+          // Evenly distribute the diffusion
+          next_world[neighbor][i] +=  avail / num_neighbors;
 
           // make sure final value is legal number
-          next_world[direction][i] = std::min(next_world[direction][i], MAX_POP);
-          next_world[direction][i] = std::max(next_world[direction][i], 0.0);
+          next_world[neighbor][i] = std::min(next_world[neighbor][i], MAX_POP);
+          next_world[neighbor][i] = std::max(next_world[neighbor][i], 0.0);
         }
       }
 
-      //subtract diffusion
-      for (int i = 0; i < N_TYPES; i++) {
+      // Subtract diffusion
+      for (size_t i = 0; i < N_TYPES; ++i) {
         next_world[pos][i] -= curr_world[pos][i] * diffusion;
         // We can't have negative population sizes
         next_world[pos][i] = std::max(next_world[pos][i], 0.0);
       }
     }
-    //Seed in
+  }
+
+  void DoSeeding(size_t pos, world_t& curr_world, world_t& next_world, double seed_prob) {
+    // Seed in
     if (rnd.P(seed_prob)) {
-      int species = rnd.GetInt(N_TYPES);
+      size_t species = rnd.GetUInt(N_TYPES);
       next_world[pos][species]++;
     }
   }
 
-  //This function should be called to create a stable copy of the world
-  world_t stableUpdate(world_t custom_world, int world_x, int world_y, int max_updates=10000){
-    world_t stable_world;
-    world_t next_stable_world;
+  // This function should be called to create a stable copy of the world
+  world_t stableUpdate(const world_t& custom_world, int max_updates=10000){
 
-    stable_world.resize(world_x * world_y);
-    for (emp::vector<double> & v : next_stable_world) {
-      v.resize(N_TYPES, 0);
-    }
+    // Track current and next state of world
+    world_t stable_world(
+      world_size,
+      emp::vector<double>(N_TYPES, 0.0)
+    );
+    world_t next_stable_world(stable_world);
 
-    next_stable_world.resize(world_x * world_y);
-    for (emp::vector<double> & v : next_stable_world) {
-      v.resize(N_TYPES, 0);
-    }
+    // Copy current world into stable world
+    std::copy(
+      custom_world.begin(),
+      custom_world.end(),
+      stable_world.begin()
+    );
+    emp_assert(custom_world == stable_world);
 
-    //copy current world into stable world
-    for(size_t i = 0; i < custom_world.size(); i++){
-      stable_world[i].assign(custom_world[i].begin(), custom_world[i].end());
-    }
+    for (int i = 0; i < max_updates; i++) {
 
-    for(int i = 0; i < max_updates; i++){
       // Handle population growth for each cell
       for (size_t pos = 0; pos < custom_world.size(); pos++) {
         DoGrowth(pos, stable_world, next_stable_world);
@@ -474,11 +464,11 @@ public:
       // We can stop iterating early if the world has already stabilized
       double delta = 0;
       double epsilon = .0001;
-      for (size_t j = 0; j < stable_world.size(); j++){
+      for (size_t j = 0; j < stable_world.size(); j++) {
         delta += emp::EuclideanDistance(stable_world[j], next_stable_world[j]);
       }
       // If the change from one world to the next is very small, return early
-      if(delta < epsilon){
+      if (delta < epsilon) {
         for (size_t pos = 0; pos < stable_world.size(); pos++) {
           for (size_t s = 0; s < stable_world[pos].size(); s++) {
             if (stable_world[pos][s] < 1) {
@@ -502,37 +492,38 @@ public:
   }
 
   world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob, int iter) {
-    world_t model_world;
-    world_t next_model_world;
-    if(repro)
-      worldType = "Repro";
-    else
-      worldType = "Soup";
-    model_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : model_world) {
-      v.resize(N_TYPES, 0);
-    }
-    next_model_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : next_model_world) {
-      v.resize(N_TYPES, 0);
-    }
 
-    for(int i = 0; i < num_updates; i++) {
-      //handle in cell growth
+    worldType = (repro) ? "Repro" : "Soup";
+
+    // Track current and next stochastic model worlds.
+    world_t model_world(
+      world_size,
+      emp::vector<double>(N_TYPES, 0.0)
+    );
+    world_t next_model_world(model_world);
+
+    for (int i = 0; i < num_updates; i++) {
+      // handle in cell growth
       for (size_t pos = 0; pos < model_world.size(); pos++) {
         DoGrowth(pos, model_world, next_model_world);
       }
-      //handle abiotic parameters and group repro
-      //adj will be empty for each pos, since there is no spatial structure
-      //diffusion will be zero for the same reason
-      emp::vector<int> adj = {};
-      double diff = 0.0;
+      // Handle abiotic parameters and group repro
+      // There is no spatial structure / no diffusion.
       for (size_t pos = 0; pos < model_world.size(); pos++) {
-        DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
+        // ORIGINAL DoRepro call:
+        //   DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
+        // (1) Group repro
+        if (repro) {
+          DoGroupRepro(pos, model_world, next_model_world);
+        }
+        // (2) clearing
+        DoClearing(pos, model_world, next_model_world, config->PROB_CLEAR());
+        // (3) seeding
+        DoSeeding(pos, model_world, next_model_world, config->SEEDING_PROB());
       }
 
-      //Only plot the first runs of each
-      if(i%10 == 0 && iter == 0){
+      // Only plot the first runs of each
+      if (i % 10 == 0 && iter == 0) {
         curr_update2 = i;
         stochasticWorldState = next_model_world;
         stochastic_data_file->Update(curr_update2);
@@ -540,15 +531,18 @@ public:
 
       std::swap(model_world, next_model_world);
 
-      if(iter == 0){
+      if (iter == 0) {
         stochasticWorldState.clear();
       }
+
     }
 
     return model_world;
   }
 
   const world_t& GetWorld() const { return world; }
+
+  size_t GetWorldSize() const { return world_size; }
 
   std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     double size = stable_world.size();
@@ -641,9 +635,9 @@ public:
 
   double doCalcGrowthRate(emp::vector<double> community){
     double growth_rate = 0;
-    for (int i = 0; i < N_TYPES; i++) {
+    for (size_t i = 0; i < N_TYPES; i++) {
       double modifier = 0;
-      for (int j = 0; j < N_TYPES; j++) {
+      for (size_t j = 0; j < N_TYPES; j++) {
         // Each type contributes to the growth rate modifier
         // of each other type based on the product of its
         // interaction value with that type and its population size
@@ -679,9 +673,9 @@ public:
     // N_TYPES x N_TYPES
     interactions.resize(N_TYPES);
 
-    for (int i = 0; i < N_TYPES; i++) {
+    for (size_t i = 0; i < N_TYPES; i++) {
       interactions[i].resize(N_TYPES);
-      for (int j = 0; j < N_TYPES; j++) {
+      for (size_t j = 0; j < N_TYPES; j++) {
         // PROB_INTERACTION determines probability of there being
         // an interaction between a given pair of types.
         // Controls sparsity of interaction matrix
@@ -700,9 +694,9 @@ public:
     emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
 
     interactions.resize(N_TYPES);
-    for (int i = 0; i < N_TYPES; i++) {
+    for (size_t i = 0; i < N_TYPES; i++) {
       interactions[i].resize(N_TYPES);
-      for (int j = 0; j < N_TYPES; j++) {
+      for (size_t j = 0; j < N_TYPES; j++) {
         interactions[i][j] = interaction_data[i][j];
       }
     }
@@ -712,7 +706,7 @@ public:
   void WriteInteractionMatrix(std::string filename) {
     emp::File outfile;
 
-    for (int i = 0; i < N_TYPES; i++) {
+    for (size_t i = 0; i < N_TYPES; i++) {
       outfile += emp::join(interactions[i], ",");
     }
 
@@ -722,44 +716,85 @@ public:
 }; // End AEcoWorld class definition
 
 void AEcoWorld::SetupSpatialStructure() {
-  if (config->SPATIAL_STRUCTURE() == "default") {
-    SetupSpatialStructure_Default();
-  } else if (config->SPATIAL_STRUCTURE() == "well-mixed") {
-    SetupSpatialStructure_WellMixed();
-  } else if (config->SPATIAL_STRUCTURE() == "load") {
-    SetupSpatialStructure_Load();
+  // Configure diffusion spatial structure
+  if (config->DIFFUSION_SPATIAL_STRUCTURE() == "toroidal-grid") {
+    SetupSpatialStructure_ToroidalGrid(diffusion_spatial_structure);
+  } else if (config->DIFFUSION_SPATIAL_STRUCTURE() == "well-mixed") {
+    SetupSpatialStructure_WellMixed(diffusion_spatial_structure);
+  } else if (config->DIFFUSION_SPATIAL_STRUCTURE() == "load") {
+    SetupSpatialStructure_Load(
+      diffusion_spatial_structure,
+      config->DIFFUSION_SPATIAL_STRUCTURE_FILE(),
+      config->DIFFUSION_SPATIAL_STRUCTURE_LOAD_MODE()
+    );
   } else {
-    std::cout << "Unknown spatial structure: " << config->SPATIAL_STRUCTURE() << std::endl;
+    std::cout << "Unknown diffusion spatial structure: " << config->DIFFUSION_SPATIAL_STRUCTURE() << std::endl;
     std::cout << "Exiting." << std::endl;
     exit(-1);
   }
+
+  // Configure group repro spatial structure
+  if (config->GROUP_REPRO_SPATIAL_STRUCTURE() == "toroidal-grid") {
+    SetupSpatialStructure_ToroidalGrid(group_repro_spatial_structure);
+  } else if (config->GROUP_REPRO_SPATIAL_STRUCTURE() == "well-mixed") {
+    SetupSpatialStructure_WellMixed(group_repro_spatial_structure);
+  } else if (config->GROUP_REPRO_SPATIAL_STRUCTURE() == "load") {
+    SetupSpatialStructure_Load(
+      group_repro_spatial_structure,
+      config->GROUP_REPRO_SPATIAL_STRUCTURE_FILE(),
+      config->GROUP_REPRO_SPATIAL_STRUCTURE_LOAD_MODE()
+    );
+  } else {
+    std::cout << "Unknown group repro spatial structure: " << config->GROUP_REPRO_SPATIAL_STRUCTURE() << std::endl;
+    std::cout << "Exiting." << std::endl;
+    exit(-1);
+  }
+
+  // Group repro and diffusion worlds must have the same number of positions
+  emp_assert(
+    group_repro_spatial_structure.GetNumPositions() == diffusion_spatial_structure.GetNumPositions(),
+    "Group repro and diffusion spatial structures must have an equivalent number of positions"
+  );
+
+  if (group_repro_spatial_structure.GetNumPositions() != diffusion_spatial_structure.GetNumPositions()) {
+    std::cout << "Group repro and diffusion spatial structures do not have the same number of positions." << std::endl;
+    std::cout << "  Exiting." << std::endl;
+    exit(-1);
+  }
+
+  world_size = diffusion_spatial_structure.GetNumPositions();
+
 }
 
 // Configures spatial structure as 2d toroidal grid
-void AEcoWorld::SetupSpatialStructure_Default() {
+void AEcoWorld::SetupSpatialStructure_ToroidalGrid(SpatialStructure& spatial_structure) {
   ConfigureToroidalGrid(
     spatial_structure,
-    config->WORLD_X(),
-    config->WORLD_Y()
+    config->WORLD_WIDTH(),
+    config->WORLD_HEIGHT()
   );
 }
 
 // Configures spatial structure to be fully connected
-void AEcoWorld::SetupSpatialStructure_WellMixed() {
+void AEcoWorld::SetupSpatialStructure_WellMixed(SpatialStructure& spatial_structure) {
   ConfigureFullyConnected(
     spatial_structure,
-    config->WORLD_X() * config->WORLD_Y()
+    config->WORLD_WIDTH() * config->WORLD_HEIGHT()
   );
 }
 
 // Loads spatial structure from file
-void AEcoWorld::SetupSpatialStructure_Load() {
-  if (config->SPATIAL_STRUCTURE_LOAD_MODE() == "edges") {
-    spatial_structure.LoadStructureFromEdgeCSV(config->SPATIAL_STRUCTURE_FILE());
-  } else if (config->SPATIAL_STRUCTURE_LOAD_MODE() == "matrix") {
-    spatial_structure.LoadStructureFromMatrix(config->SPATIAL_STRUCTURE_FILE());
+void AEcoWorld::SetupSpatialStructure_Load(
+  SpatialStructure& spatial_structure,
+  const std::string& file_path,
+  const std::string& load_mode
+) {
+  if (load_mode == "edges") {
+    spatial_structure.LoadStructureFromEdgeCSV(file_path);
+  } else if (load_mode == "matrix") {
+    spatial_structure.LoadStructureFromMatrix(file_path);
   } else {
-    std::cout << "Unknown spatial structure load mode: " << config->SPATIAL_STRUCTURE_LOAD_MODE() << std::endl;
+    std::cout << "Unknown spatial structure load mode: " << load_mode << std::endl;
     std::cout << "Exiting." << std::endl;
     exit(-1);
   }
