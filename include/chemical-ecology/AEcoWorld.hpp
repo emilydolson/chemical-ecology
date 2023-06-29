@@ -296,7 +296,6 @@ public:
     // advantage when group repro triggers
     emp::Shuffle(rnd, position_activation_order);
 
-
     // Handle everything that allows biomass to move from
     // one cell to another. Do so for each cell
     for (size_t i = 0; i < world.size(); ++i) {
@@ -355,27 +354,35 @@ public:
 
   // The probability of group reproduction is proportional to
   // the biomass of the community
-  void DoGroupRepro(size_t pos, world_t & w, world_t & next_w) {
-    //Get these values once so they can be reused
-    int max_pop = config->MAX_POP();
-    size_t types = config->N_TYPES();
-    double dilution = config->REPRO_DILUTION();
+  void DoGroupRepro(size_t pos, const world_t& w, world_t& next_w) {
+    // Get these values once so they can be reused
+    const int max_pop = config->MAX_POP();
+    const size_t types = config->N_TYPES();
+    const double dilution = config->REPRO_DILUTION();
+    emp_assert(max_pop * types > 0);
 
-    //Need to do GR in a random order, so the last sub-community does not have more repro power
+    // Get neighbors
+    const auto& neighbors = group_repro_spatial_structure.GetNeighbors(pos);
+    const size_t num_neighbors = neighbors.size();
+    // If no neighbors, no valid destination to reproduce into
+    if (num_neighbors == 0) return;
+
+    // Need to do GR in a random order, so the last sub-community does not have more repro power
     emp::Shuffle(rnd, subCommunities);
     for (const auto& community : subCommunities) {
+      // Compute population size of this community
       double pop = 0;
       for (const auto& species : community) {
         pop += w[pos][species];
       }
-      double ratio = pop/(max_pop*types);
+      const double ratio = pop / (max_pop * types);
+
       // If group repro
-      if (rnd.P(ratio)){
-        // Get a random cell that is not this cell to group level reproduce into
-        size_t new_pos;
-        do {
-          new_pos = rnd.GetInt((int)w.size() - 1);
-        } while (new_pos == pos);
+      if (rnd.P(ratio)) {
+
+        // Get a random neighboring cell to reproduce into
+        const size_t new_pos = neighbors[rnd.GetUInt(num_neighbors)];
+
         for (size_t i = 0; i < N_TYPES; i++) {
           // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
           // in the focal cell to the cell we're replicating into
@@ -384,6 +391,7 @@ public:
           next_w[new_pos][i] = w[pos][i] * dilution;
         }
       }
+
     }
   }
 
