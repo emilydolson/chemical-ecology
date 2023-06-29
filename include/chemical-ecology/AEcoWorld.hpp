@@ -95,10 +95,10 @@ private:
     const std::string& load_mode
   );
 
-public:
+  // Output a snapshot of how the world is configured
+  void SnapshotConfig();
 
-  // TODO
-  // - Output run configuration, output world size
+public:
 
   AEcoWorld() = default;
 
@@ -179,6 +179,9 @@ public:
     // Make sure you get sub communities after setting up the matrix
     // otherwise the matrix will be empty when this is called
     subCommunities = findSubCommunities();
+
+    // Output a snapshot of the run configuration
+    SnapshotConfig();
   }
 
   // Handle the process of running the program through
@@ -806,6 +809,42 @@ void AEcoWorld::SetupSpatialStructure_Load(
     std::cout << "Exiting." << std::endl;
     exit(-1);
   }
+}
+
+void AEcoWorld::SnapshotConfig() {
+  emp::DataFile snapshot_file(output_dir + "run_config.csv");
+  std::function<std::string(void)> get_param;
+  std::function<std::string(void)> get_value;
+
+  snapshot_file.AddFun<std::string>(
+    [&get_param]() { return get_param(); },
+    "parameter"
+  );
+  snapshot_file.AddFun<std::string>(
+    [&get_value]() { return get_value(); },
+    "value"
+  );
+  snapshot_file.PrintHeaderKeys();
+
+  // Snapshot everything from config file
+  for (const auto& entry : *config) {
+    get_param = [&entry]() { return entry.first; };
+    get_value = [&entry]() { return emp::to_string(entry.second->GetValue()); };
+    snapshot_file.Update();
+  }
+
+  // Snapshot misc. other details
+  emp::vector<std::pair<std::string, std::string>> misc_params = {
+    std::make_pair("world_size", emp::to_string(world_size))
+    // Can add more param-value pairs here that are not included in config object
+  };
+
+  for (const auto& entry : misc_params) {
+    get_param = [&entry]() { return entry.first; };
+    get_value = [&entry]() { return entry.second; };
+    snapshot_file.Update();
+  }
+
 }
 
 } // End chemical_ecology namespace
