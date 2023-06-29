@@ -4,6 +4,7 @@
 #include <string>
 #include <math.h>
 #include <sys/stat.h>
+#include <algorithm>
 
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
@@ -67,6 +68,9 @@ private:
   // List of any isolated communities
   emp::vector<emp::vector<int>> subCommunities;
 
+  // Used to track activation order of positions in the world
+  emp::vector<size_t> position_activation_order;
+
   // Set up data tracking
   std::string output_dir;
   emp::Ptr<emp::DataFile> data_file = nullptr;
@@ -120,6 +124,14 @@ public:
       }
     }
 
+    // Initialize activation order
+    position_activation_order.resize(world.size(), 0);
+    std::iota(
+      position_activation_order.begin(),
+      position_activation_order.end(),
+      0
+    );
+
     // Setup spatial structure
     SetupSpatialStructure();
     // spatial_structure.Print();
@@ -161,8 +173,9 @@ public:
   // Handle the process of running the program through
   // all time steps
   void Run() {
-    //If there are any sub communities, we should know about them
-    if(subCommunities.size() != 1){
+
+    // If there are any sub communities, we should know about them
+    if (subCommunities.size() != 1) {
       std::cout << "Sub-communities detected!: " << "\n";
       for (const auto& community : subCommunities) {
         std::cout << "sub_community:" << " ";
@@ -175,7 +188,7 @@ public:
 
     // Call update the specified number of times
     for (int i = 0; i < config->UPDATES(); i++) {
-      Update(i);
+      Update(i); // @AML: BOOKMARK
     }
 
     world_t stable_world = stableUpdate(world, config->WORLD_X(), config->WORLD_Y());
@@ -259,29 +272,27 @@ public:
     // for the next time step
     world_t next_world;
     next_world.resize(config->WORLD_X() * config->WORLD_Y());
-    for (emp::vector<double> & v : next_world) {
+    for (emp::vector<double>& v : next_world) {
       v.resize(N_TYPES, 0);
     }
 
     // Handle population growth for each cell
     for (size_t pos = 0; pos < world.size(); pos++) {
-      DoGrowth(pos, world, next_world);
+      DoGrowth(pos, world, next_world); // @AML: BOOKMARK
     }
 
     // We need to handle cell updates in a random order
     // so that cells at the end of the world do not have an
     // advantage when group repro triggers
-    int unordered[(int)world.size()];
-    for (int i = 0; i < (int)world.size(); i++) {
-      unordered[i] = i;
-    }
+    emp::Shuffle(rnd, position_activation_order);
+
 
     // Handle everything that allows biomass to move from
     // one cell to another. Do so for each cell
+    for (size_t i = 0; i < world.size(); ++i) {
 
-    for (int i = 0; i < (int)world.size(); i++) {
+      int pos = (int)position_activation_order[i];
 
-      int pos = unordered[i];
       // Figure out which cells are above, below, left
       // and right of the focal cell.
       // This process is a little arduous because it
