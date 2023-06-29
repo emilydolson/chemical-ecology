@@ -199,7 +199,7 @@ public:
 
     // Call update the specified number of times
     for (int i = 0; i < config->UPDATES(); i++) {
-      Update(i); // @AML: BOOKMARK
+      Update(i);
     }
 
     world_t stable_world(stableUpdate(world));
@@ -334,7 +334,7 @@ public:
   }
 
   // Handles population growth of each type within a cell
-  void DoGrowth(size_t pos, world_t & curr_world, world_t & next_world) {
+  void DoGrowth(size_t pos, const world_t& curr_world, world_t& next_world) {
     //For each species i
     for (size_t i = 0; i < N_TYPES; i++) {
       double modifier = 0;
@@ -395,7 +395,7 @@ public:
     }
   }
 
-  void DoClearing(size_t pos, world_t& curr_world, world_t& next_world, double prob_clear) {
+  void DoClearing(size_t pos, const world_t& curr_world, world_t& next_world, double prob_clear) {
     // Each cell has a chance of being cleared on every time step
     if (rnd.P(prob_clear)) {
       for (size_t i = 0; i < N_TYPES; i++) {
@@ -404,7 +404,7 @@ public:
     }
   }
 
-  void DoDiffusion(size_t pos, world_t& curr_world, world_t& next_world, double diffusion) {
+  void DoDiffusion(size_t pos, const world_t& curr_world, world_t& next_world, double diffusion) {
     // Handle diffusion
     // Only diffuse in the real world
     // The adj vector should be empty for stochastic worlds, which do not have spatial structure
@@ -436,7 +436,7 @@ public:
     }
   }
 
-  void DoSeeding(size_t pos, world_t& curr_world, world_t& next_world, double seed_prob) {
+  void DoSeeding(size_t pos, const world_t& curr_world, world_t& next_world, double seed_prob) {
     // Seed in
     if (rnd.P(seed_prob)) {
       size_t species = rnd.GetUInt(N_TYPES);
