@@ -559,10 +559,10 @@ public:
 
   size_t GetWorldSize() const { return world_size; }
 
-  std::map<std::string, double> getFinalCommunities(world_t stable_world) {
+  std::map<std::string, double> getFinalCommunities(const world_t& stable_world) {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
-    for (emp::vector<double> cell: stable_world) {
+    for (const emp::vector<double>& cell: stable_world) {
       std::string comm = "";
       for (size_t i = 0; i < cell.size(); i++) {
         std::string count = std::to_string(cell[i]);
