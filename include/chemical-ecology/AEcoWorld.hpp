@@ -384,7 +384,11 @@ public:
       if (rnd.P(ratio)) {
 
         // Get a random neighboring cell to reproduce into
-        const size_t new_pos = neighbors[rnd.GetUInt(num_neighbors)];
+        const size_t new_pos = group_repro_spatial_structure.GetRandomNeighbor(
+          rnd,
+          pos
+        ).value(); // Returned if not neighbors, this should always be valid.
+        emp_assert(new_pos);
 
         for (size_t i = 0; i < N_TYPES; i++) {
           // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
