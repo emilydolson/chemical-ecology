@@ -68,7 +68,7 @@ private:
   world_t world;
 
   // List of any isolated communities
-  emp::vector<emp::vector<int>> subCommunities;
+  emp::vector<emp::vector<size_t>> subCommunities;
 
   // Used to track activation order of positions in the world
   emp::vector<size_t> position_activation_order;
@@ -562,44 +562,42 @@ public:
   std::map<std::string, double> getFinalCommunities(world_t stable_world) {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
-    for(emp::vector<double> cell: stable_world){
+    for (emp::vector<double> cell: stable_world) {
       std::string comm = "";
-      for(size_t i = 0; i < cell.size(); i++){
+      for (size_t i = 0; i < cell.size(); i++) {
         std::string count = std::to_string(cell[i]);
         // Formatting to make the strings more legible
         count.erase(count.find_last_not_of('0') + 1, std::string::npos);
         count.erase(count.find_last_not_of('.') + 1, std::string::npos);
         // Check if the species is present, and if it is make sure it has interactions
-        if(count.compare("0") != 0){
+        if (count.compare("0") != 0) {
           int sc = -1;
-          for(size_t j = 0; j < subCommunities.size(); j++){
-            for(int x : subCommunities[j]){
-              if(x == i){
+          for (size_t j = 0; j < subCommunities.size(); j++) {
+            for (size_t x : subCommunities[j]) {
+              if (x == i) {
                 sc = j;
               }
             }
           }
           bool interacts = false;
-          for(int m : subCommunities[sc]){
-            if(cell[m] != 0 && m != i){
+          for (size_t m : subCommunities[sc]) {
+            if (cell[m] != 0 && m != i) {
               comm.append(count + " ");
               interacts = true;
               break;
             }
           }
-          if(!interacts){
+          if (!interacts) {
             comm.append("PWI ");
           }
-        }
-        // If there are zero present
-        else{
+        } else {
+          // If there are zero present
           comm.append("0 ");
         }
       }
-      if(finalCommunities.find(comm) == finalCommunities.end()){
+      if (finalCommunities.find(comm) == finalCommunities.end()) {
           finalCommunities.insert({comm, 1});
-      }
-      else{
+      } else {
         finalCommunities[comm] += 1;
       }
     }
@@ -614,14 +612,14 @@ public:
 
   //Species cannot be a part of a community they have no interaction with
   //Find the connected components of the interaction matrix, and determine sub-communites
-  emp::vector<emp::vector<int>> findSubCommunities(){
+  emp::vector<emp::vector<size_t>> findSubCommunities(){
     emp::vector<emp::vector<double> > interactions = GetInteractions();
     emp::vector<bool> visited(interactions.size(), false);
-    emp::vector<emp::vector<int>> components;
+    emp::vector<emp::vector<size_t>> components;
 
     for (size_t i = 0; i < interactions.size(); i++) {
       if (!visited[i]) {
-        emp::vector<int> component;
+        emp::vector<size_t> component;
         dfs(i, visited, interactions, component);
         components.push_back(component);
       }
@@ -630,7 +628,7 @@ public:
   }
 
   //Depth first search allows us to recursively find sub communities (connected components in the interaction matrix)
-  void dfs(int root, emp::vector<bool>& visited, emp::vector<emp::vector<double>>& interactions, emp::vector<int>& component){
+  void dfs(size_t root, emp::vector<bool>& visited, emp::vector<emp::vector<double>>& interactions, emp::vector<size_t>& component){
     visited[root] = true;
     component.push_back(root);
 
