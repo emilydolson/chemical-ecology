@@ -1,4 +1,4 @@
-TEST_NAMES := SpatialStructure
+TEST_NAMES := SpatialStructure graph_utils
 
 TO_ROOT := $(shell git rev-parse --show-cdup)
 
