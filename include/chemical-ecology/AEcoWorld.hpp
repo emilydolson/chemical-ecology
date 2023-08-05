@@ -71,6 +71,7 @@ private:
 
   // List of any isolated communities
   emp::vector<emp::vector<size_t>> subCommunities;
+  emp::vector<emp::BitVector> sub_community_fingerprints; // Each bit vector represents presence / absence of species
 
   // Used to track activation order of positions in the world
   emp::vector<size_t> position_activation_order;
@@ -182,6 +183,17 @@ public:
     // otherwise the matrix will be empty when this is called
     subCommunities = FindSubCommunities();
 
+    // Fingerprint each sub community
+    // Fingerpring = present/absent bitvector
+    sub_community_fingerprints.clear();
+    sub_community_fingerprints.resize(subCommunities.size(), {N_TYPES, false});
+    for (size_t comm_i = 0; comm_i < subCommunities.size(); ++comm_i) {
+      const auto& sub_comm = subCommunities[comm_i];
+      for (size_t species : sub_comm) {
+        sub_community_fingerprints[comm_i][species] = true;
+      }
+    }
+
     // Output a snapshot of the run configuration
     SnapshotConfig();
   }
@@ -207,9 +219,11 @@ public:
       Update(i);
     }
 
+    // Run world forward without diffusion
     world_t stable_world(stableUpdate(world));
-
+    // Identify final communities in world
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
+
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
     // Run n stochastic worlds
@@ -561,6 +575,8 @@ public:
   const world_t& GetWorld() const { return world; }
 
   size_t GetWorldSize() const { return world_size; }
+
+
 
   std::map<std::string, double> getFinalCommunities(const world_t& stable_world) {
     double size = stable_world.size();
