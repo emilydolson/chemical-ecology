@@ -228,22 +228,32 @@ public:
 
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
+
+    emp::vector<std::map<emp::BitVector, double>> assembly_fingerprints(config->STOCHASTIC_ANALYSIS_REPS());
+    emp::vector<std::map<emp::BitVector, double>> adaptive_fingerprints(config->STOCHASTIC_ANALYSIS_REPS());
+
     // Run n stochastic worlds
-    for(size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); i++) {
-      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
+    for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); i++) {
+      const bool record_analysis_state = (i == 0);
+      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
       world_t stableAssemblyModel = stableUpdate(assemblyModel);
-      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
+      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
       world_t stableAdaptiveModel = stableUpdate(adaptiveModel);
+
       std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
+      assembly_fingerprints[i] = IdentifyWorldCommunities(stableAssemblyModel);
+
       std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
-      for(auto& [node, proportion] : assemblyCommunities){
-        if(assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()){
+      adaptive_fingerprints[i] = IdentifyWorldCommunities(stableAdaptiveModel);
+
+      for (auto& [node, proportion] : assemblyCommunities) {
+        if (assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()) {
           assemblyFinalCommunities.insert({node, proportion});
-        }
-        else{
+        } else {
           assemblyFinalCommunities[node] += proportion;
         }
       }
+
       for(auto& [node, proportion] : adaptiveCommunities){
         if(adaptiveFinalCommunities.find(node) == adaptiveFinalCommunities.end()){
           adaptiveFinalCommunities.insert({node, proportion});
@@ -257,34 +267,60 @@ public:
     for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
     for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
 
-    // std::ofstream FinalCommunitiesFile("stochastic_scores.txt");
-    // FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
-    // for(auto& [node, proportion] : finalCommunities)
-    // {
-    //   FinalCommunitiesFile << node << " " << proportion << " " << assemblyFinalCommunities[node] << " " << adaptiveFinalCommunities[node] << std::endl;
-    // }
-    // FinalCommunitiesFile.close();
+    // Average over analysis replicates (for assembly community fingerprint proportions)
+    std::map<emp::BitVector, double> assembly_community_fingerprints_final;
+    for (const auto& communities : assembly_fingerprints) {
+      for (const auto& comm_prop : communities) {
+        const auto& community = comm_prop.first;
+        const double proportion = comm_prop.second;
+        if (!emp::Has(assembly_community_fingerprints_final, community)) {
+          assembly_community_fingerprints_final[community] = 0.0;
+        }
+        assembly_community_fingerprints_final[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
+      }
+    }
 
+    // Average over analysis replicates (for adaptive community fingerprint proportions)
+    std::map<emp::BitVector, double> adaptive_community_fingerprints_final;
+    for (const auto& communities : adaptive_fingerprints) {
+      for (const auto& comm_prop : communities) {
+        const auto& community = comm_prop.first;
+        const double proportion = comm_prop.second;
+        if (!emp::Has(adaptive_community_fingerprints_final, community)) {
+          adaptive_community_fingerprints_final[community] = 0.0;
+        }
+        adaptive_community_fingerprints_final[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
+      }
+    }
+
+
+    // TODO - output this information in a datafile!
     std::cout << "World" << std::endl;
-    for(auto& [node, proportion] : finalCommunities)
-    {
-      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
+    for (auto& [node, proportion] : finalCommunities) {
+      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
     }
 
     std::cout << "World fingerprints" << std::endl;
     for (auto& [node, proportion] : world_community_fingerprints) {
-      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
+      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
     }
 
     std::cout << "Assembly" << std::endl;
-    for(auto& [node, proportion] : assemblyFinalCommunities)
-    {
+    for (auto& [node, proportion] : assemblyFinalCommunities) {
+      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
+    }
+    std::cout << "Assembly fingerprints" << std::endl;
+    for (auto& [node, proportion] : assembly_community_fingerprints_final) {
+      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
+    }
+
+    std::cout << "Adaptive" << std::endl;
+    for (auto& [node, proportion] : adaptiveFinalCommunities) {
       std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
-    std::cout << "Adaptive" << std::endl;
-    for(auto& [node, proportion] : adaptiveFinalCommunities)
-    {
-      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
+    std::cout << "Adaptive fingerprints" << std::endl;
+    for (auto& [node, proportion] : adaptive_community_fingerprints_final) {
+      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
     }
 
     //Print out final state if in verbose mode
@@ -529,7 +565,14 @@ public:
     return stable_world;
   }
 
-  world_t StochasticModel(int num_updates, bool repro, double prob_clear, double seeding_prob, int iter) {
+  // NOTE: The base model is also stochastic model ==> this is a confusing name.
+  world_t StochasticModel(
+    int num_updates,
+    bool repro,
+    double prob_clear,
+    double seeding_prob,
+    bool record_world_state=false
+  ) {
 
     worldType = (repro) ? "Repro" : "Soup";
 
@@ -560,16 +603,18 @@ public:
         DoSeeding(pos, model_world, next_model_world, config->SEEDING_PROB());
       }
 
-      // Only plot the first runs of each
-      if (i % 10 == 0 && iter == 0) {
+      // Record world state
+      const bool final_update = ((i + 1) == num_updates);
+      const bool res_update =  !(bool)(i % config->OUTPUT_RESOLUTION());
+      if (record_world_state && (final_update || res_update)) {
         curr_update2 = i;
         stochasticWorldState = next_model_world;
-        stochastic_data_file->Update(curr_update2);
+        stochastic_data_file->Update(); // Don't need to call with update #, already performing timing check.
       }
 
       std::swap(model_world, next_model_world);
 
-      if (iter == 0) {
+      if (record_world_state) {
         stochasticWorldState.clear();
       }
 
