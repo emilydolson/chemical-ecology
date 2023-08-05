@@ -35,6 +35,9 @@ namespace chemical_ecology {
     VALUE(WORLD_WIDTH, size_t, 10, "Width of world. Used only for toroidal-grid and well-mixed spatial structure options."),
     VALUE(WORLD_HEIGHT, size_t, 10, "Height of world. Used only for toroidal-grid and well-mixed spatial structure options."),
 
+    VALUE(ANALYSIS_SETTINGS),
+    VALUE(STOCHASTIC_ANALYSIS_REPS, size_t, 10, "Number of times to run post-hoc stochastic analyses"),
+
     GROUP(OUTPUT_SETTINGS, "Settings related to data output"),
     VALUE(OUTPUT_DIR, std::string, "./output/", "What directory are we dumping data?"),
     VALUE(OUTPUT_RESOLUTION, size_t, 10, "How often should we output data?")

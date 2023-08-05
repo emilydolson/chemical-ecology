@@ -13,6 +13,7 @@
 #include "emp/bits/BitArray.hpp"
 #include "emp/data/DataNode.hpp"
 #include "emp/base/Ptr.hpp"
+#include "emp/datastructs/map_utils.hpp"
 
 #include "emp/datastructs/map_utils.hpp"
 #include "chemical-ecology/config_setup.hpp"
@@ -223,12 +224,12 @@ public:
     world_t stable_world(stableUpdate(world));
     // Identify final communities in world
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
+    std::map<emp::BitVector, double> world_community_fingerprints = IdentifyWorldCommunities(stable_world);
 
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
     // Run n stochastic worlds
-    int n = 10;
-    for(int i = 0; i < n; i++){
+    for(size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); i++) {
       world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
       world_t stableAssemblyModel = stableUpdate(assemblyModel);
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), i);
@@ -253,8 +254,8 @@ public:
       }
     }
     // Average the summed proportions
-    for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(n);
-    for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(n);
+    for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
+    for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
 
     // std::ofstream FinalCommunitiesFile("stochastic_scores.txt");
     // FinalCommunitiesFile << "Community Proportion AssemblyProportion AdaptiveProportion" << std::endl;
@@ -267,6 +268,11 @@ public:
     std::cout << "World" << std::endl;
     for(auto& [node, proportion] : finalCommunities)
     {
+      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
+    }
+
+    std::cout << "World fingerprints" << std::endl;
+    for (auto& [node, proportion] : world_community_fingerprints) {
       std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
 
@@ -625,6 +631,34 @@ public:
       val = val/size;
     }
     return finalCommunities;
+  }
+
+  // Returns mapping from community fingerprint to proportion found in given world.
+  std::map<emp::BitVector, double> IdentifyWorldCommunities(
+    const world_t& in_world,
+    std::function<bool(double)> is_present = [](double count) -> bool { return count >= 1.0; }
+  ) {
+    std::map<emp::BitVector, double> communities;
+    for (const emp::vector<double>& cell : in_world) {
+      emp::BitVector community(N_TYPES, false);
+      emp_assert(N_TYPES == cell.size());
+      // Fingerprint this cell
+      for (size_t spec_i = 0; spec_i < cell.size(); ++spec_i) {
+        community[spec_i] = is_present(cell[spec_i]);
+      }
+      // If this is the first time we've seen this community, make note
+      if (!emp::Has(communities, community)) {
+        communities[community] = 0.0;
+      }
+      communities[community] += 1;
+    }
+    // Convert community counts to proportions
+    const double world_size = in_world.size();
+    emp_assert(world_size > 0);
+    for (auto& [key, val] : communities) {
+      val = val / world_size;
+    }
+    return communities;
   }
 
   // Helper functions not related to the running of the worlds go down here
