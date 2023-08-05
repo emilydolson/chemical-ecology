@@ -17,6 +17,7 @@
 #include "emp/datastructs/map_utils.hpp"
 #include "chemical-ecology/config_setup.hpp"
 #include "chemical-ecology/SpatialStructure.hpp"
+#include "chemical-ecology/utils/graph_utils.hpp"
 
 namespace chemical_ecology {
 
@@ -39,12 +40,13 @@ private:
   // Although the world is stored as a flat vector of cells
   // it represents a grid of cells
   using world_t = emp::vector< emp::vector<double> >;
+  using interaction_mat_t = emp::vector< emp::vector<double> >;
   using config_t = Config;
 
   // The matrix of interactions between types
   // The diagonal of this matrix represents the
   // intrinsic growth rate (r) of each type
-  emp::vector< emp::vector<double> > interactions;
+  interaction_mat_t interactions;
 
   SpatialStructure diffusion_spatial_structure;
   SpatialStructure group_repro_spatial_structure;
@@ -178,7 +180,7 @@ public:
 
     // Make sure you get sub communities after setting up the matrix
     // otherwise the matrix will be empty when this is called
-    subCommunities = findSubCommunities();
+    subCommunities = FindSubCommunities();
 
     // Output a snapshot of the run configuration
     SnapshotConfig();
@@ -384,11 +386,12 @@ public:
       if (rnd.P(ratio)) {
 
         // Get a random neighboring cell to reproduce into
-        const size_t new_pos = group_repro_spatial_structure.GetRandomNeighbor(
+        const auto rnd_neighbor = group_repro_spatial_structure.GetRandomNeighbor(
           rnd,
           pos
-        ).value(); // Returned if not neighbors, this should always be valid.
-        emp_assert(new_pos);
+        ); // Returned if not neighbors, this should always be valid.
+        emp_assert(rnd_neighbor);
+        const size_t new_pos = rnd_neighbor.value();
 
         for (size_t i = 0; i < N_TYPES; i++) {
           // Add a portion (configured by REPRO_DILUTION) of the quantity of the type
@@ -610,34 +613,17 @@ public:
 
   // Helper functions not related to the running of the worlds go down here
 
-  //Species cannot be a part of a community they have no interaction with
-  //Find the connected components of the interaction matrix, and determine sub-communites
-  emp::vector<emp::vector<size_t>> findSubCommunities(){
-    emp::vector<emp::vector<double> > interactions = GetInteractions();
-    emp::vector<bool> visited(interactions.size(), false);
-    emp::vector<emp::vector<size_t>> components;
-
-    for (size_t i = 0; i < interactions.size(); i++) {
-      if (!visited[i]) {
-        emp::vector<size_t> component;
-        dfs(i, visited, interactions, component);
-        components.push_back(component);
+  // Species cannot be a part of a community they have no interaction with
+  // Find the connected components of the interaction matrix, and determine sub-communites
+  emp::vector<emp::vector<size_t>> FindSubCommunities() {
+    // Subcommunities are connected components of the interaction matrix.
+    // "Connectivity" should include connection in either direction
+    return utils::FindConnectedComponents<double>(
+      interactions,
+      [](const interaction_mat_t& matrix, size_t from, size_t to) -> bool {
+        return (matrix[from][to] != 0) || (matrix[to][from] != 0);
       }
-    }
-    return components;
-  }
-
-  //Depth first search allows us to recursively find sub communities (connected components in the interaction matrix)
-  void dfs(size_t root, emp::vector<bool>& visited, emp::vector<emp::vector<double>>& interactions, emp::vector<size_t>& component){
-    visited[root] = true;
-    component.push_back(root);
-
-    for(size_t i = 0; i < interactions[root].size(); i++){
-      //Both incoming and outgoing edges count as interactions
-      if((interactions[root][i] != 0 && (!visited[i])) || (interactions[i][root] != 0 && (!visited[i]))){
-        dfs(i, visited, interactions, component);
-      }
-    }
+    );
   }
 
   // Calculate the growth rate (one measurement of fitness)
