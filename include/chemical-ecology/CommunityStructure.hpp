@@ -6,6 +6,7 @@
 
 #include "emp/base/vector.hpp"
 #include "emp/bits/BitVector.hpp"
+#include "emp/datastructs/vector_utils.hpp"
 
 #include "chemical-ecology/utils/graph_utils.hpp"
 
@@ -109,6 +110,14 @@ public:
     return species_shares_subcommunity_with[focal_species_id][shares_with_id];
   }
 
+  const emp::vector<emp::BitVector>& GetSharedSubCommunityInfo() const {
+    return species_shares_subcommunity_with;
+  }
+
+  const emp::vector<emp::BitVector>& GetSpeciesInteractsWith() const {
+    return species_interacts_with;
+  }
+
   // Get list of all isolated subcommunities
   const emp::vector<emp::vector<size_t>>& GetSubCommunities() const { return subcommunities; }
 
@@ -120,6 +129,10 @@ public:
 
   // Get presence/absence fingerpring for all isolated subcommunities
   const emp::vector<emp::BitVector>& GetFingerprints() const { return subcommunity_fingerprints; }
+
+  const emp::vector<size_t>& GetSpeciesToSubCommunityMapping() const {
+    return species_to_subcommunity_id;
+  }
 
   // Get the subcommunity ID to which the given species belongs
   size_t GetSubCommunityID(size_t species_id) const {
