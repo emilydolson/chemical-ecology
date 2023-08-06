@@ -3,7 +3,9 @@
 #include <optional>
 
 #include "emp/base/vector.hpp"
-#include "emp/data/DataFile.hpp"
+#include "emp/io/File.hpp"
+
+// Collection of stand-alone IO functions
 
 namespace chemical_ecology::utils {
 
@@ -21,12 +23,13 @@ emp::vector<emp::vector<double>> LoadInteractionMatrix(
 
   // NOTE (@AML): this doesn't look like it does anything extra to "interaction_data" ==> could just return interaction data?
   for (size_t i = 0; i < N_TYPES; i++) {
-    emp_assert(interaction_data[i].size() == N_TYPES, "Interaction matrix should be square.");
+    if (interaction_data.size() == 0) continue; // Skip over empty lines
     std::copy(
       interaction_data[i].begin(),
       interaction_data[i].end(),
       interactions[i].begin()
     );
+    emp_assert(interactions[i].size() == N_TYPES);
   }
 
   return interactions;
