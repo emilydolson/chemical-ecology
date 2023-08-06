@@ -172,14 +172,17 @@ public:
 
   // Community summary information (extracted from cell of a world)
   // NOTE: depending on how sophisticated this ends up, should get moved to own file & promoted to a proper class
+  // TODO - write Print functions
   struct CommunityInfo {
+    emp::vector<size_t> counts; // species counts (uniquely identifies this community)
     emp::vector<size_t> present_species_ids;
     emp::BitVector present; // species present/absent fingerprint
+    // NOTE: as per slack conversation, might be worth renaming 'present_no_interactions'
     emp::BitVector present_no_interactions; // species present without interactions with *OTHER* species
-    emp::vector<size_t> counts; // species counts (uniquely identifies this community)
 
-    void SetCommunity(
+    void SummarizeCommunity(
       const emp::vector<double>& member_counts,
+      std::function<bool(double)> is_present,
       const CommunityStructure& community_structure
     ) {
       const size_t num_members = member_counts.size();
@@ -200,13 +203,12 @@ public:
         }
       }
 
-      // Identify members that are present with no interactions
+      // Identify members that are present with no interactions (with *OTHER* members)
       for (size_t mem_i : present_species_ids) {
         emp_assert(present[mem_i]);
         const size_t member_comm_id = community_structure.GetSubCommunityID(mem_i);
         const auto& subcommunity = community_structure.GetSubCommunity(member_comm_id);
         emp_assert(emp::Has(subcommunity, mem_i));
-
         // Does this member species have other species present that share a community?
         // - For each other species in this species' subcommunity, are any present?
         bool interacts = false;
@@ -421,32 +423,37 @@ public:
     }
 
     // Run world forward without diffusion
+    // TODO - parameterize max update threshold
     world_t stable_world(stableUpdate(world));
-    // Identify final communities in world
-    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
-    std::map<emp::BitVector, double> world_community_fingerprints = IdentifyWorldCommunities(stable_world);
-    std::map<CommunityInfo, double> world_community_props;
-    world_community_props[CommunityInfo()] = 0.5;
 
+    // Identify final communities in world
+
+    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
 
-    emp::vector<std::map<emp::BitVector, double>> assembly_fingerprints(config->STOCHASTIC_ANALYSIS_REPS());
-    emp::vector<std::map<emp::BitVector, double>> adaptive_fingerprints(config->STOCHASTIC_ANALYSIS_REPS());
+    std::map<CommunityInfo, double> world_community_props = IdentifyWorldCommunities(stable_world);
+
+    emp::vector<std::map<CommunityInfo, double>> assembly_community_props(config->STOCHASTIC_ANALYSIS_REPS());
+    emp::vector<std::map<CommunityInfo, double>> adaptive_community_props(config->STOCHASTIC_ANALYSIS_REPS());
 
     // Run n stochastic worlds
-    for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); i++) {
-      const bool record_analysis_state = (i == 0);
+    for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
+      const bool record_analysis_state = (i == 0); // NOTE: any reason to not output all?
+      // Run stochastic assembly model
+      // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
+      //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
       world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
       world_t stableAssemblyModel = stableUpdate(assemblyModel);
+      // Run stochastic adaptive model
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
       world_t stableAdaptiveModel = stableUpdate(adaptiveModel);
 
       std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
-      assembly_fingerprints[i] = IdentifyWorldCommunities(stableAssemblyModel);
+      assembly_community_props.emplace_back(IdentifyWorldCommunities(stableAssemblyModel));
 
       std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
-      adaptive_fingerprints[i] = IdentifyWorldCommunities(stableAdaptiveModel);
+      adaptive_community_props.emplace_back(IdentifyWorldCommunities(stableAdaptiveModel));
 
       for (auto& [node, proportion] : assemblyCommunities) {
         if (assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()) {
@@ -470,59 +477,69 @@ public:
     for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
 
     // Average over analysis replicates (for assembly community fingerprint proportions)
-    std::map<emp::BitVector, double> assembly_community_fingerprints_final;
-    for (const auto& communities : assembly_fingerprints) {
+    std::map<CommunityInfo, double> assembly_community_props_overall;
+    for (const auto& communities : assembly_community_props) {
       for (const auto& comm_prop : communities) {
         const auto& community = comm_prop.first;
         const double proportion = comm_prop.second;
-        if (!emp::Has(assembly_community_fingerprints_final, community)) {
-          assembly_community_fingerprints_final[community] = 0.0;
+        if (!emp::Has(assembly_community_props_overall, community)) {
+          assembly_community_props_overall[community] = 0.0;
         }
-        assembly_community_fingerprints_final[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
+        assembly_community_props_overall[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
       }
     }
 
     // Average over analysis replicates (for adaptive community fingerprint proportions)
-    std::map<emp::BitVector, double> adaptive_community_fingerprints_final;
-    for (const auto& communities : adaptive_fingerprints) {
+    std::map<CommunityInfo, double> adaptive_community_props_overall;
+    for (const auto& communities : adaptive_community_props) {
       for (const auto& comm_prop : communities) {
         const auto& community = comm_prop.first;
         const double proportion = comm_prop.second;
-        if (!emp::Has(adaptive_community_fingerprints_final, community)) {
-          adaptive_community_fingerprints_final[community] = 0.0;
+        if (!emp::Has(adaptive_community_props_overall, community)) {
+          adaptive_community_props_overall[community] = 0.0;
         }
-        adaptive_community_fingerprints_final[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
+        adaptive_community_props_overall[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
       }
     }
 
 
     // TODO - output this information in a datafile!
+    std::cout << "----" << std::endl;
     std::cout << "World" << std::endl;
     for (auto& [node, proportion] : finalCommunities) {
       std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
     }
 
-    std::cout << "World fingerprints" << std::endl;
-    for (auto& [node, proportion] : world_community_fingerprints) {
-      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
+    std::cout << "World (updated)" << std::endl;
+    for (auto& [node, proportion] : world_community_props) {
+      std::cout << "  Community: " << node.counts << std::endl;
+      std::cout << "    - Present: " << node.present << std::endl;
+      std::cout << "    - PWI: " << node.present_no_interactions << std::endl;
+      std::cout << "    - Proportion: " << proportion << std::endl;
     }
-
+    std::cout << "----" << std::endl;
     std::cout << "Assembly" << std::endl;
     for (auto& [node, proportion] : assemblyFinalCommunities) {
       std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
     }
-    std::cout << "Assembly fingerprints" << std::endl;
-    for (auto& [node, proportion] : assembly_community_fingerprints_final) {
-      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
+    std::cout << "Assembly (updated)" << std::endl;
+    for (auto& [node, proportion] : assembly_community_props_overall) {
+      std::cout << "  Community: " << node.counts << std::endl;
+      std::cout << "    - Present: " << node.present << std::endl;
+      std::cout << "    - PWI: " << node.present_no_interactions << std::endl;
+      std::cout << "    - Proportion: " << proportion << std::endl;
     }
-
+    std::cout << "----" << std::endl;
     std::cout << "Adaptive" << std::endl;
     for (auto& [node, proportion] : adaptiveFinalCommunities) {
       std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
     }
     std::cout << "Adaptive fingerprints" << std::endl;
-    for (auto& [node, proportion] : adaptive_community_fingerprints_final) {
-      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
+    for (auto& [node, proportion] : adaptive_community_props_overall) {
+      std::cout << "  Community: " << node.counts << std::endl;
+      std::cout << "    - Present: " << node.present << std::endl;
+      std::cout << "    - PWI: " << node.present_no_interactions << std::endl;
+      std::cout << "    - Proportion: " << proportion << std::endl;
     }
 
     //Print out final state if in verbose mode
@@ -886,23 +903,26 @@ public:
   }
 
   // Returns mapping from community fingerprint to proportion found in given world.
-  std::map<emp::BitVector, double> IdentifyWorldCommunities(
+  std::map<CommunityInfo, double> IdentifyWorldCommunities(
     const world_t& in_world,
     std::function<bool(double)> is_present = [](double count) -> bool { return count >= 1.0; }
   ) {
-    std::map<emp::BitVector, double> communities;
+    std::map<CommunityInfo, double> communities;
     for (const emp::vector<double>& cell : in_world) {
-      emp::BitVector community(N_TYPES, false);
       emp_assert(N_TYPES == cell.size());
-      // Fingerprint this cell
-      for (size_t spec_i = 0; spec_i < cell.size(); ++spec_i) {
-        community[spec_i] = is_present(cell[spec_i]);
-      }
+      // Summarize found community information
+      CommunityInfo info;
+      info.SummarizeCommunity(
+        cell,
+        is_present,
+        community_structure
+      );
+
       // If this is the first time we've seen this community, make note
-      if (!emp::Has(communities, community)) {
-        communities[community] = 0.0;
+      if (!emp::Has(communities, info)) {
+        communities[info] = 0.0;
       }
-      communities[community] += 1;
+      communities[info] += 1;
     }
     // Convert community counts to proportions
     const double world_size = in_world.size();
