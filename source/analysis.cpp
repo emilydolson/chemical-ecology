@@ -11,6 +11,7 @@
 
 #include "chemical-ecology/AEcoWorld.hpp"
 #include "chemical-ecology/Config.hpp"
+#include "chemical-ecology/utils/config_setup.hpp"
 
 chemical_ecology::Config cfg;
 

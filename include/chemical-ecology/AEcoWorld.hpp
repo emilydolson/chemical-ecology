@@ -17,10 +17,10 @@
 #include "emp/datastructs/map_utils.hpp"
 #include "emp/datastructs/map_utils.hpp"
 
-#include "chemical-ecology/config_setup.hpp"
 #include "chemical-ecology/SpatialStructure.hpp"
-#include "chemical-ecology/utils/graph_utils.hpp"
 #include "chemical-ecology/CommunityStructure.hpp"
+#include "chemical-ecology/Config.hpp"
+#include "chemical-ecology/utils/graph_utils.hpp"
 
 namespace chemical_ecology {
 

@@ -7,6 +7,8 @@
 #include "emp/base/vector.hpp"
 #include "emp/bits/BitVector.hpp"
 
+#include "chemical-ecology/utils/graph_utils.hpp"
+
 namespace chemical_ecology {
 
 // Extracts and manages community structure from given interaction matrix

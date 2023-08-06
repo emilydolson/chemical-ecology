@@ -14,7 +14,7 @@
 #include "emp/web/js_utils.hpp"
 #include "emp/datastructs/Graph.hpp"
 
-#include "chemical-ecology/config_setup.hpp"
+#include "chemical-ecology/config_setup_web.hpp"
 #include "chemical-ecology/AEcoWorld.hpp"
 #include "chemical-ecology/Config.hpp"
 

@@ -7,6 +7,7 @@
 #include "emp/datastructs/Graph.hpp"
 
 #include "chemical-ecology/AEcoWorld.hpp"
+#include "chemical-ecology/utils/config_setup.hpp"
 
 void printPageRank(AEcoWorld world, emp::Graph g, ofstream& File)
 {
