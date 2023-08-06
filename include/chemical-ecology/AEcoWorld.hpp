@@ -759,11 +759,11 @@ public:
 
   // Calculate the growth rate (one measurement of fitness)
   // for a given cell
-  double CalcGrowthRate(size_t pos, world_t & curr_world) {
+  double CalcGrowthRate(size_t pos, const world_t& curr_world) {
     return doCalcGrowthRate(curr_world[pos]);
   }
 
-  double doCalcGrowthRate(emp::vector<double> community){
+  double doCalcGrowthRate(const emp::vector<double>& community){
     double growth_rate = 0;
     for (size_t i = 0; i < N_TYPES; i++) {
       double modifier = 0;
