@@ -21,6 +21,7 @@
 #include "chemical-ecology/CommunityStructure.hpp"
 #include "chemical-ecology/Config.hpp"
 #include "chemical-ecology/utils/graph_utils.hpp"
+#include "chemical-ecology/utils/io.hpp"
 
 namespace chemical_ecology {
 
@@ -160,7 +161,10 @@ public:
     if (config->INTERACTION_SOURCE() == "") {
       SetupRandomInteractions();
     } else {
-      LoadInteractionMatrix(config->INTERACTION_SOURCE());
+      interactions = utils::LoadInteractionMatrix(
+        config->INTERACTION_SOURCE(),
+        N_TYPES
+      );
     }
 
     // Configure output directory path, create directory
@@ -170,6 +174,7 @@ public:
         output_dir += '/';
     }
 
+    // NOTE (@AML): Could merge data_file and stochastic_data_file => same information being printed for each
     data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_data.csv");
     data_file->AddVar(curr_update, "Time", "Time");
     data_file->AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
@@ -811,31 +816,6 @@ public:
         }
       }
     }
-  }
-
-  // Load an interaction matrix from the specified file
-  void LoadInteractionMatrix(std::string filename) {
-    emp::File infile(filename);
-    emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
-
-    interactions.resize(N_TYPES);
-    for (size_t i = 0; i < N_TYPES; i++) {
-      interactions[i].resize(N_TYPES);
-      for (size_t j = 0; j < N_TYPES; j++) {
-        interactions[i][j] = interaction_data[i][j];
-      }
-    }
-  }
-
-  // Store the current interaction matrix in a file
-  void WriteInteractionMatrix(std::string filename) {
-    emp::File outfile;
-
-    for (size_t i = 0; i < N_TYPES; i++) {
-      outfile += emp::join(interactions[i], ",");
-    }
-
-    outfile.Write(filename);
   }
 
 }; // End AEcoWorld class definition
