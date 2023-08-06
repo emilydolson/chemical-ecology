@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <string>
-#include <math.h>
+#include <cmath>
 #include <sys/stat.h>
 #include <algorithm>
 
@@ -31,18 +31,215 @@ namespace chemical_ecology {
 // - Community = a set of types that interact and can
 //                coexist in the world
 
+// Extracts and manages community structure from given interaction matrix
+// TODO - write tests
+class CommunityStructure {
+public:
+  using interaction_mat_t = emp::vector<emp::vector<double>>;
+protected:
+
+  emp::vector<emp::vector<size_t>> subcommunities;
+  emp::vector<emp::BitVector> subcommunity_fingerprints; // Each bit vector represents presence / absence of species
+  emp::vector<size_t> species_to_subcommunity_id;
+  size_t num_species;
+
+  emp::vector<emp::BitVector> species_shares_subcommunity_with; // For each species, what other species does it share a subcommunity with
+  emp::vector<emp::BitVector> species_interacts_with;    // For each species, what other species does it interact with?
+
+public:
+  CommunityStructure() = default;
+  CommunityStructure(
+    const interaction_mat_t& interaction_matrix,
+    std::function<bool(
+      const interaction_mat_t&,
+      size_t,
+      size_t
+    )> interacts
+  ) {
+    SetStructure(interaction_matrix, interacts);
+  }
+
+  // Configure subcommunity structure given an interaction matrix
+  // Identifies the set of isolated subcommunities present in the given interaction matrix.
+  void SetStructure(
+    const interaction_mat_t& interaction_matrix,
+    std::function<bool(
+      const interaction_mat_t&,
+      size_t,
+      size_t
+    )> interacts
+  ) {
+    Clear();
+    num_species = interaction_matrix.size();
+
+    // Identify all subcommunities (connected components) in interaction matrix
+    subcommunities = utils::FindConnectedComponents<double>(
+      interaction_matrix,
+      interacts
+    );
+
+    // Extract subcommunity presence/absence fingerprints and
+    //   map each species to its subcommunity id
+    subcommunity_fingerprints.resize(subcommunities.size(), {num_species, false});
+    species_to_subcommunity_id.resize(num_species, (size_t)-1);
+    for (size_t comm_i = 0; comm_i < subcommunities.size(); ++comm_i) {
+      const auto& sub_comm = subcommunities[comm_i];
+      for (size_t species : sub_comm) {
+        subcommunity_fingerprints[comm_i][species] = true;
+        // NOTE: Each species should be part of *one* community.
+        emp_assert(species_to_subcommunity_id[species] == (size_t)-1);
+        species_to_subcommunity_id[species] = comm_i;
+      }
+    }
+
+    // For each species, cache what set of species it has interactions with
+    //   Extract directly from interaction matrix to more easily capture self-interactions
+    //   which would be indistinguishable if just looking at the subcommunity membership
+    // QUESTION: if something interacts with itself but nothing else, is it present without interactions?
+    // Additionally, cache what set of species a species shares a subcommunity with
+    species_interacts_with.resize(num_species, {num_species, false});
+    species_shares_subcommunity_with.resize(num_species, {num_species, false});
+    for (size_t spec_id = 0; spec_id < num_species; ++spec_id) {
+      // Record interactions
+      auto& interacts_with = species_interacts_with[spec_id];
+      for (size_t other_id = 0; other_id < num_species; ++other_id) {
+        interacts_with[other_id] = interacts(interaction_matrix, spec_id, other_id);
+      }
+      // Record subcommunity co-members
+      auto& shares_subcommunity = species_shares_subcommunity_with[spec_id];
+      const auto& sub_comm = subcommunities[GetSubCommunityID(spec_id)];
+      for (size_t other_id : sub_comm) {
+        // QUESTION: should a species be counted as sharing a subcommunity with itself?
+        shares_subcommunity[other_id] = true;
+      }
+    }
+  }
+
+  // Get number of species represented in community structure
+  size_t GetNumSpecies() const { return num_species; }
+
+  // Get number of isolated subcommunities present in community structure
+  size_t GetNumSubCommunities() const { return subcommunities.size(); }
+
+  bool SpeciesInteractsWith(size_t focal_species_id, size_t interacts_with_id) const {
+    return species_interacts_with[focal_species_id][interacts_with_id];
+  }
+
+  bool SpeciesSharesSubCommunityWith(size_t focal_species_id, size_t shares_with_id) const {
+    return species_shares_subcommunity_with[focal_species_id][shares_with_id];
+  }
+
+  // Get list of all isolated subcommunities
+  const emp::vector<emp::vector<size_t>>& GetSubCommunities() const { return subcommunities; }
+
+  // Get a particular isolated subcommunity
+  const emp::vector<size_t>& GetSubCommunity(size_t community_id) const {
+    emp_assert(community_id < GetNumSubCommunities());
+    return subcommunities[community_id];
+  }
+
+  // Get presence/absence fingerpring for all isolated subcommunities
+  const emp::vector<emp::BitVector>& GetFingerprints() const { return subcommunity_fingerprints; }
+
+  // Get the subcommunity ID to which the given species belongs
+  size_t GetSubCommunityID(size_t species_id) const {
+    emp_assert(species_id < species_to_subcommunity_id.size());
+    return species_to_subcommunity_id[species_id];
+  }
+
+  // Clear all stored structure
+  void Clear() {
+    subcommunities.clear();
+    subcommunity_fingerprints.clear();
+    species_to_subcommunity_id.clear();
+    num_species = 0;
+    species_interacts_with.clear();
+  }
+
+};
+
 // A class to handle running the simple ecology
 class AEcoWorld {
-private:
+public:
   // The world is a vector of cells (where each cell is
   // represented as a vector ints representing the count of
   // each type in each cell).
-
   // Although the world is stored as a flat vector of cells
   // it represents a grid of cells
   using world_t = emp::vector< emp::vector<double> >;
   using interaction_mat_t = emp::vector< emp::vector<double> >;
   using config_t = Config;
+
+  // Community summary information (extracted from cell of a world)
+  // NOTE: depending on how sophisticated this ends up, should get moved to own file & promoted to a proper class
+  struct CommunityInfo {
+    emp::vector<size_t> present_species_ids;
+    emp::BitVector present; // species present/absent fingerprint
+    emp::BitVector present_no_interactions; // species present without interactions with *OTHER* species
+    emp::vector<size_t> counts; // species counts (uniquely identifies this community)
+
+    void SetCommunity(
+      const emp::vector<double>& member_counts,
+      const CommunityStructure& community_structure
+    ) {
+      const size_t num_members = member_counts.size();
+      // Reset current community info
+      Reset(num_members);
+      emp_assert(counts.size() == member_counts.size());
+
+      // Process counts
+      for (size_t mem_i = 0; mem_i < num_members; ++mem_i) {
+        // TODO: change this to configurable functor?
+        // Drops fractional component of number
+        counts[mem_i] = std::trunc(member_counts[mem_i]);
+        // Fingerprint present/absence
+        // TODO: change this to a configurable functor?
+        present[mem_i] = counts[mem_i] >= 1;
+        if (present[mem_i]) {
+          present_species_ids.emplace_back(mem_i);
+        }
+      }
+
+      // Identify members that are present with no interactions
+      for (size_t mem_i : present_species_ids) {
+        emp_assert(present[mem_i]);
+        const size_t member_comm_id = community_structure.GetSubCommunityID(mem_i);
+        const auto& subcommunity = community_structure.GetSubCommunity(member_comm_id);
+        emp_assert(emp::Has(subcommunity, mem_i));
+
+        // Does this member species have other species present that share a community?
+        // - For each other species in this species' subcommunity, are any present?
+        bool interacts = false;
+        for (size_t other_id : subcommunity) {
+          if (other_id != mem_i && present[other_id]) {
+            interacts = true;
+            break;
+          }
+        }
+        present_no_interactions[mem_i] = !interacts;
+      }
+    }
+
+    void Reset(size_t num_members=0) {
+      (present.Resize(num_members)).Clear();
+      (present_no_interactions.Resize(num_members)).Clear();
+      present_species_ids.clear();
+      counts.clear();
+      counts.resize(num_members, 0);
+    }
+
+    // Operator< necessary for std::map
+    // Uses lexicographic ordering (so not necessarily meaningful in context of numeric comparisons)
+    // NOTE: O(N) operation, where 9 is size of counts
+    bool operator<(const CommunityInfo& in) const {
+      emp_assert(in.counts.size() == counts.size(), "Expected communities to have same number of potential species");
+      return counts < in.counts;
+    }
+
+  };
+
+private:
+
 
   // The matrix of interactions between types
   // The diagonal of this matrix represents the
@@ -70,9 +267,9 @@ private:
   // Initialize vector that keeps track of grid
   world_t world;
 
-  // List of any isolated communities
-  emp::vector<emp::vector<size_t>> subCommunities;
-  emp::vector<emp::BitVector> sub_community_fingerprints; // Each bit vector represents presence / absence of species
+  // Manages community structure (determined by interaction matrix)
+  CommunityStructure community_structure;
+  emp::vector<size_t> subcommunity_group_repro_schedule;
 
   // Used to track activation order of positions in the world
   emp::vector<size_t> position_activation_order;
@@ -181,19 +378,22 @@ public:
     stochastic_data_file->PrintHeaderKeys();
 
     // Make sure you get sub communities after setting up the matrix
-    // otherwise the matrix will be empty when this is called
-    subCommunities = FindSubCommunities();
-
-    // Fingerprint each sub community
-    // Fingerpring = present/absent bitvector
-    sub_community_fingerprints.clear();
-    sub_community_fingerprints.resize(subCommunities.size(), {N_TYPES, false});
-    for (size_t comm_i = 0; comm_i < subCommunities.size(); ++comm_i) {
-      const auto& sub_comm = subCommunities[comm_i];
-      for (size_t species : sub_comm) {
-        sub_community_fingerprints[comm_i][species] = true;
+    community_structure.SetStructure(
+      interactions,
+      [](const interaction_mat_t& matrix, size_t from, size_t to) -> bool {
+        return (matrix[from][to] != 0) || (matrix[to][from] != 0);
       }
-    }
+    );
+    // Initialize schedule for sub-community group repro
+    subcommunity_group_repro_schedule.resize(
+      community_structure.GetNumSubCommunities(),
+      0
+    );
+    std::iota(
+      subcommunity_group_repro_schedule.begin(),
+      subcommunity_group_repro_schedule.end(),
+      0
+    );
 
     // Output a snapshot of the run configuration
     SnapshotConfig();
@@ -204,9 +404,9 @@ public:
   void Run() {
 
     // If there are any sub communities, we should know about them
-    if (subCommunities.size() != 1) {
-      std::cout << "Sub-communities detected!: " << "\n";
-      for (const auto& community : subCommunities) {
+    if (community_structure.GetNumSubCommunities() != 1) {
+      std::cout << "Multiple sub-communities detected!: " << "\n";
+      for (const auto& community : community_structure.GetSubCommunities()) {
         std::cout << "sub_community:" << " ";
         for (const auto& species : community) {
           std::cout << species << " ";
@@ -225,6 +425,8 @@ public:
     // Identify final communities in world
     std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
     std::map<emp::BitVector, double> world_community_fingerprints = IdentifyWorldCommunities(stable_world);
+    std::map<CommunityInfo, double> world_community_props;
+    world_community_props[CommunityInfo()] = 0.5;
 
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
@@ -429,8 +631,12 @@ public:
     if (num_neighbors == 0) return;
 
     // Need to do GR in a random order, so the last sub-community does not have more repro power
-    emp::Shuffle(rnd, subCommunities);
-    for (const auto& community : subCommunities) {
+    // emp::Shuffle(rnd, subCommunities);
+    // for (const auto& community : subCommunities) {
+    emp::Shuffle(rnd, subcommunity_group_repro_schedule);
+    for (size_t schedule_i = 0; schedule_i < subcommunity_group_repro_schedule.size(); ++schedule_i) {
+      const size_t community_id = subcommunity_group_repro_schedule[schedule_i];
+      const auto& community = community_structure.GetSubCommunity(community_id);
       // Compute population size of this community
       double pop = 0;
       for (const auto& species : community) {
@@ -632,6 +838,7 @@ public:
   std::map<std::string, double> getFinalCommunities(const world_t& stable_world) {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
+    const auto& subCommunities = community_structure.GetSubCommunities();
     for (const emp::vector<double>& cell: stable_world) {
       std::string comm = "";
       for (size_t i = 0; i < cell.size(); i++) {
