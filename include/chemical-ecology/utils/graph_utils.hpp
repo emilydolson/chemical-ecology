@@ -103,8 +103,8 @@ emp::vector< emp::vector<size_t> > FindConnectedComponents(
   std::function<bool(
     const emp::vector< emp::vector<T> >&,
     size_t,
-    size_t)
-  > is_connected,
+    size_t
+  )> is_connected,
   bool sort_node_ids=false
 ) {
 
