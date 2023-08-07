@@ -273,7 +273,7 @@ public:
 
     // Run world forward without diffusion
     // TODO - parameterize max update threshold
-    world_t stable_world(stableUpdate(world));
+    world_t stable_world(stableUpdate(world, config->CELL_STABILIZATION_UPDATES()));
 
     // Identify final communities in world
     std::map<RecordedCommunitySummary, double> world_community_props = IdentifyWorldCommunities(stable_world);
@@ -288,10 +288,13 @@ public:
       // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
       //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
       world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
-      world_t stableAssemblyModel = stableUpdate(assemblyModel);
+      world_t stableAssemblyModel = stableUpdate(assemblyModel, config->CELL_STABILIZATION_UPDATES());
+      // std::cout << "Assembly model cells: " << emp::to_string(assemblyModel) << std::endl;
+      // std::cout << "Stable assembly model cells: " << emp::to_string(stableAssemblyModel) << std::endl;
+
       // Run stochastic adaptive model
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
-      world_t stableAdaptiveModel = stableUpdate(adaptiveModel);
+      world_t stableAdaptiveModel = stableUpdate(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
 
       assembly_community_props.emplace_back(IdentifyWorldCommunities(stableAssemblyModel));
       adaptive_community_props.emplace_back(IdentifyWorldCommunities(stableAdaptiveModel));
@@ -357,26 +360,25 @@ public:
 
     // ---- Commandline summary output ---
     // NOTE (@AML): should this also be limited to verbose mode?
-    // TODO - output this information in a datafile!
     std::cout << "World (" << world_community_props.size() << ")" << std::endl;
     for (auto& [summary, proportion] : world_community_props) {
       std::cout << "  Community [";
       emp::Print(summary.counts, std::cout);
-      std::cout << "] " << proportion << std::endl;
+      std::cout << "]; proportion = " << proportion << std::endl;
       summary.Print(std::cout, "    - ");
     }
     std::cout << "Assembly (" << assembly_community_props_overall.size() << ")" << std::endl;
     for (auto& [summary, proportion] : assembly_community_props_overall) {
       std::cout << "  Community [";
       emp::Print(summary.counts, std::cout);
-      std::cout << "] " << proportion << std::endl;
+      std::cout << "]; proportion = " << proportion << std::endl;
       summary.Print(std::cout, "    - ");
     }
     std::cout << "Adaptive (" << adaptive_community_props_overall.size() << ")" << std::endl;
     for (auto& [summary, proportion] : adaptive_community_props_overall) {
       std::cout << "  Community [";
       emp::Print(summary.counts, std::cout);
-      std::cout << "] " << proportion << std::endl;
+      std::cout << "]; proportion = " << proportion << std::endl;
       summary.Print(std::cout, "    - ");
     }
 
@@ -458,15 +460,17 @@ public:
       double modifier = 0;
       for (size_t j = 0; j < N_TYPES; j++) {
         // Sum up growth rate modifier for type i
+        // NOTE (@AML): does directionality [i][j] [j][i] matter here? (i.e., are interaction graphs directed or undirected?)
         modifier += interactions[i][j] * curr_world[pos][j];
       }
-
+      const double cur_count = curr_world[pos][i];
       // Logistic Growth
-      double new_pop = modifier*curr_world[pos][i] * (1 - (curr_world[pos][i]/MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
+      const double new_pop = modifier * cur_count * (1 - (cur_count/MAX_POP)); // * ((double)(MAX_POP - pos[i])/MAX_POP));
       // Population size cannot be negative
-      next_world[pos][i] = std::max(curr_world[pos][i] + new_pop, 0.0);
+      next_world[pos][i] = std::max(cur_count + new_pop, 0.0);
       // Population size capped at MAX_POP
       next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
+      emp_assert(next_world[pos][i] <= MAX_POP);
     }
   }
 
@@ -568,11 +572,13 @@ public:
     if (rnd.P(seed_prob)) {
       size_t species = rnd.GetUInt(N_TYPES);
       next_world[pos][species]++;
+      // NOTE (@AML): want to respect max pop here?
+      next_world[pos][species] = std::min(next_world[pos][species], MAX_POP);
     }
   }
 
   // This function should be called to create a stable copy of the world
-  world_t stableUpdate(const world_t& custom_world, int max_updates=10000){
+  world_t stableUpdate(const world_t& custom_world, size_t max_updates=10000){
 
     // Track current and next state of world
     world_t stable_world(
@@ -589,10 +595,10 @@ public:
     );
     emp_assert(custom_world == stable_world);
 
-    for (int i = 0; i < max_updates; i++) {
+    for (size_t i = 0; i < max_updates; i++) {
 
       // Handle population growth for each cell
-      for (size_t pos = 0; pos < custom_world.size(); pos++) {
+      for (size_t pos = 0; pos < stable_world.size(); pos++) {
         DoGrowth(pos, stable_world, next_stable_world);
       }
 
