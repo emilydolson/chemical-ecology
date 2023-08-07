@@ -236,14 +236,11 @@ public:
     // TODO - parameterize max update threshold
     world_t stable_world(stableUpdate(world));
 
+    // NOTE (@AML) - The rest of this function could get moved into an analysis function to streamline things?
+
     // Identify final communities in world
-
-    std::map<std::string, double> finalCommunities = getFinalCommunities(stable_world);
-    std::map<std::string, double> assemblyFinalCommunities;
-    std::map<std::string, double> adaptiveFinalCommunities;
-
     std::map<RecordedCommunitySummary, double> world_community_props = IdentifyWorldCommunities(stable_world);
-
+    // Data structures to track stochastic adaptive and assembly model communities (over multiple internal replicates)
     emp::vector<std::map<RecordedCommunitySummary, double>> assembly_community_props(config->STOCHASTIC_ANALYSIS_REPS());
     emp::vector<std::map<RecordedCommunitySummary, double>> adaptive_community_props(config->STOCHASTIC_ANALYSIS_REPS());
 
@@ -259,32 +256,10 @@ public:
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
       world_t stableAdaptiveModel = stableUpdate(adaptiveModel);
 
-      std::map<std::string, double> assemblyCommunities = getFinalCommunities(stableAssemblyModel);
       assembly_community_props.emplace_back(IdentifyWorldCommunities(stableAssemblyModel));
-
-      std::map<std::string, double> adaptiveCommunities = getFinalCommunities(stableAdaptiveModel);
       adaptive_community_props.emplace_back(IdentifyWorldCommunities(stableAdaptiveModel));
 
-      for (auto& [node, proportion] : assemblyCommunities) {
-        if (assemblyFinalCommunities.find(node) == assemblyFinalCommunities.end()) {
-          assemblyFinalCommunities.insert({node, proportion});
-        } else {
-          assemblyFinalCommunities[node] += proportion;
-        }
-      }
-
-      for(auto& [node, proportion] : adaptiveCommunities){
-        if(adaptiveFinalCommunities.find(node) == adaptiveFinalCommunities.end()){
-          adaptiveFinalCommunities.insert({node, proportion});
-        }
-        else{
-          adaptiveFinalCommunities[node] += proportion;
-        }
-      }
     }
-    // Average the summed proportions
-    for (auto & comm : assemblyFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
-    for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
 
     // Average over analysis replicates (for assembly community fingerprint proportions)
     std::map<RecordedCommunitySummary, double> assembly_community_props_overall;
@@ -313,52 +288,36 @@ public:
     }
 
     // TODO - output this information in a datafile!
-    std::cout << "----" << std::endl;
-    std::cout << "World" << std::endl;
-    for (auto& [node, proportion] : finalCommunities) {
-      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
+    std::cout << "World (" << world_community_props.size() << ")" << std::endl;
+    for (auto& [summary, proportion] : world_community_props) {
+      std::cout << "  Community [";
+      emp::Print(summary.counts, std::cout);
+      std::cout << "] " << proportion << std::endl;
+      summary.Print(std::cout, "    - ");
     }
-
-    std::cout << "World (updated)" << std::endl;
-    for (auto& [node, proportion] : world_community_props) {
-      std::cout << "  Community: " << node.counts << std::endl;
-      std::cout << "    - Present: " << node.present << std::endl;
-      std::cout << "    - PWI: " << node.present_no_interactions << std::endl;
-      std::cout << "    - Proportion: " << proportion << std::endl;
+    std::cout << "Assembly (" << assembly_community_props_overall.size() << ")" << std::endl;
+    for (auto& [summary, proportion] : assembly_community_props_overall) {
+      std::cout << "  Community [";
+      emp::Print(summary.counts, std::cout);
+      std::cout << "] " << proportion << std::endl;
+      summary.Print(std::cout, "    - ");
     }
-    std::cout << "----" << std::endl;
-    std::cout << "Assembly" << std::endl;
-    for (auto& [node, proportion] : assemblyFinalCommunities) {
-      std::cout << "  Community: " << node << " Proportion: " << proportion << std::endl;
-    }
-    std::cout << "Assembly (updated)" << std::endl;
-    for (auto& [node, proportion] : assembly_community_props_overall) {
-      std::cout << "  Community: " << node.counts << std::endl;
-      std::cout << "    - Present: " << node.present << std::endl;
-      std::cout << "    - PWI: " << node.present_no_interactions << std::endl;
-      std::cout << "    - Proportion: " << proportion << std::endl;
-    }
-    std::cout << "----" << std::endl;
-    std::cout << "Adaptive" << std::endl;
-    for (auto& [node, proportion] : adaptiveFinalCommunities) {
-      std::cout << "Community: " << node << " Proportion: " << proportion << std::endl;
-    }
-    std::cout << "Adaptive fingerprints" << std::endl;
-    for (auto& [node, proportion] : adaptive_community_props_overall) {
-      std::cout << "  Community: " << node.counts << std::endl;
-      std::cout << "    - Present: " << node.present << std::endl;
-      std::cout << "    - PWI: " << node.present_no_interactions << std::endl;
-      std::cout << "    - Proportion: " << proportion << std::endl;
+    std::cout << "Adaptive (" << adaptive_community_props_overall.size() << ")" << std::endl;
+    for (auto& [summary, proportion] : adaptive_community_props_overall) {
+      std::cout << "  Community [";
+      emp::Print(summary.counts, std::cout);
+      std::cout << "] " << proportion << std::endl;
+      summary.Print(std::cout, "    - ");
     }
 
     //Print out final state if in verbose mode
-    if(config->V()){
+    if (config->V()) {
       std::cout << "World Vectors:" << std::endl;
-      for (auto & v : world) {
+      for (const auto& v : world) {
         std::cout << emp::to_string(v) << std::endl;
       }
       std::cout << "Stable World Vectors:" << std::endl;
-      for (auto & v : stable_world) {
+      for (const auto& v : stable_world) {
         std::cout << emp::to_string(v) << std::endl;
       }
     }

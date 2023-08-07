@@ -244,7 +244,7 @@ struct RecordedCommunitySummary {
       if (shared_overlap == community_structure.GetNumMembers(comm_id)) {
         complete_subcommunities_present.emplace_back(comm_id);
       }
-      proportion_subcommunity_present[comm_id] = shared_overlap / community_structure.GetNumMembers(comm_id);
+      proportion_subcommunity_present[comm_id] = (double)shared_overlap / (double)community_structure.GetNumMembers(comm_id);
     }
 
   }
@@ -267,6 +267,19 @@ struct RecordedCommunitySummary {
     emp_assert(in.counts.size() == counts.size(), "Expected communities to have same number of potential species");
     return counts < in.counts;
   }
+
+  // "Pretty" print the summary in a human-readable format
+  void Print(std::ostream & os=std::cout, const std::string& prefix = "") const {
+    os << prefix << "Community composition: ";
+    emp::Print(counts, os);
+    os << std::endl;
+    os << prefix << "Present: " << present << std::endl;
+    os << prefix << "Present (no interactions): " << present_no_interactions << std::endl;
+    os << prefix << "Subcommunities present (\% of subcommunity): ";
+    emp::Print(proportion_subcommunity_present, os);
+    os << std::endl;
+  }
+
 
 };
 
