@@ -137,7 +137,7 @@ private:
   void SnapshotConfig();
 
   // Output a snapshot of the community structure
-  void SnapshotCommunityStructure(); // <-- TODO
+  void SnapshotSubCommunities(); // <-- TODO
 
   // Output information stored in recorded_communities vector
   void OutputRecordedCommunities(); // <-- TODO
@@ -244,6 +244,8 @@ public:
       0
     );
 
+    // Output a snapshot of identified subcommunities
+    SnapshotSubCommunities();
     // Output a snapshot of the run configuration
     SnapshotConfig();
   }
@@ -970,6 +972,88 @@ void AEcoWorld::SnapshotConfig() {
     get_param = [&entry]() { return entry.first; };
     get_value = [&entry]() { return entry.second; };
     snapshot_file.Update();
+  }
+}
+
+void AEcoWorld::SnapshotSubCommunities() {
+  emp::DataFile subcommunities_file(output_dir + "subcommunities.csv");
+  size_t cur_subcomm_id = 0;
+
+  // subcommunity_id
+  subcommunities_file.AddFun<size_t>(
+    [&cur_subcomm_id, this]() -> size_t {
+      return cur_subcomm_id;
+    },
+    "subcommunity_id"
+  );
+
+  // total_subcommunities
+  subcommunities_file.AddFun<size_t>(
+    [&cur_subcomm_id, this]() -> size_t {
+      return community_structure.GetNumSubCommunities();
+    },
+    "total_subcommunities"
+  );
+
+  // total species
+  subcommunities_file.AddFun<size_t>(
+    [&cur_subcomm_id, this]() -> size_t {
+      return community_structure.GetNumSpecies();
+    },
+    "total_species"
+  );
+
+  // num_subcommunity_species
+  subcommunities_file.AddFun<size_t>(
+    [&cur_subcomm_id, this]() -> size_t {
+      return community_structure.GetNumMembers(cur_subcomm_id);
+    },
+    "num_subcommunity_species"
+  );
+
+  // prop_species_in_subcommunity
+  subcommunities_file.AddFun<double>(
+    [&cur_subcomm_id, this]() -> double {
+      return community_structure.GetNumMembers(cur_subcomm_id) / community_structure.GetNumSpecies();
+    },
+    "prop_species_in_subcommunity"
+  );
+
+  // species composition
+  subcommunities_file.AddFun<std::string>(
+    [&cur_subcomm_id, this]() -> std::string {
+      // Make copy (to sort for at a glance readability)
+      auto subcomm = community_structure.GetSubCommunity(cur_subcomm_id);
+      std::sort(
+        subcomm.begin(),
+        subcomm.end()
+      );
+      return emp::to_string(subcomm);
+    },
+    "species_composition",
+    "Species IDs that makeup this subcommunity"
+  );
+
+  // species presence / absence
+  subcommunities_file.AddFun<std::string>(
+    [&cur_subcomm_id, this]() -> std::string {
+      return emp::to_string(community_structure.GetFingerprints()[cur_subcomm_id]);
+    },
+    "species_presnt",
+    "Binary vector indicating presence/absence"
+  );
+
+  // interaction_matrix
+  subcommunities_file.AddFun<std::string>(
+    [&cur_subcomm_id, this]() -> std::string {
+      return config->INTERACTION_SOURCE();
+    },
+    "source_interaction_matrix"
+  );
+
+  subcommunities_file.PrintHeaderKeys();
+  for (cur_subcomm_id = 0; cur_subcomm_id < community_structure.GetNumSubCommunities(); ++cur_subcomm_id) {
+    subcommunities_file.Update();
   }
 }
 

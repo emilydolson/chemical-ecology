@@ -55,7 +55,8 @@ public:
     // Identify all subcommunities (connected components) in interaction matrix
     subcommunities = utils::FindConnectedComponents<double>(
       interaction_matrix,
-      interacts
+      interacts,
+      true
     );
 
     // Extract subcommunity presence/absence fingerprints and
