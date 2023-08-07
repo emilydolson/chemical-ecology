@@ -151,13 +151,10 @@ public:
     species_interacts_with.clear();
   }
 
-  // TODO - snapshot communitystructure
-
 };
 
 // Community summary information (extracted from cell of a world)
 // NOTE (@AML): depending on how sophisticated this ends up, should get moved to own file & promoted to a proper class
-// TODO - write Print functions
 struct RecordedCommunitySummary {
   emp::vector<size_t> counts; // species counts (uniquely identifies this community)
   emp::vector<size_t> present_species_ids;
@@ -259,6 +256,8 @@ struct RecordedCommunitySummary {
     partial_subcommunities_present.clear();
     proportion_subcommunity_present.clear();
   }
+
+  size_t GetNumSpeciesPresent() const { return present_species_ids.size(); }
 
   // Operator< necessary for std::map
   // Uses lexicographic ordering (so not necessarily meaningful in context of numeric comparisons)

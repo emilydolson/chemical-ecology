@@ -46,6 +46,32 @@ public:
   using interaction_mat_t = emp::vector< emp::vector<double> >;
   using config_t = Config;
 
+  // Struct that helps with data output. Ties together:
+  // - RecordedCommunityInfo - summary information about this community
+  // - source (e.g., world, assembly, adaptive, etc)
+  // - proportion - this community represented this proportion of source
+  struct RecordedCommunity {
+    RecordedCommunitySummary community_summary;
+    std::string source;
+    double proportion;
+    bool stabilized;  // Was this community "stabilized" (i.e., stableUpdate)
+    size_t updates;   // How many updates was this community run for
+
+    RecordedCommunity(
+      const RecordedCommunitySummary& comm_summary,
+      const std::string& comm_source,
+      double comm_proportion,
+      bool comm_stabilized,
+      size_t comm_updates
+    ) :
+      community_summary(comm_summary),
+      source(comm_source),
+      proportion(comm_proportion),
+      stabilized(comm_stabilized),
+      updates(comm_updates)
+    { }
+  };
+
 private:
 
 
@@ -86,6 +112,9 @@ private:
   std::string output_dir;
   emp::Ptr<emp::DataFile> data_file = nullptr;
   emp::Ptr<emp::DataFile> stochastic_data_file = nullptr;
+  // emp::Ptr<emp::DataFile> recorded_community_file = nullptr;
+  emp::vector<RecordedCommunity> recorded_communities; // These get output by OutputRecordedCommunities
+  // TODO - output summary information
 
   emp::DataNode<double, emp::data::Stats> biomass_node;
   emp::vector<double> fittest;
@@ -107,6 +136,13 @@ private:
   // Output a snapshot of how the world is configured
   void SnapshotConfig();
 
+  // Output a snapshot of the community structure
+  void SnapshotCommunityStructure(); // <-- TODO
+
+  // Output information stored in recorded_communities vector
+  void OutputRecordedCommunities(); // <-- TODO
+  // source, map<summary, proportion>
+
 public:
 
   AEcoWorld() = default;
@@ -114,6 +150,7 @@ public:
   ~AEcoWorld() {
     if (data_file != nullptr) data_file.Delete();
     if (stochastic_data_file != nullptr) stochastic_data_file.Delete();
+    // if (recorded_community_file != nullptr) recorded_community_file.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -287,6 +324,46 @@ public:
       }
     }
 
+    // TODO -- summary information
+    //  - assembly summary
+    //  - adaptive summary
+    //  - world summary
+    //  - num distinct communities
+    //  - num subcommunities represented
+
+    // Save recorded communities for recording
+    for (auto& [summary, proportion] : world_community_props) {
+      recorded_communities.emplace_back(
+        summary,
+        "world",
+        proportion,
+        true,
+        config->UPDATES()
+      );
+    }
+    for (auto& [summary, proportion] : assembly_community_props_overall) {
+      recorded_communities.emplace_back(
+        summary,
+        "assembly",
+        proportion,
+        true,
+        config->UPDATES()
+      );
+    }
+    for (auto& [summary, proportion] : adaptive_community_props_overall) {
+      recorded_communities.emplace_back(
+        summary,
+        "adaptive",
+        proportion,
+        true,
+        config->UPDATES()
+      );
+    }
+    OutputRecordedCommunities();
+
+
+    // ---- Commandline summary output ---
+    // NOTE (@AML): should this also be limited to verbose mode?
     // TODO - output this information in a datafile!
     std::cout << "World (" << world_community_props.size() << ")" << std::endl;
     for (auto& [summary, proportion] : world_community_props) {
@@ -618,8 +695,6 @@ public:
 
   size_t GetWorldSize() const { return world_size; }
 
-
-
   std::map<std::string, double> getFinalCommunities(const world_t& stable_world) {
     double size = stable_world.size();
     std::map<std::string, double> finalCommunities;
@@ -895,6 +970,85 @@ void AEcoWorld::SnapshotConfig() {
     get_param = [&entry]() { return entry.first; };
     get_value = [&entry]() { return entry.second; };
     snapshot_file.Update();
+  }
+}
+
+// Outputs recorded community summaries
+// - 1 line per recorded community
+void AEcoWorld::OutputRecordedCommunities() {
+  // As currently implemented, this will overwrite previously output info if called twice
+  emp::DataFile recorded_community_file(output_dir + "recorded_communities.csv");
+  size_t cur_output_id = 0;
+
+  // source
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      return recorded_communities[cur_output_id].source;
+    },
+    "source"
+  );
+
+  // proportion
+  recorded_community_file.AddFun<double>(
+    [&cur_output_id, this]() -> double {
+      return recorded_communities[cur_output_id].proportion;
+    },
+    "proportion",
+    "Proportion of cells where this particular community was found"
+  );
+
+  // stabilized
+  recorded_community_file.AddFun<bool>(
+    [&cur_output_id, this]() -> bool {
+      return recorded_communities[cur_output_id].stabilized;
+    },
+    "stabilized"
+  );
+
+  // updates
+  recorded_community_file.AddFun<size_t>(
+    [&cur_output_id, this]() -> size_t {
+      return recorded_communities[cur_output_id].updates;
+    },
+    "updates"
+  );
+
+  // --- Summary information ---
+  // num_present_species
+  recorded_community_file.AddFun<size_t>(
+    [&cur_output_id, this]() -> size_t {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return summary.GetNumSpeciesPresent();
+    },
+    "num_present_species"
+  );
+  // num_possible_species
+  recorded_community_file.AddFun<size_t>(
+    [&cur_output_id, this]() -> size_t {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return summary.counts.size();
+    },
+    "num_possible_species"
+  );
+  // counts
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.counts);
+    },
+    "species_counts"
+  );
+  // TODO - finish implementation
+  // present_species_ids
+  // present
+  // present_no_interactions
+  // complete_subcommunities_present
+  // partial_subcommunities_present
+  // proportion_subcommunity_present
+
+  recorded_community_file.PrintHeaderKeys();
+  for (cur_output_id = 0; cur_output_id < recorded_communities.size(); ++cur_output_id) {
+    recorded_community_file.Update();
   }
 
 }

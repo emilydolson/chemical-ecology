@@ -36,7 +36,10 @@ emp::vector<emp::vector<double>> LoadInteractionMatrix(
 }
 
 // Store the current interaction matrix in a file
-void WriteInteractionMatrix(std::string filename, const emp::vector<emp::vector<double>>& interactions) {
+void WriteInteractionMatrix(
+  const std::string& filename,
+  const emp::vector<emp::vector<double>>& interactions
+) {
   emp::File outfile;
   const size_t N_TYPES = interactions.size();
 
