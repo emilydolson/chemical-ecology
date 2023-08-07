@@ -275,8 +275,6 @@ public:
     // TODO - parameterize max update threshold
     world_t stable_world(stableUpdate(world));
 
-    // NOTE (@AML) - The rest of this function could get moved into an analysis function to streamline things?
-
     // Identify final communities in world
     std::map<RecordedCommunitySummary, double> world_community_props = IdentifyWorldCommunities(stable_world);
     // Data structures to track stochastic adaptive and assembly model communities (over multiple internal replicates)
@@ -325,13 +323,6 @@ public:
         adaptive_community_props_overall[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
       }
     }
-
-    // TODO -- summary information
-    //  - assembly summary
-    //  - adaptive summary
-    //  - world summary
-    //  - num distinct communities
-    //  - num subcommunities represented
 
     // Save recorded communities for recording
     for (auto& [summary, proportion] : world_community_props) {
