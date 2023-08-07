@@ -1022,6 +1022,15 @@ void AEcoWorld::OutputRecordedCommunities() {
     },
     "num_present_species"
   );
+
+  recorded_community_file.AddFun<size_t>(
+    [&cur_output_id, this]() -> size_t {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return summary.present_no_interactions.CountOnes();
+    },
+    "num_present_no_interaction_species"
+  );
+
   // num_possible_species
   recorded_community_file.AddFun<size_t>(
     [&cur_output_id, this]() -> size_t {
@@ -1030,6 +1039,7 @@ void AEcoWorld::OutputRecordedCommunities() {
     },
     "num_possible_species"
   );
+
   // counts
   recorded_community_file.AddFun<std::string>(
     [&cur_output_id, this]() -> std::string {
@@ -1038,13 +1048,76 @@ void AEcoWorld::OutputRecordedCommunities() {
     },
     "species_counts"
   );
-  // TODO - finish implementation
+
   // present_species_ids
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.present_species_ids);
+    },
+    "present_species_ids"
+  );
+
   // present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.present);
+    },
+    "present_species"
+  );
+
   // present_no_interactions
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.present_no_interactions);
+    },
+    "present_without_interaction_species"
+  );
+
+  recorded_community_file.AddFun<size_t>(
+    [&cur_output_id, this]() -> size_t {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return summary.complete_subcommunities_present.size();
+    },
+    "num_complete_subcommunities_present"
+  );
+
+  recorded_community_file.AddFun<size_t>(
+    [&cur_output_id, this]() -> size_t {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return summary.partial_subcommunities_present.size();
+    },
+    "num_partial_subcommunities_present"
+  );
+
   // complete_subcommunities_present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.complete_subcommunities_present);
+    },
+    "complete_subcommunities_present"
+  );
+
   // partial_subcommunities_present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.partial_subcommunities_present);
+    },
+    "partial_subcommunities_present"
+  );
+
   // proportion_subcommunity_present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_output_id, this]() -> std::string {
+      const auto& summary = recorded_communities[cur_output_id].community_summary;
+      return emp::to_string(summary.proportion_subcommunity_present);
+    },
+    "proportion_subcommunity_present"
+  );
 
   recorded_community_file.PrintHeaderKeys();
   for (cur_output_id = 0; cur_output_id < recorded_communities.size(); ++cur_output_id) {
