@@ -242,10 +242,10 @@ public:
     std::map<std::string, double> assemblyFinalCommunities;
     std::map<std::string, double> adaptiveFinalCommunities;
 
-    std::map<CommunitySummary, double> world_community_props = IdentifyWorldCommunities(stable_world);
+    std::map<RecordedCommunitySummary, double> world_community_props = IdentifyWorldCommunities(stable_world);
 
-    emp::vector<std::map<CommunitySummary, double>> assembly_community_props(config->STOCHASTIC_ANALYSIS_REPS());
-    emp::vector<std::map<CommunitySummary, double>> adaptive_community_props(config->STOCHASTIC_ANALYSIS_REPS());
+    emp::vector<std::map<RecordedCommunitySummary, double>> assembly_community_props(config->STOCHASTIC_ANALYSIS_REPS());
+    emp::vector<std::map<RecordedCommunitySummary, double>> adaptive_community_props(config->STOCHASTIC_ANALYSIS_REPS());
 
     // Run n stochastic worlds
     for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
@@ -287,7 +287,7 @@ public:
     for (auto & comm : adaptiveFinalCommunities) comm.second = comm.second/double(config->STOCHASTIC_ANALYSIS_REPS());
 
     // Average over analysis replicates (for assembly community fingerprint proportions)
-    std::map<CommunitySummary, double> assembly_community_props_overall;
+    std::map<RecordedCommunitySummary, double> assembly_community_props_overall;
     for (const auto& communities : assembly_community_props) {
       for (const auto& comm_prop : communities) {
         const auto& community = comm_prop.first;
@@ -300,7 +300,7 @@ public:
     }
 
     // Average over analysis replicates (for adaptive community fingerprint proportions)
-    std::map<CommunitySummary, double> adaptive_community_props_overall;
+    std::map<RecordedCommunitySummary, double> adaptive_community_props_overall;
     for (const auto& communities : adaptive_community_props) {
       for (const auto& comm_prop : communities) {
         const auto& community = comm_prop.first;
@@ -311,7 +311,6 @@ public:
         adaptive_community_props_overall[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
       }
     }
-
 
     // TODO - output this information in a datafile!
     std::cout << "----" << std::endl;
@@ -713,15 +712,15 @@ public:
   }
 
   // Returns mapping from community fingerprint to proportion found in given world.
-  std::map<CommunitySummary, double> IdentifyWorldCommunities(
+  std::map<RecordedCommunitySummary, double> IdentifyWorldCommunities(
     const world_t& in_world,
     std::function<bool(double)> is_present = [](double count) -> bool { return count >= 1.0; }
   ) {
-    std::map<CommunitySummary, double> communities;
+    std::map<RecordedCommunitySummary, double> communities;
     for (const emp::vector<double>& cell : in_world) {
       emp_assert(N_TYPES == cell.size());
       // Summarize found community information
-      CommunitySummary info(
+      RecordedCommunitySummary info(
         cell,
         is_present,
         community_structure

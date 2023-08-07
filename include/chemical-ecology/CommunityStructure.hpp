@@ -13,7 +13,6 @@
 namespace chemical_ecology {
 
 // Extracts and manages community structure from given interaction matrix
-// TODO - write tests
 class CommunityStructure {
 public:
   using interaction_mat_t = emp::vector<emp::vector<double>>;
@@ -102,6 +101,9 @@ public:
   // Get number of isolated subcommunities present in community structure
   size_t GetNumSubCommunities() const { return subcommunities.size(); }
 
+  // Get number of species part of specified subcommunity
+  size_t GetNumMembers(size_t subcommunity_id) const { return subcommunities[subcommunity_id].size(); }
+
   bool SpeciesInteractsWith(size_t focal_species_id, size_t interacts_with_id) const {
     return species_interacts_with[focal_species_id][interacts_with_id];
   }
@@ -149,21 +151,29 @@ public:
     species_interacts_with.clear();
   }
 
+  // TODO - snapshot communitystructure
+
 };
 
 // Community summary information (extracted from cell of a world)
-// NOTE: depending on how sophisticated this ends up, should get moved to own file & promoted to a proper class
+// NOTE (@AML): depending on how sophisticated this ends up, should get moved to own file & promoted to a proper class
 // TODO - write Print functions
-struct CommunitySummary {
+struct RecordedCommunitySummary {
   emp::vector<size_t> counts; // species counts (uniquely identifies this community)
   emp::vector<size_t> present_species_ids;
   emp::BitVector present; // species present/absent fingerprint
   // NOTE: as per slack conversation, might be worth renaming 'present_no_interactions'
   emp::BitVector present_no_interactions; // species present without interactions with *OTHER* species
 
-  CommunitySummary() = default;
+  // Other interesting things:
+  // - number of subcommunities present?
+  emp::vector<size_t> complete_subcommunities_present;
+  emp::vector<size_t> partial_subcommunities_present;
+  emp::vector<double> proportion_subcommunity_present; // Proportion of each subcommunity present in recorded community
 
-  CommunitySummary(
+  RecordedCommunitySummary() = default;
+
+  RecordedCommunitySummary(
     const emp::vector<double>& member_counts,
     std::function<bool(double)> is_present,
     const CommunityStructure& community_structure
@@ -175,6 +185,7 @@ struct CommunitySummary {
   // Process / summarize member counts
   // Identifies which species are present
   // Identifies which species are present but have no co-subcommunity members also present
+  // TODO - this function has gotten too big; should split it up
   void SummarizeCommunity(
     const emp::vector<double>& member_counts,
     std::function<bool(double)> is_present,
@@ -215,6 +226,27 @@ struct CommunitySummary {
       }
       present_no_interactions[mem_i] = !interacts;
     }
+
+    // Identify number of complete and partial subcommunities present
+    proportion_subcommunity_present.resize(community_structure.GetNumSubCommunities(), 0.0);
+    // const size_t num_present = present_species_ids.size();
+    const auto& subcomm_fingerprints = community_structure.GetFingerprints();
+    for (size_t comm_id = 0; comm_id < community_structure.GetNumSubCommunities(); ++comm_id) {
+      const auto& subcomm_fingerprint = subcomm_fingerprints[comm_id];
+      const emp::BitVector result = present & subcomm_fingerprint;
+      const size_t shared_overlap = result.CountOnes();
+      if (shared_overlap > 0) {
+        partial_subcommunities_present.emplace_back(comm_id);
+      }
+      // shared_overlap can't be larger than subcommunity size or number of present species
+      emp_assert(shared_overlap <= community_structure.GetNumMembers(comm_id));
+      emp_assert(shared_overlap <= present_species_ids.size());
+      if (shared_overlap == community_structure.GetNumMembers(comm_id)) {
+        complete_subcommunities_present.emplace_back(comm_id);
+      }
+      proportion_subcommunity_present[comm_id] = shared_overlap / community_structure.GetNumMembers(comm_id);
+    }
+
   }
 
   void Reset(size_t num_members=0) {
@@ -223,12 +255,15 @@ struct CommunitySummary {
     present_species_ids.clear();
     counts.clear();
     counts.resize(num_members, 0);
+    complete_subcommunities_present.clear();
+    partial_subcommunities_present.clear();
+    proportion_subcommunity_present.clear();
   }
 
   // Operator< necessary for std::map
   // Uses lexicographic ordering (so not necessarily meaningful in context of numeric comparisons)
   // NOTE: O(N) operation, where 9 is size of counts
-  bool operator<(const CommunitySummary& in) const {
+  bool operator<(const RecordedCommunitySummary& in) const {
     emp_assert(in.counts.size() == counts.size(), "Expected communities to have same number of potential species");
     return counts < in.counts;
   }
