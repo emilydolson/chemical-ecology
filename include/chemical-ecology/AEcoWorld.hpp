@@ -19,6 +19,8 @@
 
 #include "chemical-ecology/SpatialStructure.hpp"
 #include "chemical-ecology/CommunityStructure.hpp"
+#include "chemical-ecology/RecordedCommunitySummarizer.hpp"
+#include "chemical-ecology/RecordedCommunitySet.hpp"
 #include "chemical-ecology/Config.hpp"
 #include "chemical-ecology/utils/graph_utils.hpp"
 #include "chemical-ecology/utils/io.hpp"
@@ -33,6 +35,9 @@ namespace chemical_ecology {
 //          called a species in practice
 // - Community = a set of types that interact and can
 //                coexist in the world
+
+// TODO - work on keying off of compressed communities
+// - Shouldn't key off the summaries, make key small
 
 // A class to handle running the simple ecology
 class AEcoWorld {
@@ -72,8 +77,28 @@ public:
     { }
   };
 
-private:
+  // Used to help output recorded community summary sets
+  template<typename SUMMARY_SET_KEY_T>
+  struct RecordedCommunitySetInfo {
+    const RecordedCommunitySet<SUMMARY_SET_KEY_T>& summary_set;
+    std::string source;
+    bool stabilized;      // Was this community "stabilized" (i.e., stableUpdate)
+    size_t updates;       // How many updates was this community run for?
 
+    RecordedCommunitySetInfo(
+      const RecordedCommunitySet<SUMMARY_SET_KEY_T>& comm_summary_set,
+      const std::string& set_source,
+      bool set_stabilized,
+      size_t set_updates
+    ) :
+      summary_set(comm_summary_set),
+      source(set_source),
+      stabilized(set_stabilized),
+      updates(set_updates)
+    { }
+  };
+
+private:
 
   // The matrix of interactions between types
   // The diagonal of this matrix represents the
@@ -108,11 +133,13 @@ private:
   // Used to track activation order of positions in the world
   emp::vector<size_t> position_activation_order;
 
+  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_raw;         // Uses raw species counts.
+  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_remove_pni;  // Zeroes-out "present with no interactions" species
+
   // Set up data tracking
   std::string output_dir;
   emp::Ptr<emp::DataFile> data_file = nullptr;
   emp::Ptr<emp::DataFile> stochastic_data_file = nullptr;
-  // emp::Ptr<emp::DataFile> recorded_community_file = nullptr;
   emp::vector<RecordedCommunity> recorded_communities; // These get output by OutputRecordedCommunities
   // TODO - output summary information
 
@@ -133,6 +160,8 @@ private:
     const std::string& load_mode
   );
 
+  void SetupCommunitySummarizers();
+
   // Output a snapshot of how the world is configured
   void SnapshotConfig();
 
@@ -151,6 +180,8 @@ public:
     if (data_file != nullptr) data_file.Delete();
     if (stochastic_data_file != nullptr) stochastic_data_file.Delete();
     // if (recorded_community_file != nullptr) recorded_community_file.Delete();
+    if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
+    if (community_summarizer_remove_pni != nullptr) community_summarizer_remove_pni.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -204,6 +235,28 @@ public:
       );
     }
 
+    // Make sure you get sub communities after setting up the matrix
+    community_structure.SetStructure(
+      interactions,
+      [](const interaction_mat_t& matrix, size_t from, size_t to) -> bool {
+        return (matrix[from][to] != 0) || (matrix[to][from] != 0);
+      }
+    );
+    // Initialize schedule for sub-community group repro
+    subcommunity_group_repro_schedule.resize(
+      community_structure.GetNumSubCommunities(),
+      0
+    );
+    std::iota(
+      subcommunity_group_repro_schedule.begin(),
+      subcommunity_group_repro_schedule.end(),
+      0
+    );
+
+    // Configure community summarizers (used to report summaries of recorded communities)
+    // NOTE: should be called after community structure has been configured
+    SetupCommunitySummarizers();
+
     // Configure output directory path, create directory
     output_dir = config->OUTPUT_DIR();
     mkdir(output_dir.c_str(), ACCESSPERMS);
@@ -225,24 +278,6 @@ public:
     stochastic_data_file->AddVar(worldType, "worldType", "world type");
     stochastic_data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
     stochastic_data_file->PrintHeaderKeys();
-
-    // Make sure you get sub communities after setting up the matrix
-    community_structure.SetStructure(
-      interactions,
-      [](const interaction_mat_t& matrix, size_t from, size_t to) -> bool {
-        return (matrix[from][to] != 0) || (matrix[to][from] != 0);
-      }
-    );
-    // Initialize schedule for sub-community group repro
-    subcommunity_group_repro_schedule.resize(
-      community_structure.GetNumSubCommunities(),
-      0
-    );
-    std::iota(
-      subcommunity_group_repro_schedule.begin(),
-      subcommunity_group_repro_schedule.end(),
-      0
-    );
 
     // Output a snapshot of identified subcommunities
     SnapshotSubCommunities();
@@ -267,13 +302,39 @@ public:
     }
 
     // Call update the specified number of times
-    for (int i = 0; i < config->UPDATES(); i++) {
+    for (size_t i = 0; i < config->UPDATES(); i++) {
       Update(i);
     }
 
     // Run world forward without diffusion
     // TODO - parameterize max update threshold
     world_t stable_world(stableUpdate(world, config->CELL_STABILIZATION_UPDATES()));
+
+    // NOTE (@AML): Not in total love with this; could possibly use another iteration after chatting
+    //   about future functionality that would be useful to have
+    RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun = [](
+      const RecordedCommunitySummary& summary
+    ) -> const auto& {
+      return summary.counts;
+    };
+
+    // Set of recorded communities with "raw" counts
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_raw(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_raw(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
+
+    // Set of recorded communities with counts that have had PNI-species zeroed-out
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_no_pni(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_no_pni(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_no_pni(recorded_comm_key_fun);
+
+    // Add world summaries
+    recorded_communities_world_raw.Add(
+      community_summarizer_raw->SummarizeAll(stable_world)
+    );
+    recorded_communities_world_no_pni.Add(
+      community_summarizer_remove_pni->SummarizeAll(stable_world)
+    );
 
     // Identify final communities in world
     std::map<RecordedCommunitySummary, double> world_community_props = IdentifyWorldCommunities(stable_world);
@@ -298,6 +359,20 @@ public:
 
       assembly_community_props.emplace_back(IdentifyWorldCommunities(stableAssemblyModel));
       adaptive_community_props.emplace_back(IdentifyWorldCommunities(stableAdaptiveModel));
+
+      // Add summarized recorded communities to sets
+      recorded_communities_assembly_raw.Add(
+        community_summarizer_raw->SummarizeAll(stableAssemblyModel)
+      );
+      recorded_communities_assembly_no_pni.Add(
+        community_summarizer_remove_pni->SummarizeAll(stableAssemblyModel)
+      );
+      recorded_communities_adaptive_raw.Add(
+        community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
+      );
+      recorded_communities_adaptive_no_pni.Add(
+        community_summarizer_remove_pni->SummarizeAll(stableAdaptiveModel)
+      );
 
     }
 
@@ -326,6 +401,19 @@ public:
         adaptive_community_props_overall[community] += proportion / (double)config->STOCHASTIC_ANALYSIS_REPS();
       }
     }
+
+    // NOTE (@AML): Again, another slightly clunky way to tie together things
+    emp::vector<RecordedCommunitySetInfo<emp::vector<double>>> recorded_community_sets_raw = {
+      {recorded_communities_world_raw, "world", true, config->UPDATES()},
+      {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()},
+      {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()}
+    };
+
+    emp::vector<RecordedCommunitySetInfo<emp::vector<double>>> recorded_community_sets_no_pni = {
+      {recorded_communities_world_no_pni, "world", true, config->UPDATES()},
+      {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()},
+      {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()}
+    };
 
     // Save recorded communities for recording
     for (auto& [summary, proportion] : world_community_props) {
@@ -397,7 +485,7 @@ public:
 
   // Handle an individual time step
   // ud = which time step we're on
-  void Update(int ud) {
+  void Update(size_t ud) {
 
     // Create a new world object to store the values
     // for the next time step
@@ -753,10 +841,8 @@ public:
     for (const emp::vector<double>& cell : in_world) {
       emp_assert(N_TYPES == cell.size());
       // Summarize found community information
-      RecordedCommunitySummary info(
-        cell,
-        is_present,
-        community_structure
+      RecordedCommunitySummary info = community_summarizer_raw->Summarize(
+        cell
       );
 
       // If this is the first time we've seen this community, make note
@@ -935,6 +1021,27 @@ void AEcoWorld::SetupSpatialStructure_Load(
     std::cout << "Exiting." << std::endl;
     exit(-1);
   }
+}
+
+// Configures community summerizers
+void AEcoWorld::SetupCommunitySummarizers() {
+  emp_assert(community_summarizer_raw == nullptr);
+  emp_assert(community_summarizer_remove_pni == nullptr);
+
+  // Reports raw counts (with decimal components truncated)
+  community_summarizer_raw = emp::NewPtr<RecordedCommunitySummarizer>(
+    community_structure,
+    [](double count) -> bool { return count >= 1.0; }
+  );
+
+  // Removes species present that have no interactions with other present species
+  community_summarizer_remove_pni = emp::NewPtr<RecordedCommunitySummarizer>(
+    community_structure,
+    [](double count) -> bool { return count >= 1.0; },
+    emp::vector<RecordedCommunitySummarizer::summary_update_fun_t>{
+      RemovePresentNoInteractions
+    }
+  );
 }
 
 void AEcoWorld::SnapshotConfig() {
