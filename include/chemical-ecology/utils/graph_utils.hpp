@@ -6,8 +6,7 @@
 
 #include "emp/base/vector.hpp"
 #include "emp/bits/BitVector.hpp"
-
-#include "chemical-ecology/CommunityStructure.hpp"
+#include "emp/datastructs/set_utils.hpp"
 
 namespace chemical_ecology::utils {
 

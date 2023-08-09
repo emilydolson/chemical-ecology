@@ -38,6 +38,7 @@ namespace chemical_ecology {
     GROUP(ANALYSIS_SETTINGS, "Settings related to post-hoc model analyses"),
     VALUE(STOCHASTIC_ANALYSIS_REPS, size_t, 10, "Number of times to run post-hoc stochastic analyses"),
     VALUE(CELL_STABILIZATION_UPDATES, size_t, 10000, "Number of updates to run growth for cell stabilization"),
+    VALUE(CELL_STABILIZATION_EPSILON, double, 0.0001, "If cell doesn't change more than this, can break stabilization early"),
 
     GROUP(OUTPUT_SETTINGS, "Settings related to data output"),
     VALUE(OUTPUT_DIR, std::string, "./output/", "What directory are we dumping data?"),
