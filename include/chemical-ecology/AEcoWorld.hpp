@@ -426,8 +426,8 @@ public:
       output_dir + "recorded_communities_raw.csv",
       {
         {recorded_communities_world_raw, "world", true, config->UPDATES()},
-        {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()},
-        {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()}
+        {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
+        {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
       }
     );
 
@@ -436,8 +436,8 @@ public:
       output_dir + "recorded_communities_no_pni.csv",
       {
         {recorded_communities_world_no_pni, "world", true, config->UPDATES()},
-        {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()},
-        {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()}
+        {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()},
+        {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()}
       }
     );
 
@@ -1213,7 +1213,7 @@ void AEcoWorld::SnapshotRecordedCommunitySets(
     [&cur_set_id, &cur_summary_id, &community_sets]() -> double {
       const auto& community_set = community_sets[cur_set_id].summary_set;
       emp_assert(emp::Sum(community_set.GetCommunityCounts()) > 0);
-      return community_set.GetCommunityCount(cur_summary_id) / emp::Sum(community_set.GetCommunityCounts());
+      return (double)community_set.GetCommunityCount(cur_summary_id) / (double)emp::Sum(community_set.GetCommunityCounts());
     },
     "proportion",
     "Proportion of cells where this particular community was found"
