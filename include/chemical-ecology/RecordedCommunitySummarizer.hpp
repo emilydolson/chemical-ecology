@@ -15,6 +15,8 @@
 #include "chemical-ecology/CommunityStructure.hpp"
 #include "chemical-ecology/RecordedCommunitySummarizer.hpp"
 
+// TODO - clean things up with an interaction matrix class
+
 namespace chemical_ecology {
 
 // Forward declarations
@@ -26,8 +28,9 @@ struct RecordedCommunitySummary {
   emp::vector<double> counts;               // Species counts - this should uniquely identify this community (in the context of a RecordedCommunitySet)
   emp::vector<size_t> present_species_ids;  // List of species IDs present in this recorded community
   emp::BitVector present;                   // BitVector describing presence/absence of each species
-  // NOTE: as per slack conversation, we might want to rename 'present_no_interactions'
-  emp::BitVector present_no_interactions;   // Species present without interactions with *OTHER* species
+
+  emp::BitVector present_with_other_subcommunity_members; // Species present with at least one other members of their subcommunity
+  emp::BitVector present_with_interaction_path;   // Species present with at least one valid interaction path to another species present
 
   emp::vector<size_t> complete_subcommunities_present; // IDs of complete subcommunity structures present in this recorded community
                                                        //   IDs come from given CommunityStructure instance
@@ -41,7 +44,8 @@ struct RecordedCommunitySummary {
 
   void Reset(size_t num_members=0) {
     (present.Resize(num_members)).Clear();
-    (present_no_interactions.Resize(num_members)).Clear();
+    (present_with_other_subcommunity_members.Resize(num_members)).Clear();
+    (present_with_interaction_path.Resize(num_members)).Clear();
     present_species_ids.clear();
     counts.clear();
     counts.resize(num_members, 0);
@@ -67,7 +71,8 @@ struct RecordedCommunitySummary {
     emp::Print(counts, os);
     os << std::endl;
     os << prefix << "Present: " << present << std::endl;
-    os << prefix << "Present (no interactions): " << present_no_interactions << std::endl;
+    os << prefix << "Present (with at least one other member of subcommunity): " << present_with_other_subcommunity_members << std::endl;
+    os << prefix << "Present (with at least one valid interaction path): " << present_with_interaction_path << std::endl;
     os << prefix << "Subcommunities present (\% of subcommunity): ";
     emp::Print(proportion_subcommunity_present, os);
     os << std::endl;
@@ -80,6 +85,7 @@ struct RecordedCommunitySummary {
 //  were generated in the same way
 class RecordedCommunitySummarizer {
 public:
+  using interaction_matrix_t = emp::vector<emp::vector<double>>;
   using is_present_fun_t = std::function<bool(double)>;
   using summary_update_fun_t = std::function<RecordedCommunitySummary(
     const RecordedCommunitySummarizer&,
@@ -139,22 +145,37 @@ public:
       }
     }
 
-    // Identify members that are present with no interactions (with *OTHER* members)
+    // Identify members that are present with no other members of their subcommunity
     for (size_t mem_i : summary.present_species_ids) {
       emp_assert(summary.present[mem_i]);
       const size_t member_comm_id = community_structure.GetSubCommunityID(mem_i);
-      const auto& subcommunity = community_structure.GetSubCommunity(member_comm_id);
-      emp_assert(emp::Has(subcommunity, mem_i));
+      const auto& subcommunity = community_structure.GetSubCommunityPresent(member_comm_id);
+      emp_assert(subcommunity[mem_i]);
       // Does this member species have other species present that share a community?
-      // - For each other species in this species' subcommunity, are any present?
-      bool interacts = false;
+      // I.e., are there more than one species of this subcommunity present?
+      const size_t num_subcomm_present = (summary.present & subcommunity).CountOnes();
+      summary.present_with_other_subcommunity_members[mem_i] = num_subcomm_present > 1;
+    }
+
+    // Idenfity members that are present but do not interact (directly or indirectly) with any other members of their subcommunity
+    // NOTE: could probably speed this up a little by finding connected components on reduced interaction matrix that includes only present species
+    for (size_t species_id : summary.present_species_ids) {
+      emp_assert(summary.present[species_id]);
+      const size_t community_id = community_structure.GetSubCommunityID(species_id);
+      // We can limit our search to this species' subcommunity
+      const auto& subcommunity = community_structure.GetSubCommunity(community_id);
+      bool has_path = false;
+      // is there a path from species_id to each other present species, only going through other present species?
       for (size_t other_id : subcommunity) {
-        if (other_id != mem_i && summary.present[other_id]) {
-          interacts = true;
-          break;
-        }
+        has_path = PathExists(
+          community_structure,
+          species_id,
+          other_id,
+          summary.present
+        );
+        if (has_path) break;
       }
-      summary.present_no_interactions[mem_i] = !interacts;
+      summary.present_with_interaction_path[species_id] = has_path;
     }
 
     // Identify number of complete and partial subcommunities present
@@ -189,14 +210,26 @@ public:
 }; // End RecordedCommunitySummarizer definition
 
 // Returns new summary with present-with-no-interactions species removed.
-RecordedCommunitySummary RemovePresentNoInteractions(
+// RecordedCommunitySummary RemovePresentNoInteractions(
+//   const RecordedCommunitySummarizer& summarizer,
+//   const RecordedCommunitySummary& in_summary
+// ) {
+//   // Create new counts vector from given counts. Zero out all present no interaction species.
+//   emp::vector<double> new_counts(in_summary.counts);
+//   for (size_t species_i = 0; species_i < new_counts.size(); ++species_i) {
+//     new_counts[species_i] = (in_summary.present_no_interactions[species_i]) ? 0 : new_counts[species_i];
+//   }
+//   return summarizer.Summarize(new_counts, false);
+// }
+
+RecordedCommunitySummary KeepPresentWithInteractionPath(
   const RecordedCommunitySummarizer& summarizer,
   const RecordedCommunitySummary& in_summary
 ) {
   // Create new counts vector from given counts. Zero out all present no interaction species.
   emp::vector<double> new_counts(in_summary.counts);
   for (size_t species_i = 0; species_i < new_counts.size(); ++species_i) {
-    new_counts[species_i] = (in_summary.present_no_interactions[species_i]) ? 0 : new_counts[species_i];
+    new_counts[species_i] = (in_summary.present_with_interaction_path[species_i]) ? new_counts[species_i] : 0;
   }
   return summarizer.Summarize(new_counts, false);
 }

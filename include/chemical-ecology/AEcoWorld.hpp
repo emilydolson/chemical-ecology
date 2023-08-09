@@ -134,7 +134,7 @@ private:
   emp::vector<size_t> position_activation_order;
 
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_raw;         // Uses raw species counts.
-  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_remove_pni;  // Zeroes-out "present with no interactions" species
+  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_pwip;        // Keeps all species present with valid interaction paths to other present species
 
   // Set up data tracking
   std::string output_dir;
@@ -188,7 +188,7 @@ public:
     if (stochastic_data_file != nullptr) stochastic_data_file.Delete();
     // if (recorded_community_file != nullptr) recorded_community_file.Delete();
     if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
-    if (community_summarizer_remove_pni != nullptr) community_summarizer_remove_pni.Delete();
+    if (community_summarizer_pwip != nullptr) community_summarizer_pwip.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -331,16 +331,16 @@ public:
     RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
 
     // Set of recorded communities with counts that have had PNI-species zeroed-out
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_no_pni(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_no_pni(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_no_pni(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_pwip(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
 
     // Add world summaries
     recorded_communities_world_raw.Add(
       community_summarizer_raw->SummarizeAll(stable_world)
     );
-    recorded_communities_world_no_pni.Add(
-      community_summarizer_remove_pni->SummarizeAll(stable_world)
+    recorded_communities_world_pwip.Add(
+      community_summarizer_pwip->SummarizeAll(stable_world)
     );
 
     // Identify final communities in world
@@ -371,14 +371,14 @@ public:
       recorded_communities_assembly_raw.Add(
         community_summarizer_raw->SummarizeAll(stableAssemblyModel)
       );
-      recorded_communities_assembly_no_pni.Add(
-        community_summarizer_remove_pni->SummarizeAll(stableAssemblyModel)
+      recorded_communities_assembly_pwip.Add(
+        community_summarizer_pwip->SummarizeAll(stableAssemblyModel)
       );
       recorded_communities_adaptive_raw.Add(
         community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
       );
-      recorded_communities_adaptive_no_pni.Add(
-        community_summarizer_remove_pni->SummarizeAll(stableAdaptiveModel)
+      recorded_communities_adaptive_pwip.Add(
+        community_summarizer_pwip->SummarizeAll(stableAdaptiveModel)
       );
 
     }
@@ -433,11 +433,11 @@ public:
 
     // Snapshot summaries where "present-no-interactions" species have been removed
     SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
-      output_dir + "recorded_communities_no_pni.csv",
+      output_dir + "recorded_communities_pwip.csv",
       {
-        {recorded_communities_world_no_pni, "world", true, config->UPDATES()},
-        {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()},
-        {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()}
+        {recorded_communities_world_pwip, "world", true, config->UPDATES()},
+        {recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
+        {recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
       }
     );
 
@@ -1053,7 +1053,7 @@ void AEcoWorld::SetupSpatialStructure_Load(
 // Configures community summerizers
 void AEcoWorld::SetupCommunitySummarizers() {
   emp_assert(community_summarizer_raw == nullptr);
-  emp_assert(community_summarizer_remove_pni == nullptr);
+  emp_assert(community_summarizer_pwip == nullptr);
 
   // Reports raw counts (with decimal components truncated)
   community_summarizer_raw = emp::NewPtr<RecordedCommunitySummarizer>(
@@ -1062,11 +1062,11 @@ void AEcoWorld::SetupCommunitySummarizers() {
   );
 
   // Removes species present that have no interactions with other present species
-  community_summarizer_remove_pni = emp::NewPtr<RecordedCommunitySummarizer>(
+  community_summarizer_pwip = emp::NewPtr<RecordedCommunitySummarizer>(
     community_structure,
     [](double count) -> bool { return count >= 1.0; },
     emp::vector<RecordedCommunitySummarizer::summary_update_fun_t>{
-      RemovePresentNoInteractions
+      KeepPresentWithInteractionPath
     }
   );
 }
@@ -1248,9 +1248,9 @@ void AEcoWorld::SnapshotRecordedCommunitySets(
   recorded_community_file.AddFun<size_t>(
     [&cur_set_id, &cur_summary_id, &community_sets, this]() -> size_t {
       const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
-      return summary.present_no_interactions.CountOnes();
+      return summary.present_with_interaction_path.CountOnes();
     },
-    "num_present_no_interaction_species"
+    "num_present_with_interaction_path"
   );
 
   // num_possible_species
@@ -1293,9 +1293,9 @@ void AEcoWorld::SnapshotRecordedCommunitySets(
   recorded_community_file.AddFun<std::string>(
     [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
       const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
-      return emp::to_string(summary.present_no_interactions);
+      return emp::to_string(summary.present_with_interaction_path);
     },
-    "present_without_interaction_species"
+    "species_present_with_interaction_path"
   );
 
   recorded_community_file.AddFun<size_t>(
@@ -1405,9 +1405,9 @@ void AEcoWorld::OutputRecordedCommunities() {
   recorded_community_file.AddFun<size_t>(
     [&cur_output_id, this]() -> size_t {
       const auto& summary = recorded_communities[cur_output_id].community_summary;
-      return summary.present_no_interactions.CountOnes();
+      return summary.present_with_interaction_path.CountOnes();
     },
-    "num_present_no_interaction_species"
+    "num_present_with_interaction_path"
   );
 
   // num_possible_species
@@ -1450,9 +1450,9 @@ void AEcoWorld::OutputRecordedCommunities() {
   recorded_community_file.AddFun<std::string>(
     [&cur_output_id, this]() -> std::string {
       const auto& summary = recorded_communities[cur_output_id].community_summary;
-      return emp::to_string(summary.present_no_interactions);
+      return emp::to_string(summary.present_with_interaction_path);
     },
-    "present_without_interaction_species"
+    "present_with_interaction_path"
   );
 
   recorded_community_file.AddFun<size_t>(

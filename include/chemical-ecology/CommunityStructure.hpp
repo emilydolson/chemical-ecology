@@ -19,6 +19,7 @@ public:
 
 protected:
   emp::vector<emp::vector<size_t>> subcommunities;
+  // NOTE (@AML): Move away from or embrace fingerprint terminology?
   emp::vector<emp::BitVector> subcommunity_fingerprints; // Each bit vector represents presence / absence of species
   emp::vector<size_t> species_to_subcommunity_id;
   size_t num_species;
@@ -133,6 +134,10 @@ public:
   // Get presence/absence fingerpring for all isolated subcommunities
   const emp::vector<emp::BitVector>& GetFingerprints() const { return subcommunity_fingerprints; }
 
+  const emp::BitVector& GetSubCommunityPresent(size_t community_id) const {
+    return subcommunity_fingerprints[community_id];
+  }
+
   const emp::vector<size_t>& GetSpeciesToSubCommunityMapping() const {
     return species_to_subcommunity_id;
   }
@@ -153,5 +158,43 @@ public:
   }
 
 };
+
+bool PathExists(
+  const CommunityStructure& community_structure,
+  size_t from,
+  size_t to,
+  const emp::BitVector& limit_path_to
+) {
+
+  if (limit_path_to.None()) return false;
+
+  // int FindOne()
+  std::deque<size_t> next;
+  std::unordered_set<size_t> discovered;
+  next.emplace_back((size_t)limit_path_to.FindOne());
+  discovered.emplace(next.back());
+  emp_assert(next.back() < limit_path_to.size());
+
+  while (next.size() > 0) {
+    // Current node at front of queue
+    const size_t cur_node = next.front();
+    emp_assert(emp::Has(discovered, cur_node));
+    emp_assert(limit_path_to[cur_node]);
+    // Queue all connected nodes that have not yet been discovered and are allowed by 'limit_path_to'
+    for (size_t node_id = 0; node_id < community_structure.GetNumSpecies(); ++node_id) {
+      if (!emp::Has(discovered, node_id) && limit_path_to[node_id] && community_structure.SpeciesInteractsWith(cur_node, node_id)) {
+        if (node_id == to) return true;
+        discovered.emplace(node_id);
+        next.emplace_back(node_id);
+      }
+    }
+
+    // Pop front of queue
+    next.pop_front();
+  }
+
+  // Completed search without discovering target
+  return false;
+}
 
 } // End chemical_ecology namespace

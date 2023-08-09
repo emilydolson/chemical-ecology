@@ -5,9 +5,53 @@
 #include <algorithm>
 
 #include "emp/base/vector.hpp"
+#include "emp/bits/BitVector.hpp"
+
+#include "chemical-ecology/CommunityStructure.hpp"
 
 namespace chemical_ecology::utils {
 
+// TODO - clean this up once created InteractionMatrix
+
+template<typename T>
+bool PathExists(
+  const emp::vector< emp::vector<T> >& connection_matrix,
+  std::function<bool(const emp::vector< emp::vector<T> >&, size_t, size_t)> is_connected,
+  size_t from,
+  size_t to,
+  const emp::BitVector& limit_path_to
+) {
+
+  if (limit_path_to.None()) return false;
+
+  // int FindOne()
+  std::deque<size_t> next;
+  std::unordered_set<size_t> discovered;
+  next.emplace_back((size_t)limit_path_to.FindOne());
+  discovered.emplace(next.back());
+  emp_assert(next.back() < limit_path_to.size());
+
+  while (next.size() > 0) {
+    // Current node at front of queue
+    const size_t cur_node = next.front();
+    emp_assert(emp::Has(discovered, cur_node));
+    emp_assert(limit_path_to[cur_node]);
+    // Queue all connected nodes that have not yet been discovered and are allowed by 'limit_path_to'
+    for (size_t node_id = 0; node_id < connection_matrix.size(); ++node_id) {
+      if (!emp::Has(discovered, node_id) && limit_path_to[node_id] && is_connected(cur_node, node_id)) {
+        if (node_id == to) return true;
+        discovered.emplace(node_id);
+        next.emplace_back(node_id);
+      }
+    }
+
+    // Pop front of queue
+    next.pop_front();
+  }
+
+  // Completed search without discovering target
+  return false;
+}
 
 // Stateful depth-first traversal.
 // Allows repeated traversals from different starting points while maintaining
