@@ -165,8 +165,15 @@ private:
   // Output a snapshot of how the world is configured
   void SnapshotConfig();
 
+  // Output a snapshot of the community structure identified from interaction matrix
+  void SnapshotSubCommunities();
+
   // Output a snapshot of the community structure
-  void SnapshotSubCommunities(); // <-- TODO
+  template<typename SUMMARY_SET_KEY_T>
+  void SnapshotRecordedCommunitySets(
+    const std::string& file_path,
+    const emp::vector<RecordedCommunitySetInfo<SUMMARY_SET_KEY_T>>& community_sets
+  );
 
   // Output information stored in recorded_communities vector
   void OutputRecordedCommunities(); // <-- TODO
@@ -403,17 +410,37 @@ public:
     }
 
     // NOTE (@AML): Again, another slightly clunky way to tie together things
-    emp::vector<RecordedCommunitySetInfo<emp::vector<double>>> recorded_community_sets_raw = {
-      {recorded_communities_world_raw, "world", true, config->UPDATES()},
-      {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()},
-      {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()}
-    };
+    // emp::vector<RecordedCommunitySetInfo<emp::vector<double>>> recorded_community_sets_raw = {
+    //   {recorded_communities_world_raw, "world", true, config->UPDATES()},
+    //   {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()},
+    //   {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()}
+    // };
+    // emp::vector<RecordedCommunitySetInfo<emp::vector<double>>> recorded_community_sets_no_pni = {
+    //   {recorded_communities_world_no_pni, "world", true, config->UPDATES()},
+    //   {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()},
+    //   {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()}
+    // };
 
-    emp::vector<RecordedCommunitySetInfo<emp::vector<double>>> recorded_community_sets_no_pni = {
-      {recorded_communities_world_no_pni, "world", true, config->UPDATES()},
-      {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()},
-      {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()}
-    };
+    // Snapshot raw recorded community summaries
+    SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+      output_dir + "recorded_communities_raw.csv",
+      {
+        {recorded_communities_world_raw, "world", true, config->UPDATES()},
+        {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()},
+        {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()}
+      }
+    );
+
+    // Snapshot summaries where "present-no-interactions" species have been removed
+    SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+      output_dir + "recorded_communities_no_pni.csv",
+      {
+        {recorded_communities_world_no_pni, "world", true, config->UPDATES()},
+        {recorded_communities_adaptive_no_pni, "adaptive", true, config->UPDATES()},
+        {recorded_communities_assembly_no_pni, "assembly", true, config->UPDATES()}
+      }
+    );
+
 
     // Save recorded communities for recording
     for (auto& [summary, proportion] : world_community_props) {
@@ -1079,6 +1106,7 @@ void AEcoWorld::SnapshotConfig() {
   }
 }
 
+// TODO - does this need to live in AEcoWorld? Or can it be moved?
 void AEcoWorld::SnapshotSubCommunities() {
   emp::DataFile subcommunities_file(output_dir + "subcommunities.csv");
   size_t cur_subcomm_id = 0;
@@ -1159,6 +1187,169 @@ void AEcoWorld::SnapshotSubCommunities() {
   for (cur_subcomm_id = 0; cur_subcomm_id < community_structure.GetNumSubCommunities(); ++cur_subcomm_id) {
     subcommunities_file.Update();
   }
+}
+
+
+
+template<typename SUMMARY_SET_KEY_T>
+void AEcoWorld::SnapshotRecordedCommunitySets(
+  const std::string& file_path,
+  const emp::vector<RecordedCommunitySetInfo<SUMMARY_SET_KEY_T>>& community_sets
+) {
+  emp::DataFile recorded_community_file(file_path);
+  size_t cur_set_id = 0;
+  size_t cur_summary_id = 0;
+
+  // source
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets]() -> std::string {
+      return community_sets[cur_set_id].source;
+    },
+    "source"
+  );
+
+  // proportion
+  recorded_community_file.AddFun<double>(
+    [&cur_set_id, &cur_summary_id, &community_sets]() -> double {
+      const auto& community_set = community_sets[cur_set_id].summary_set;
+      emp_assert(emp::Sum(community_set.GetCommunityCounts()) > 0);
+      return community_set.GetCommunityCount(cur_summary_id) / emp::Sum(community_set.GetCommunityCounts());
+    },
+    "proportion",
+    "Proportion of cells where this particular community was found"
+  );
+
+  // stabilized
+  recorded_community_file.AddFun<bool>(
+    [&cur_set_id, &cur_summary_id, &community_sets]() -> bool {
+      return community_sets[cur_set_id].stabilized;
+    },
+    "stabilized"
+  );
+
+  // updates
+  recorded_community_file.AddFun<size_t>(
+    [&cur_set_id, &cur_summary_id, &community_sets]() -> size_t {
+      return community_sets[cur_set_id].updates;
+    },
+    "updates"
+  );
+
+  // --- Summary information ---
+  // num_present_species
+  recorded_community_file.AddFun<size_t>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> size_t {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return summary.GetNumSpeciesPresent();
+    },
+    "num_present_species"
+  );
+
+  recorded_community_file.AddFun<size_t>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> size_t {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return summary.present_no_interactions.CountOnes();
+    },
+    "num_present_no_interaction_species"
+  );
+
+  // num_possible_species
+  recorded_community_file.AddFun<size_t>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> size_t {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return summary.counts.size();
+    },
+    "num_possible_species"
+  );
+
+  // counts
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.counts);
+    },
+    "species_counts"
+  );
+
+  // present_species_ids
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.present_species_ids);
+    },
+    "present_species_ids"
+  );
+
+  // present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.present);
+    },
+    "present_species"
+  );
+
+  // present_no_interactions
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.present_no_interactions);
+    },
+    "present_without_interaction_species"
+  );
+
+  recorded_community_file.AddFun<size_t>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> size_t {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return summary.complete_subcommunities_present.size();
+    },
+    "num_complete_subcommunities_present"
+  );
+
+  recorded_community_file.AddFun<size_t>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> size_t {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return summary.partial_subcommunities_present.size();
+    },
+    "num_partial_subcommunities_present"
+  );
+
+  // complete_subcommunities_present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.complete_subcommunities_present);
+    },
+    "complete_subcommunities_present"
+  );
+
+  // partial_subcommunities_present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.partial_subcommunities_present);
+    },
+    "partial_subcommunities_present"
+  );
+
+  // proportion_subcommunity_present
+  recorded_community_file.AddFun<std::string>(
+    [&cur_set_id, &cur_summary_id, &community_sets, this]() -> std::string {
+      const auto& summary = community_sets[cur_set_id].summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.proportion_subcommunity_present);
+    },
+    "proportion_subcommunity_present"
+  );
+
+  recorded_community_file.PrintHeaderKeys();
+  // Write one line per summary, per community set
+  for (cur_set_id = 0; cur_set_id < community_sets.size(); ++cur_set_id) {
+    const auto& summary_set = community_sets[cur_set_id].summary_set;
+    for (cur_summary_id = 0; cur_summary_id < summary_set.GetSize(); ++cur_summary_id) {
+      recorded_community_file.Update();
+    }
+  }
+
 }
 
 // Outputs recorded community summaries

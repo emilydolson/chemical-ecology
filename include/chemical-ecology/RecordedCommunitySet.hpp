@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <optional>
 
 #include "emp/bits/BitVector.hpp"
 #include "emp/base/vector.hpp"
@@ -20,8 +21,10 @@
 namespace chemical_ecology {
 
 // Manages a set of RecordedCommunitySummary instances
-// TODO - make templated (if gets more flexibility in what communities are keyed off of)
 // TODO - test!
+// NOTE (@AML): Set of existing accessors probably not complete. Added as needed by world.
+// NOTE (@AML): If you remove something from the set, size_t ids are no longer guaranteed to
+//              be the same before / after the remove
 template<typename SUMMARY_KEY_T>
 class RecordedCommunitySet {
 public:
@@ -35,6 +38,10 @@ protected:
   std::map<SUMMARY_KEY_T, size_t> summary_id_map;     // Map summary keys to position in summaries vector
   summary_key_fun_t get_summary_key_fun;              // Given a summary, extracts component that uniquely identifies the summary
                                                       // Determines what recorded communities should be considered identical
+
+  std::optional<size_t> GetCommunityID(const SUMMARY_KEY_T& key) const {
+    return (emp::Has(summary_id_map, key)) ? summary_id_map[key] : std::nullopt;
+  }
 
   // Removes summary with given ID, adjusts other IDs as necessary
   void Remove(size_t summary_id) {
@@ -66,6 +73,28 @@ public:
     summary_set.clear();
     community_counts.clear();
     summary_id_map.clear();
+  }
+
+  size_t GetSize() const {
+    emp_assert(summary_id_map.size() == summary_set.size());
+    emp_assert(community_counts.size() == summary_set.size());
+    return summary_set.size();
+  }
+
+  // Get numeric ID assigned to given summary
+  std::optional<size_t> GetCommunityID(const RecordedCommunitySummary& summary) const {
+    const auto key = get_summary_key_fun(summary);
+    return (emp::Has(summary_id_map, key)) ? summary_id_map[key] : std::nullopt;
+  }
+
+  const emp::vector<size_t>& GetCommunityCounts() const { return community_counts; }
+
+  size_t GetCommunityCount(size_t id) const {
+    return community_counts[id];
+  }
+
+  const RecordedCommunitySummary& GetCommunitySummary(size_t id) const {
+    return summary_set[id];
   }
 
   void Add(const RecordedCommunitySummary& summary, size_t community_count=1) {
