@@ -9,6 +9,7 @@
 #include "emp/datastructs/vector_utils.hpp"
 
 #include "chemical-ecology/utils/graph_utils.hpp"
+#include "chemical-ecology/InteractionMatrix.hpp"
 
 namespace chemical_ecology {
 
@@ -29,6 +30,13 @@ protected:
 
 public:
   CommunityStructure() = default;
+
+  CommunityStructure(
+    const InteractionMatrix& interaction_matrix
+  ) {
+    SetStructure(interaction_matrix);
+  }
+
   CommunityStructure(
     const interaction_mat_t& interaction_matrix,
     std::function<bool(
@@ -38,6 +46,19 @@ public:
     )> interacts
   ) {
     SetStructure(interaction_matrix, interacts);
+  }
+
+  void SetStructure(const InteractionMatrix& interaction_matrix) {
+    SetStructure(
+      interaction_matrix.GetInteractions(),
+      [&interaction_matrix](
+        const interaction_mat_t& mat,
+        size_t from,
+        size_t to
+      ) -> bool {
+        return interaction_matrix.Interacts(from, to);
+      }
+    );
   }
 
   // Configure subcommunity structure given an interaction matrix
@@ -154,7 +175,7 @@ public:
     subcommunity_fingerprints.clear();
     species_to_subcommunity_id.clear();
     num_species = 0;
-    species_interacts_with.clear();
+    // species_interacts_with.clear();
   }
 
 };
@@ -168,7 +189,6 @@ bool PathExists(
 
   if (limit_path_to.None()) return false;
 
-  // int FindOne()
   std::deque<size_t> next;
   std::unordered_set<size_t> discovered;
   next.emplace_back((size_t)limit_path_to.FindOne());

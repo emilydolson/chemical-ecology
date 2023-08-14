@@ -8,7 +8,7 @@
 #include <set>
 
 #include "chemical-ecology/CommunityStructure.hpp"
-#include "chemical-ecology/utils/io.hpp"
+#include "chemical-ecology/InteractionMatrix.hpp"
 
 #include "emp/base/vector.hpp"
 #include "emp/math/Random.hpp"
@@ -103,13 +103,15 @@ void VerifyStructure(const chemical_ecology::CommunityStructure& comm) {
 }
 
 void VerifyStructure(const std::string& matrix_path) {
-  auto interaction_matrix = chemical_ecology::utils::LoadInteractionMatrix(
-    matrix_path
+
+  chemical_ecology::InteractionMatrix interaction_matrix(
+    interacts_fun
   );
+  interaction_matrix.LoadInteractions(matrix_path);
+
 
   chemical_ecology::CommunityStructure comm_struct(
-    interaction_matrix,
-    interacts_fun
+    interaction_matrix
   );
 
   VerifyStructure(comm_struct);
@@ -121,14 +123,18 @@ TEST_CASE("Should be able to default-initialize CommunityStructure object") {
 
 TEST_CASE("CommunityStructure should correctly reflect no-connection interaction matrix") {
   const std::string mat_path = "data/graph-no-connections.dat";
-  auto interaction_matrix = chemical_ecology::utils::LoadInteractionMatrix(
+
+  chemical_ecology::InteractionMatrix interaction_matrix(
+    interacts_fun
+  );
+
+  interaction_matrix.LoadInteractions(
     mat_path,
     3
   );
 
   chemical_ecology::CommunityStructure comm_struct(
-    interaction_matrix,
-    interacts_fun
+    interaction_matrix
   );
 
   // Check number of species / subcommunities as expected

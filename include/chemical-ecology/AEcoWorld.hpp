@@ -23,7 +23,7 @@
 #include "chemical-ecology/RecordedCommunitySet.hpp"
 #include "chemical-ecology/Config.hpp"
 #include "chemical-ecology/utils/graph_utils.hpp"
-#include "chemical-ecology/utils/io.hpp"
+#include "chemical-ecology/InteractionMatrix.hpp"
 
 namespace chemical_ecology {
 
@@ -48,7 +48,6 @@ public:
   // Although the world is stored as a flat vector of cells
   // it represents a grid of cells
   using world_t = emp::vector< emp::vector<double> >;
-  using interaction_mat_t = emp::vector< emp::vector<double> >;
   using config_t = Config;
 
   // Used to help output recorded community summary sets
@@ -77,7 +76,7 @@ private:
   // The matrix of interactions between types
   // The diagonal of this matrix represents the
   // intrinsic growth rate (r) of each type
-  interaction_mat_t interactions;
+  InteractionMatrix interactions;
 
   SpatialStructure diffusion_spatial_structure;
   SpatialStructure group_repro_spatial_structure;
@@ -198,10 +197,15 @@ public:
 
     // Setup interaction matrix based on the method
     // specified in the configuration file
+    interactions.SetInteractsFun(
+      [](const auto& mat, size_t from, size_t to) -> bool {
+        return (mat[from][to] != 0) || (mat[to][from] != 0);
+      }
+    );
     if (config->INTERACTION_SOURCE() == "") {
       SetupRandomInteractions();
     } else {
-      interactions = utils::LoadInteractionMatrix(
+      interactions.LoadInteractions(
         config->INTERACTION_SOURCE(),
         N_TYPES
       );
@@ -209,10 +213,7 @@ public:
 
     // Make sure you get sub communities after setting up the matrix
     community_structure.SetStructure(
-      interactions,
-      [](const interaction_mat_t& matrix, size_t from, size_t to) -> bool {
-        return (matrix[from][to] != 0) || (matrix[to][from] != 0);
-      }
+      interactions
     );
     // Initialize schedule for sub-community group repro
     subcommunity_group_repro_schedule.resize(
@@ -705,35 +706,22 @@ public:
   }
 
   // Getter for interaction matrix
-  const emp::vector<emp::vector<double>>& GetInteractions() const {
+  const InteractionMatrix& GetInteractions() const {
     return interactions;
   }
 
-  // Set interaction value between types x and y to w
-  void SetInteraction(int x, int y, double w) {
-    interactions[x][y] = w;
-  }
-
+  // TODO - cleanup after switching to InteractionMatrix class
   // Set the interaction matrix to contain random values
   // (with probabilities determined by configs)
   void SetupRandomInteractions() {
     // interaction matrix will ultimately have size
-    // N_TYPES x N_TYPES
-    interactions.resize(N_TYPES);
-
-    for (size_t i = 0; i < N_TYPES; i++) {
-      interactions[i].resize(N_TYPES);
-      for (size_t j = 0; j < N_TYPES; j++) {
-        // PROB_INTERACTION determines probability of there being
-        // an interaction between a given pair of types.
-        // Controls sparsity of interaction matrix
-        if (rnd.P(config->PROB_INTERACTION())){
-          // If there's an interaction, it is a random double
-          // between -INTERACTION_MAGNITUDE and INTERACTION_MAGNITUDE
-          interactions[i][j] = rnd.GetDouble(config->INTERACTION_MAGNITUDE() * -1, config->INTERACTION_MAGNITUDE());
-        }
-      }
-    }
+    interactions.RandomizeInteractions(
+      rnd,
+      N_TYPES,
+      config->PROB_INTERACTION(),
+      config->INTERACTION_MAGNITUDE()
+      // NOTE (@AML): Self-interactions? Looks like they were enabled in old implementation.
+    );
   }
 
 }; // End AEcoWorld class definition
