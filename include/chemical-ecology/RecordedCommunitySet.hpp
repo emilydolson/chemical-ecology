@@ -84,13 +84,22 @@ public:
   // Get numeric ID assigned to given summary
   std::optional<size_t> GetCommunityID(const RecordedCommunitySummary& summary) const {
     const auto key = get_summary_key_fun(summary);
-    return (emp::Has(summary_id_map, key)) ? summary_id_map[key] : std::nullopt;
+    return (emp::Has(summary_id_map, key)) ? std::optional<size_t>{summary_id_map.at(key)} : std::nullopt;
+  }
+
+  bool Has(const RecordedCommunitySummary& summary) const {
+    return emp::Has(summary_id_map, get_summary_key_fun(summary));
   }
 
   const emp::vector<size_t>& GetCommunityCounts() const { return community_counts; }
 
   size_t GetCommunityCount(size_t id) const {
     return community_counts[id];
+  }
+
+  double GetCommunityProportion(size_t id) const {
+    emp_assert(emp::Sum(community_counts) > 0);
+    return (double)community_counts[id] / (double)emp::Sum(community_counts);
   }
 
   const RecordedCommunitySummary& GetCommunitySummary(size_t id) const {

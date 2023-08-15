@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include <functional>
+#include <limits>
 
 #include "emp/Evolve/World.hpp"
 #include "emp/math/distances.hpp"
@@ -35,9 +36,6 @@ namespace chemical_ecology {
 //          called a species in practice
 // - Community = a set of types that interact and can
 //                coexist in the world
-
-// TODO - work on keying off of compressed communities
-// - Shouldn't key off the summaries, make key small
 
 // A class to handle running the simple ecology
 class AEcoWorld {
@@ -94,7 +92,7 @@ private:
   size_t N_TYPES;
   double MAX_POP;
   int curr_update;
-  int curr_update2;
+  int curr_update2;  // NOTE (@AML): if not using negative values, switch to size_t, rename to be more informative
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -129,6 +127,13 @@ private:
   );
 
   void SetupCommunitySummarizers();
+
+  void AnalyzeWorldCommunities(
+    const std::string& output_file_path,
+    const RecordedCommunitySet<emp::vector<double>>& world_communities,
+    const RecordedCommunitySet<emp::vector<double>>& assembly_communities,
+    const RecordedCommunitySet<emp::vector<double>>& adaptive_communities
+  );
 
   // Output a snapshot of how the world is configured
   void SnapshotConfig();
@@ -357,6 +362,14 @@ public:
         {recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
         {recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
       }
+    );
+
+    // Summarize world
+    AnalyzeWorldCommunities(
+      output_dir + "world_summary_pwip.csv",
+      recorded_communities_world_pwip,
+      recorded_communities_assembly_pwip,
+      recorded_communities_adaptive_pwip
     );
 
     // ---- Commandline summary output ---
@@ -830,6 +843,137 @@ void AEcoWorld::SetupCommunitySummarizers() {
       KeepPresentWithInteractionPath
     }
   );
+}
+
+void AEcoWorld::AnalyzeWorldCommunities(
+  const std::string& output_file_path,
+  const RecordedCommunitySet<emp::vector<double>>& world_communities,
+  const RecordedCommunitySet<emp::vector<double>>& assembly_communities,
+  const RecordedCommunitySet<emp::vector<double>>& adaptive_communities
+) {
+  // For each community in the world:
+  // - summary information (some repeated in snapshot)
+  // - community
+  // - found in adaptive
+  // - found in assembly
+  // - prop(adaptive) / prop(assembly)
+  size_t community_id = 0;
+  emp::DataFile community_summary_file(output_file_path);
+
+  // proportion
+  community_summary_file.AddFun<double>(
+    [&community_id, &world_communities]() -> double {
+      emp_assert(emp::Sum(world_communities.GetCommunityCounts()) > 0);
+      return (double)world_communities.GetCommunityCount(community_id) / (double)emp::Sum(world_communities.GetCommunityCounts());
+    },
+    "proportion",
+    "Proportion of cells where this particular community was found"
+  );
+
+  // num_present_species
+  community_summary_file.AddFun<size_t>(
+    [&community_id, &world_communities]() -> size_t {
+      const auto& summary = world_communities.GetCommunitySummary(community_id);
+      return summary.GetNumSpeciesPresent();
+    },
+    "num_present_species"
+  );
+
+  // num_possible_species
+  community_summary_file.AddFun<size_t>(
+    [&community_id, &world_communities]() -> size_t {
+      const auto& summary = world_communities.GetCommunitySummary(community_id);
+      return summary.counts.size();
+    },
+    "num_possible_species"
+  );
+
+
+  // species_counts
+  community_summary_file.AddFun<std::string>(
+    [&community_id, &world_communities]() -> std::string {
+      const auto& summary = world_communities.GetCommunitySummary(community_id);
+      return emp::to_string(summary.counts);
+    },
+    "species_counts"
+  );
+
+  // present_species_ids
+  community_summary_file.AddFun<std::string>(
+    [&community_id, &world_communities]() -> std::string {
+      const auto& summary = world_communities.GetCommunitySummary(community_id);
+      return emp::to_string(summary.present_species_ids);
+    },
+    "present_species_ids"
+  );
+
+  // present_species
+  community_summary_file.AddFun<std::string>(
+    [&community_id, &world_communities]() -> std::string {
+      const auto& summary = world_communities.GetCommunitySummary(community_id);
+      return emp::to_string(summary.present);
+    },
+    "present_species"
+  );
+
+  // found in assembly
+  community_summary_file.AddFun<bool>(
+    [&community_id, &world_communities, &assembly_communities]() -> bool {
+      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
+      return assembly_communities.Has(world_summary);
+    },
+    "found_in_assembly"
+  );
+
+  community_summary_file.AddFun<bool>(
+    [&community_id, &world_communities, &adaptive_communities]() -> bool {
+      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
+      return adaptive_communities.Has(world_summary);
+    },
+    "found_in_adaptive"
+  );
+
+  community_summary_file.AddFun<double>(
+    [&community_id, &world_communities, &adaptive_communities]() -> double {
+      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
+      emp_assert(emp::Sum(adaptive_communities.GetCommunityCounts()) > 0);
+      const auto adaptive_id = adaptive_communities.GetCommunityID(world_summary);
+      return (adaptive_id) ? adaptive_communities.GetCommunityProportion(adaptive_id.value()) : 0.0;
+
+    },
+    "adaptive_proportion"
+  );
+
+  community_summary_file.AddFun<double>(
+    [&community_id, &world_communities, &assembly_communities]() -> double {
+      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
+      emp_assert(emp::Sum(assembly_communities.GetCommunityCounts()) > 0);
+      const auto assembly_id = assembly_communities.GetCommunityID(world_summary);
+      return (assembly_id) ? assembly_communities.GetCommunityProportion(assembly_id.value()) : 0.0;
+    },
+    "assembly_proportion"
+  );
+
+  community_summary_file.AddFun<double>(
+    [&community_id, &world_communities, &assembly_communities, &adaptive_communities]() -> double {
+      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
+      emp_assert(emp::Sum(assembly_communities.GetCommunityCounts()) > 0);
+      emp_assert(emp::Sum(adaptive_communities.GetCommunityCounts()) > 0);
+      const auto assembly_id = assembly_communities.GetCommunityID(world_summary);
+      const auto adaptive_id = adaptive_communities.GetCommunityID(world_summary);
+      const double assembly_prop = (assembly_id) ? assembly_communities.GetCommunityProportion(assembly_id.value()) : 0.0;
+      const double adaptive_prop = (adaptive_id) ? adaptive_communities.GetCommunityProportion(adaptive_id.value()) : 0.0;
+      return (assembly_prop != 0) ? adaptive_prop / assembly_prop : std::numeric_limits<double>::max();
+    },
+    "adaptive_assembly_ratio"
+  );
+
+  community_summary_file.PrintHeaderKeys();
+  for (community_id = 0; community_id < world_communities.GetSize(); ++community_id) {
+    community_summary_file.Update();
+  }
+
+
 }
 
 void AEcoWorld::SnapshotConfig() {
