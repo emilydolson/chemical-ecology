@@ -954,8 +954,8 @@ void AEcoWorld::AnalyzeWorldCommunities(
     "assembly_proportion"
   );
 
-  community_summary_file.AddFun<double>(
-    [&community_id, &world_communities, &assembly_communities, &adaptive_communities]() -> double {
+  community_summary_file.AddFun<std::string>(
+    [&community_id, &world_communities, &assembly_communities, &adaptive_communities]() -> std::string {
       const auto& world_summary = world_communities.GetCommunitySummary(community_id);
       emp_assert(emp::Sum(assembly_communities.GetCommunityCounts()) > 0);
       emp_assert(emp::Sum(adaptive_communities.GetCommunityCounts()) > 0);
@@ -963,7 +963,9 @@ void AEcoWorld::AnalyzeWorldCommunities(
       const auto adaptive_id = adaptive_communities.GetCommunityID(world_summary);
       const double assembly_prop = (assembly_id) ? assembly_communities.GetCommunityProportion(assembly_id.value()) : 0.0;
       const double adaptive_prop = (adaptive_id) ? adaptive_communities.GetCommunityProportion(adaptive_id.value()) : 0.0;
-      return (assembly_prop != 0) ? adaptive_prop / assembly_prop : std::numeric_limits<double>::max();
+      return (assembly_prop != 0) ?
+        emp::to_string(adaptive_prop / assembly_prop) :
+        "ERR";
     },
     "adaptive_assembly_ratio"
   );
