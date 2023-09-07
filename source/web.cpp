@@ -14,9 +14,9 @@
 #include "emp/web/js_utils.hpp"
 #include "emp/datastructs/Graph.hpp"
 
-#include "chemical-ecology/config_setup.hpp"
-#include "chemical-ecology/a-eco.hpp"
-#include "chemical-ecology/ExampleConfig.hpp"
+#include "chemical-ecology/config_setup_web.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
+#include "chemical-ecology/Config.hpp"
 
 namespace UI = emp::web;
 
@@ -34,7 +34,7 @@ D3::SequentialPowScale heredity_scale;
 
 
 chemical_ecology::Config cfg;
-AEcoWorld world;
+chemical_ecology::AEcoWorld world;
 emp::WeightedGraph interactions;
 D3::Selection heatmap;
 
@@ -65,7 +65,7 @@ void ResetScales() {
   heredity_scale.SetDomain(emp::array<double, 2>({0.0, 1.0}));
   heredity_scale.SetInterpolator("interpolateViridis");
   heredity_scale.SetExponent(1.5);
-  
+
 }
 
 void DrawWorldCanvas() {
@@ -93,14 +93,14 @@ void DrawWorldCanvas() {
       const size_t cur_x = org_x * (0.5 + (double) x);
       const size_t cur_y = org_y * (0.5 + (double) y);
       canvas.Rect(x*org_x, y*org_y, org_x, org_y, "#FFFFFF", "black", 10);
-      
+
       for (size_t type = 0; type < cfg.N_TYPES(); type++) {
         int type_x_id = type % (int)n_type_sqrt;
         int type_y_id = type / (int)n_type_sqrt;
         double x_pos = x*org_x + type_x_id*type_x;
         double y_pos = y*org_y + type_y_id*type_y;
-        int count = world.world[org_id][type];
-        canvas.Rect(x_pos, y_pos, type_x, type_y, square_colors[type].ApplyScale<std::string>(count), "white", .01);        
+        int count = world.GetWorld()[org_id][type];
+        canvas.Rect(x_pos, y_pos, type_x, type_y, square_colors[type].ApplyScale<std::string>(count), "white", .01);
       }
      }
   }
@@ -137,9 +137,9 @@ void DrawWorldCanvas() {
 //       }
 //       // std::cout << data.heredity << std::endl;
 //       viz_canvas.Rect(x*org_x, y*org_y, org_x/2, org_y, fitness_scale.ApplyScale<std::string>(data.equilib_growth_rate), "black", 5);
-//       viz_canvas.Rect(x*org_x + org_x/2, y*org_y, org_x/2, org_y, heredity_scale.ApplyScale<std::string>(data.heredity), "black", 5);      
+//       viz_canvas.Rect(x*org_x + org_x/2, y*org_y, org_x/2, org_y, heredity_scale.ApplyScale<std::string>(data.heredity), "black", 5);
 
-      
+
 //       // std::cout << org_id << ": " << data.fitness << std::endl;
 //       // viz_canvas.CenterText({x*org_x + org_x/2, y*org_y + org_y/2}, emp::to_string(data.equilib_growth_rate) + "\n" + emp::to_string((int)data.heredity), "black");
 //      }
@@ -192,7 +192,7 @@ void DrawGraph(emp::WeightedGraph g, std::string canvas_id, double radius = 150)
             .Append("svg:path")
             .SetAttr("d", "M0,-5L10,0L0,5")
             .SetStyle("fill", color);
-        
+
         return "url(#" + id + ")";
     };
 
@@ -292,7 +292,7 @@ void DrawInteractionMatrix(emp::WeightedGraph & g, std::string canvas_id, int wi
         n.w(g.GetWeight(x,y));
       }
     }
-    
+
     D3::Selection s = D3::Select(canvas_id);
     D3::Selection enter = s.SelectAll("rect")
      .Data(interaction_vec)

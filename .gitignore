@@ -16,6 +16,7 @@
 *tmp.*
 
 .DS_Store
+.vscode/
 a.out
 a.out.js
 web/chemical-ecology.js
@@ -26,3 +27,12 @@ doc/_build/
 package-lock.json
 node_modules/
 coverage_include/
+
+local/
+output/
+
+*.csv
+
+/chemical-ecology
+debug_file
+/chemical-ecology.cfg

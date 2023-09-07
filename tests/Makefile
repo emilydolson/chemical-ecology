@@ -1,4 +1,4 @@
-TEST_NAMES := example
+TEST_NAMES := SpatialStructure graph_utils CommunityStructure
 
 TO_ROOT := $(shell git rev-parse --show-cdup)
 
@@ -6,12 +6,12 @@ EMP_DIR := $(TO_ROOT)/third-party/Empirical/include
 
 CXX ?= g++
 
-FLAGS = -std=c++17 -pthread -Wall -Wno-unused-function -Wno-unused-private-field -I$(TO_ROOT)/include/ -I$(TO_ROOT)/third-party/ -I$(EMP_DIR)
+FLAGS = -std=c++17 -pthread -Wall -Wno-unused-function -Wno-unused-private-field -I$(TO_ROOT)/include -I$(TO_ROOT)/third-party/ -I$(EMP_DIR)
 
 default: test
 
 test-%: %.cpp ../third-party/Catch/single_include/catch2/catch.hpp
-	$(CXX) $(FLAGS) $< -o $@.out 
+	$(CXX) $(FLAGS) $< -o $@.out
 	# execute test
 	./$@.out
 

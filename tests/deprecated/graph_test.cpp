@@ -7,13 +7,13 @@
 #include "emp/base/vector.hpp"
 #include "emp/datastructs/Graph.hpp"
 
-#include "chemical-ecology/a-eco.hpp"
-#include "chemical-ecology/ExampleConfig.hpp"
+#include "chemical-ecology/AEcoWorld.hpp"
+#include "chemical-ecology/Config.hpp"
 
 chemical_ecology::Config cfg;
 
 TEST_CASE("Test Assembly Self Equality")
-{   
+{
     AEcoWorld world;
     world.Setup(cfg);
     emp::Graph g = world.CalculateCommunityAssemblyGraph();
@@ -28,7 +28,7 @@ TEST_CASE("Test Assembly Self Equality")
 }
 
 TEST_CASE("Test Assembly and Fitness Node Equality")
-{   
+{
     AEcoWorld world;
     world.Setup(cfg);
     emp::vector<std::string> measures;
@@ -47,7 +47,7 @@ TEST_CASE("Test Assembly and Fitness Node Equality")
 }
 
 TEST_CASE("Resiliance edge test")
-{   
+{
     AEcoWorld world;
     world.Setup(cfg);
     emp::Graph g = world.CalculateCommunityLevelFitnessLandscape("Resiliance");
