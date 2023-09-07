@@ -53,7 +53,7 @@ public:
   struct RecordedCommunitySetInfo {
     const RecordedCommunitySet<SUMMARY_SET_KEY_T>& summary_set;
     std::string source;
-    bool stabilized;      // Was this community "stabilized" (i.e., stableUpdate)
+    bool stabilized;      // Was this community "stabilized" (i.e., GenStablizedWorld)
     size_t updates;       // How many updates was this community run for?
 
     RecordedCommunitySetInfo(
@@ -268,25 +268,13 @@ public:
   // all time steps
   void Run() {
 
-    // If there are any sub communities, we should know about them
-    if (community_structure.GetNumSubCommunities() != 1) {
-      std::cout << "Multiple sub-communities detected!: " << "\n";
-      for (const auto& community : community_structure.GetSubCommunities()) {
-        std::cout << "sub_community:" << " ";
-        for (const auto& species : community) {
-          std::cout << species << " ";
-        }
-        std::cout << std::endl;
-      }
-    }
-
     // Call update the specified number of times
     for (size_t i = 0; i < config->UPDATES(); i++) {
       Update(i);
     }
 
     // Run world forward without diffusion
-    world_t stable_world(stableUpdate(world, config->CELL_STABILIZATION_UPDATES()));
+    world_t stable_world(GenStabilizedWorld(world, config->CELL_STABILIZATION_UPDATES()));
 
     // NOTE (@AML): Not in total love with this; could possibly use another iteration after chatting
     //   about future functionality that would be useful to have
@@ -321,11 +309,11 @@ public:
       // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
       //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
       world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
-      world_t stableAssemblyModel = stableUpdate(assemblyModel, config->CELL_STABILIZATION_UPDATES());
+      world_t stableAssemblyModel = GenStablizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
 
       // Run stochastic adaptive model
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
-      world_t stableAdaptiveModel = stableUpdate(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
+      world_t stableAdaptiveModel = GenStablizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
 
       // Add summarized recorded communities to sets
       recorded_communities_assembly_raw.Add(
@@ -415,14 +403,13 @@ public:
     // one cell to another. Do so for each cell
     for (size_t i = 0; i < world.size(); ++i) {
 
-      int pos = (int)position_activation_order[i];
-
+      const size_t pos = position_activation_order[i];
       // Actually call function that handles between-cell
       // movement
-      // ORIGINAL CALL:
-      //  - DoRepro(pos, world, next_world, config->SEEDING_PROB(), config->PROB_CLEAR(), config->DIFFUSION(), false);
       // (1) Do group reproduction?
-      //  - Note: group repro was never possible here
+      if (config->GROUP_REPRO()) {
+        DoGroupRepro(pos, world, next_world);
+      }
       // (2) Do cell clearing
       DoClearing(pos, world, next_world, config->PROB_CLEAR());
       // (3) Do diffusion
@@ -456,6 +443,8 @@ public:
       for (size_t j = 0; j < N_TYPES; j++) {
         // Sum up growth rate modifier for type i
         // NOTE (@AML): does directionality [i][j] [j][i] matter here? (i.e., are interaction graphs directed or undirected?)
+        // Updated species I, species I changing based on interaction[i][j]
+        // Effect species j has on species i is inter[i][j]
         modifier += interactions[i][j] * curr_world[pos][j];
       }
       const double cur_count = curr_world[pos][i];
@@ -573,7 +562,7 @@ public:
   }
 
   // This function should be called to create a stable copy of the world
-  world_t stableUpdate(const world_t& custom_world, size_t max_updates=10000){
+  world_t GenStabilizedWorld(const world_t& custom_world, size_t max_updates=10000){
 
     // Track current and next state of world
     world_t stable_world(

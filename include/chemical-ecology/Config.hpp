@@ -17,7 +17,7 @@ namespace chemical_ecology {
     VALUE(PROB_CLEAR, double, .25, "Probability of cell being cleared out"),
     VALUE(REPRO_DILUTION, double, .1, "Proportion of contents to propogate on reproduction"),
     //Group repro enabled for all adaptive stochastic worlds under current architecture
-    //VALUE(GROUP_REPRO, bool, false, "True if proportional group level reproduction is enabled this run"),
+    VALUE(GROUP_REPRO, bool, false, "True if proportional group level reproduction is enabled this run"),
     VALUE(V, bool, false, "True if running in verbose mode (Will print out all world vectors)"),
 
     GROUP(INTERACTION_SETTINGS, "Interaction Sources"),

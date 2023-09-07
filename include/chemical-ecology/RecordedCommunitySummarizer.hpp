@@ -136,8 +136,7 @@ public:
 
     // Process counts
     for (size_t mem_i = 0; mem_i < num_members; ++mem_i) {
-      // Drops fractional component of number
-      summary.counts[mem_i] = std::trunc(member_counts[mem_i]);
+      summary.counts[mem_i] = member_counts[mem_i];
       // Fingerprint present/absence
       summary.present[mem_i] = is_present_fun(summary.counts[mem_i]);
       if (summary.present[mem_i]) {
