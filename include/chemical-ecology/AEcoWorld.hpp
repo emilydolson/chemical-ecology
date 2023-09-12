@@ -309,11 +309,11 @@ public:
       // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
       //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
       world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
-      world_t stableAssemblyModel = GenStablizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
+      world_t stableAssemblyModel = GenStabilizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
 
       // Run stochastic adaptive model
       world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
-      world_t stableAdaptiveModel = GenStablizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
+      world_t stableAdaptiveModel = GenStabilizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
 
       // Add summarized recorded communities to sets
       recorded_communities_assembly_raw.Add(
