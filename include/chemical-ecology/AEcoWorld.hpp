@@ -274,6 +274,13 @@ private:
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_raw;         // Uses raw species counts.
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_pwip;        // Keeps all species present with valid interaction paths to other present species
 
+  RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_raw;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_raw;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_pwip;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_pwip;
+
+
   // Set up data tracking
   std::string output_dir;
   emp::Ptr<emp::DataFile> data_file = nullptr;
@@ -297,13 +304,7 @@ private:
 
   void SetupCommunitySummarizers();
 
-  void SetupCommunityAnalysisOutput(); // @AML: NOTE - should revisit function name after refactoring
-
   void AnalyzeWorldCommunities(
-    // const std::string& output_file_path,
-    // const RecordedCommunitySet<emp::vector<double>>& world_communities,
-    // const RecordedCommunitySet<emp::vector<double>>& assembly_communities,
-    // const RecordedCommunitySet<emp::vector<double>>& adaptive_communities
     bool output_snapshots = false
   );
 
@@ -330,6 +331,11 @@ public:
     if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
     if (community_summarizer_pwip != nullptr) community_summarizer_pwip.Delete();
     if (world_community_summary_pwip_file != nullptr) world_community_summary_pwip_file.Delete();
+
+    if (recorded_communities_assembly_raw != nullptr) recorded_communities_assembly_raw.Delete();
+    if (recorded_communities_adaptive_raw != nullptr) recorded_communities_adaptive_raw.Delete();
+    if (recorded_communities_assembly_pwip != nullptr) recorded_communities_assembly_pwip.Delete();
+    if (recorded_communities_adaptive_pwip != nullptr) recorded_communities_adaptive_pwip.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -458,6 +464,34 @@ public:
   // all time steps
   void Run() {
 
+    // Run N replicates of the adaptive model and assembly model.
+    // Save recorded summaries to use when summarizing the world.
+    for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
+      // Run stochastic assembly model
+      // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
+      //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
+      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t stableAssemblyModel = GenStabilizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
+
+      // Run stochastic adaptive model
+      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB());
+      world_t stableAdaptiveModel = GenStabilizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
+
+      // Add summarized recorded communities to sets
+      recorded_communities_assembly_raw->Add(
+        community_summarizer_raw->SummarizeAll(stableAssemblyModel)
+      );
+      recorded_communities_assembly_pwip->Add(
+        community_summarizer_pwip->SummarizeAll(stableAssemblyModel)
+      );
+      recorded_communities_adaptive_raw->Add(
+        community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
+      );
+      recorded_communities_adaptive_pwip->Add(
+        community_summarizer_pwip->SummarizeAll(stableAdaptiveModel)
+      );
+    }
+
     // Call update the specified number of times
     for (world_update = 0; world_update <= config->UPDATES(); ++world_update) {
       Update();
@@ -469,18 +503,12 @@ public:
       for (const auto& v : world) {
         std::cout << emp::to_string(v) << std::endl;
       }
-      // TODO - move?
-      // std::cout << "Stable World Vectors:" << std::endl;
-      // for (const auto& v : stable_world) {
-      //   std::cout << emp::to_string(v) << std::endl;
-      // }
     }
   }
 
   // Handle an individual time step
   // ud = which time step we're on
   void Update() {
-
     // Create a new world object to store the values
     // for the next time step
     world_t next_world(
@@ -925,6 +953,10 @@ void AEcoWorld::SetupSpatialStructure_Load(
 void AEcoWorld::SetupCommunitySummarizers() {
   emp_assert(community_summarizer_raw == nullptr);
   emp_assert(community_summarizer_pwip == nullptr);
+  emp_assert(recorded_communities_assembly_raw == nullptr);
+  emp_assert(recorded_communities_adaptive_raw == nullptr);
+  emp_assert(recorded_communities_assembly_pwip == nullptr);
+  emp_assert(recorded_communities_adaptive_pwip == nullptr);
 
   // Reports raw counts (with decimal components truncated)
   community_summarizer_raw = emp::NewPtr<RecordedCommunitySummarizer>(
@@ -940,6 +972,18 @@ void AEcoWorld::SetupCommunitySummarizers() {
       KeepPresentWithInteractionPath
     }
   );
+
+  // Configure recorded community sets for adaptive / assembly models
+  recorded_comm_key_fun = [](
+    const RecordedCommunitySummary& summary
+  ) -> const auto& {
+    return summary.counts;
+  };
+
+  recorded_communities_assembly_raw = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_raw = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_assembly_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
 }
 
 void AEcoWorld::AnalyzeWorldCommunities(
@@ -953,21 +997,21 @@ void AEcoWorld::AnalyzeWorldCommunities(
     // NOTE (@AML): Not in total love with this; could possibly use another iteration after chatting
     //   about future functionality that would be useful to have
     // - Should all be managed together (to make it easier to add different summary strategies)
-    RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun = [](
-      const RecordedCommunitySummary& summary
-    ) -> const auto& {
-      return summary.counts;
-    };
+    // RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun = [](
+    //   const RecordedCommunitySummary& summary
+    // ) -> const auto& {
+    //   return summary.counts;
+    // };
 
     // Set of recorded communities with "raw" counts
     RecordedCommunitySet<emp::vector<double>> recorded_communities_world_raw(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_raw(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_raw(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
 
     // Set of recorded communities with counts that have had PNI-species zeroed-out
     RecordedCommunitySet<emp::vector<double>> recorded_communities_world_pwip(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
 
     // Add world summaries
     recorded_communities_world_raw.Add(
@@ -977,39 +1021,12 @@ void AEcoWorld::AnalyzeWorldCommunities(
       community_summarizer_pwip->SummarizeAll(stable_world)
     );
 
-    // Run n stochastic worlds
-    for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
-      // Run stochastic assembly model
-      // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
-      //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
-      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB());
-      world_t stableAssemblyModel = GenStabilizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
-
-      // Run stochastic adaptive model
-      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB());
-      world_t stableAdaptiveModel = GenStabilizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
-
-      // Add summarized recorded communities to sets
-      recorded_communities_assembly_raw.Add(
-        community_summarizer_raw->SummarizeAll(stableAssemblyModel)
-      );
-      recorded_communities_assembly_pwip.Add(
-        community_summarizer_pwip->SummarizeAll(stableAssemblyModel)
-      );
-      recorded_communities_adaptive_raw.Add(
-        community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
-      );
-      recorded_communities_adaptive_pwip.Add(
-        community_summarizer_pwip->SummarizeAll(stableAdaptiveModel)
-      );
-    }
-
     // Update world community file
     world_community_summary_pwip_file->Update(
       world_update,
       recorded_communities_world_pwip,
-      recorded_communities_assembly_pwip,
-      recorded_communities_adaptive_pwip
+      *recorded_communities_assembly_pwip,
+      *recorded_communities_adaptive_pwip
     );
 
     if (output_snapshots) {
@@ -1019,8 +1036,8 @@ void AEcoWorld::AnalyzeWorldCommunities(
         output_dir + "recorded_communities_raw_" + emp::to_string(world_update) + ".csv",
         {
           {recorded_communities_world_raw, "world", true, config->UPDATES()},
-          {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
-          {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
+          {*recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
+          {*recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
         }
       );
 
@@ -1029,8 +1046,8 @@ void AEcoWorld::AnalyzeWorldCommunities(
         output_dir + "recorded_communities_pwip_" + emp::to_string(world_update) + ".csv",
         {
           {recorded_communities_world_pwip, "world", true, config->UPDATES()},
-          {recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
-          {recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
+          {*recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
+          {*recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
         }
       );
     }
