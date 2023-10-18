@@ -256,10 +256,10 @@ private:
   // copies for efficiency in accessing their values
   size_t N_TYPES;
   double MAX_POP;
+
   size_t world_update;
   size_t analysis_update; // Update inside of "analysis"
-  // int curr_update;
-  // int curr_update2;  // NOTE (@AML): if not using negative values, switch to size_t, rename to be more informative
+  size_t stochastic_rep;
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -435,7 +435,7 @@ public:
 
     // Assembly file
     assembly_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_assembly_model_data.csv");
-    assembly_data_file->AddVar(world_update, "world_update", "World update");
+    assembly_data_file->AddVar(stochastic_rep, "replicate", "Replicate of model");
     assembly_data_file->AddVar(analysis_update, "Time", "Time");
     assembly_data_file->AddFun<std::string>(
       [this]() -> std::string { return emp::to_string(assemblyWorldState); },
@@ -447,7 +447,7 @@ public:
 
     // Adaptive file
     adaptive_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_adaptive_model_data.csv");
-    adaptive_data_file->AddVar(world_update, "world_update", "World update");
+    adaptive_data_file->AddVar(stochastic_rep, "replicate", "Replicate of model");
     adaptive_data_file->AddVar(analysis_update, "Time", "Time");
     adaptive_data_file->AddFun<std::string>(
       [this]() -> std::string { return emp::to_string(adaptiveWorldState); },
@@ -479,6 +479,9 @@ public:
     // Run N replicates of the adaptive model and assembly model.
     // Save recorded summaries to use when summarizing the world.
     for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
+      // Adaptive and assembly data tracking
+      stochastic_rep = i;
+
       // Run assembly model
       world_t assemblyModel = AssemblyModel(config->UPDATES(), config->PROB_CLEAR(), config->SEEDING_PROB());
       world_t stableAssemblyModel = GenStabilizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
