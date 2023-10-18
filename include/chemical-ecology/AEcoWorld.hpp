@@ -280,17 +280,17 @@ private:
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_pwip;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_pwip;
 
-
   // Set up data tracking
   std::string output_dir;
   emp::Ptr<emp::DataFile> data_file = nullptr;
-  emp::Ptr<emp::DataFile> stochastic_data_file = nullptr;
+  emp::Ptr<emp::DataFile> assembly_data_file = nullptr;
+  emp::Ptr<emp::DataFile> adaptive_data_file = nullptr;
 
   emp::Ptr<WorldCommunitySummaryFile> world_community_summary_pwip_file = nullptr; // Summarizes results from world community analysis
 
   world_t worldState;
-  world_t stochasticWorldState;
-  std::string worldType;
+  world_t assemblyWorldState;
+  world_t adaptiveWorldState;
 
   // Configures spatial structure based on world configuration.
   void SetupSpatialStructure();
@@ -327,7 +327,8 @@ public:
 
   ~AEcoWorld() {
     if (data_file != nullptr) data_file.Delete();
-    if (stochastic_data_file != nullptr) stochastic_data_file.Delete();
+    if (assembly_data_file != nullptr) assembly_data_file.Delete();
+    if (adaptive_data_file != nullptr) adaptive_data_file.Delete();
     if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
     if (community_summarizer_pwip != nullptr) community_summarizer_pwip.Delete();
     if (world_community_summary_pwip_file != nullptr) world_community_summary_pwip_file.Delete();
@@ -432,18 +433,29 @@ public:
     data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
     data_file->PrintHeaderKeys();
 
-    stochastic_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_model_data.csv");
-    stochastic_data_file->AddVar(world_update, "world_update", "World update");
-    stochastic_data_file->AddVar(analysis_update, "Time", "Time");
-    // Takes all communities in the current world, and prints them to a file along with their stochastic world proportions
-    stochastic_data_file->AddFun<std::string>(
-      [this]() -> std::string { return emp::to_string(stochasticWorldState); },
-      "stochasticWorldState",
-      "stochastic world state"
+    // Assembly file
+    assembly_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_assembly_model_data.csv");
+    assembly_data_file->AddVar(world_update, "world_update", "World update");
+    assembly_data_file->AddVar(analysis_update, "Time", "Time");
+    assembly_data_file->AddFun<std::string>(
+      [this]() -> std::string { return emp::to_string(assemblyWorldState); },
+      "assemblyWorldState",
+      "assembly world state"
     );
-    stochastic_data_file->AddVar(worldType, "worldType", "world type");
-    stochastic_data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
-    stochastic_data_file->PrintHeaderKeys();
+    assembly_data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
+    assembly_data_file->PrintHeaderKeys();
+
+    // Adaptive file
+    adaptive_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_adaptive_model_data.csv");
+    adaptive_data_file->AddVar(world_update, "world_update", "World update");
+    adaptive_data_file->AddVar(analysis_update, "Time", "Time");
+    adaptive_data_file->AddFun<std::string>(
+      [this]() -> std::string { return emp::to_string(adaptiveWorldState); },
+      "adaptiveWorldState",
+      "adaptive world state"
+    );
+    adaptive_data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
+    adaptive_data_file->PrintHeaderKeys();
 
     // Setup world summary file
     // NOTE (@AML): This should happen wherever we decide to configure the set of
@@ -467,14 +479,12 @@ public:
     // Run N replicates of the adaptive model and assembly model.
     // Save recorded summaries to use when summarizing the world.
     for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
-      // Run stochastic assembly model
-      // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
-      //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
-      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB());
+      // Run assembly model
+      world_t assemblyModel = AssemblyModel(config->UPDATES(), config->PROB_CLEAR(), config->SEEDING_PROB());
       world_t stableAssemblyModel = GenStabilizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
 
-      // Run stochastic adaptive model
-      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB());
+      // Run adaptive model
+      world_t adaptiveModel = AdaptiveModel(config->UPDATES(), config->PROB_CLEAR(), config->SEEDING_PROB());
       world_t stableAdaptiveModel = GenStabilizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
 
       // Add summarized recorded communities to sets
@@ -752,17 +762,57 @@ public:
     return stable_world;
   }
 
-  // NOTE: The base model is also stochastic model ==> this is a confusing name.
-  world_t StochasticModel(
+  world_t AssemblyModel(
     int num_updates,
-    bool repro,
     double prob_clear,
-    double seeding_prob,
-    bool record_world_state=false
+    double seeding_prob
   ) {
+    // Track current and next stochastic model worlds.
+    world_t model_world(
+      world_size,
+      emp::vector<double>(N_TYPES, 0.0)
+    );
+    world_t next_model_world(model_world);
 
-    worldType = (repro) ? "Repro" : "Soup";
+    for (int i = 0; i < num_updates; i++) {
+      // handle in cell growth
+      for (size_t pos = 0; pos < model_world.size(); pos++) {
+        DoGrowth(pos, model_world, next_model_world);
+      }
+      // Handle abiotic parameters and group repro
+      // There is no spatial structure / no diffusion.
+      for (size_t pos = 0; pos < model_world.size(); pos++) {
+        // (1) clearing
+        DoClearing(pos, model_world, next_model_world, prob_clear);
+        // (2) seeding
+        DoSeeding(pos, model_world, next_model_world, seeding_prob);
+      }
 
+      // Record world state
+      const bool final_update = (i == num_updates);
+      const bool res_update =  !(bool)(i % config->OUTPUT_RESOLUTION());
+      if (config->RECORD_ASSEMBLY_MODEL() && (final_update || res_update)) {
+        analysis_update = i;
+        assemblyWorldState = next_model_world;
+        assembly_data_file->Update();
+      }
+
+      std::swap(model_world, next_model_world);
+
+      if (config->RECORD_ASSEMBLY_MODEL()) {
+        assemblyWorldState.clear();
+      }
+
+    }
+
+    return model_world;
+  }
+
+  world_t AdaptiveModel(
+    int num_updates,
+    double prob_clear,
+    double seeding_prob
+  ) {
     // Track current and next stochastic model worlds.
     world_t model_world(
       world_size,
@@ -781,28 +831,26 @@ public:
         // ORIGINAL DoRepro call:
         //   DoRepro(pos, adj, model_world, next_model_world, config->SEEDING_PROB(), config->PROB_CLEAR(), diff, repro);
         // (1) Group repro
-        if (repro) {
-          DoGroupRepro(pos, model_world, next_model_world);
-        }
+        DoGroupRepro(pos, model_world, next_model_world);
         // (2) clearing
-        DoClearing(pos, model_world, next_model_world, config->PROB_CLEAR());
+        DoClearing(pos, model_world, next_model_world, prob_clear);
         // (3) seeding
-        DoSeeding(pos, model_world, next_model_world, config->SEEDING_PROB());
+        DoSeeding(pos, model_world, next_model_world, seeding_prob);
       }
 
       // Record world state
       const bool final_update = (i == num_updates);
       const bool res_update =  !(bool)(i % config->OUTPUT_RESOLUTION());
-      if (record_world_state && (final_update || res_update)) {
+      if (config->RECORD_ADAPTIVE_MODEL() && (final_update || res_update)) {
         analysis_update = i;
-        stochasticWorldState = next_model_world;
-        stochastic_data_file->Update(); // Don't need to call with update #, already performing timing check.
+        adaptiveWorldState = next_model_world;
+        adaptive_data_file->Update();
       }
 
       std::swap(model_world, next_model_world);
 
-      if (record_world_state) {
-        stochasticWorldState.clear();
+      if (config->RECORD_ADAPTIVE_MODEL()) {
+        adaptiveWorldState.clear();
       }
 
     }
