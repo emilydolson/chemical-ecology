@@ -37,6 +37,171 @@ namespace chemical_ecology {
 // - Community = a set of types that interact and can
 //                coexist in the world
 
+/// Class that helps to manage world community summary files
+class WorldCommunitySummaryFile {
+public:
+  using community_set_t = RecordedCommunitySet<emp::vector<double>>;
+protected:
+  emp::DataFile summary_file;
+  size_t community_id = 0;
+  size_t cur_update = 0;
+  // Unowned pointers
+  emp::Ptr<const community_set_t> cur_world_communities;
+  emp::Ptr<const community_set_t> cur_assembly_communities;
+  emp::Ptr<const community_set_t> cur_adaptive_communities;
+
+  void Setup() {
+    // current update
+    summary_file.AddVar(cur_update, "update", "Model update");
+
+    // proportion
+    summary_file.AddFun<double>(
+      [this]() -> double {
+        emp_assert(emp::Sum(cur_world_communities->GetCommunityCounts()) > 0);
+        return (double)cur_world_communities->GetCommunityCount(community_id) / (double)emp::Sum(cur_world_communities->GetCommunityCounts());
+      },
+      "proportion",
+      "Proportion of cells where this particular community was found"
+    );
+
+    // num_present_species
+    summary_file.AddFun<size_t>(
+      [this]() -> size_t {
+        const auto& summary = cur_world_communities->GetCommunitySummary(community_id);
+        return summary.GetNumSpeciesPresent();
+      },
+      "num_present_species"
+    );
+
+    // num_possible_species
+    summary_file.AddFun<size_t>(
+      [this]() -> size_t {
+        const auto& summary = cur_world_communities->GetCommunitySummary(community_id);
+        return summary.counts.size();
+      },
+      "num_possible_species"
+    );
+
+    // species_counts
+    summary_file.AddFun<std::string>(
+      [this]() -> std::string {
+        const auto& summary = cur_world_communities->GetCommunitySummary(community_id);
+        return emp::to_string(summary.counts);
+      },
+      "species_counts"
+    );
+
+    // present_species_ids
+    summary_file.AddFun<std::string>(
+      [this]() -> std::string {
+        const auto& summary = cur_world_communities->GetCommunitySummary(community_id);
+        return emp::to_string(summary.present_species_ids);
+      },
+      "present_species_ids"
+    );
+
+    // present_species
+    summary_file.AddFun<std::string>(
+      [this]() -> std::string {
+        const auto& summary = cur_world_communities->GetCommunitySummary(community_id);
+        return emp::to_string(summary.present);
+      },
+      "present_species"
+    );
+
+    // found in assembly
+    summary_file.AddFun<bool>(
+      [this]() -> bool {
+        const auto& world_summary = cur_world_communities->GetCommunitySummary(community_id);
+        return cur_assembly_communities->Has(world_summary);
+      },
+      "found_in_assembly"
+    );
+
+    summary_file.AddFun<bool>(
+      [this]() -> bool {
+        const auto& world_summary = cur_world_communities->GetCommunitySummary(community_id);
+        return cur_adaptive_communities->Has(world_summary);
+      },
+      "found_in_adaptive"
+    );
+
+    summary_file.AddFun<double>(
+      [this]() -> double {
+        const auto& world_summary = cur_world_communities->GetCommunitySummary(community_id);
+        emp_assert(emp::Sum(cur_adaptive_communities->GetCommunityCounts()) > 0);
+        const auto adaptive_id = cur_adaptive_communities->GetCommunityID(world_summary);
+        return (adaptive_id) ? cur_adaptive_communities->GetCommunityProportion(adaptive_id.value()) : 0.0;
+      },
+      "adaptive_proportion"
+    );
+
+    summary_file.AddFun<double>(
+      [this]() -> double {
+        const auto& world_summary = cur_world_communities->GetCommunitySummary(community_id);
+        emp_assert(emp::Sum(cur_assembly_communities->GetCommunityCounts()) > 0);
+        const auto assembly_id = cur_assembly_communities->GetCommunityID(world_summary);
+        return (assembly_id) ?
+          cur_assembly_communities->GetCommunityProportion(assembly_id.value()) :
+          0.0;
+      },
+      "assembly_proportion"
+    );
+
+    summary_file.AddFun<std::string>(
+      [this]() -> std::string {
+        const auto& world_summary = cur_world_communities->GetCommunitySummary(community_id);
+        emp_assert(emp::Sum(cur_assembly_communities->GetCommunityCounts()) > 0);
+        emp_assert(emp::Sum(cur_adaptive_communities->GetCommunityCounts()) > 0);
+        const auto assembly_id = cur_assembly_communities->GetCommunityID(world_summary);
+        const auto adaptive_id = cur_adaptive_communities->GetCommunityID(world_summary);
+        const double assembly_prop = (assembly_id) ?
+          cur_assembly_communities->GetCommunityProportion(assembly_id.value()) :
+          0.0;
+        const double adaptive_prop = (adaptive_id) ?
+          cur_adaptive_communities->GetCommunityProportion(adaptive_id.value()) :
+          0.0;
+        return (assembly_prop != 0) ?
+          emp::to_string(adaptive_prop / assembly_prop) :
+          "ERR";
+      },
+      "adaptive_assembly_ratio"
+    );
+
+    summary_file.PrintHeaderKeys();
+  }
+
+public:
+  WorldCommunitySummaryFile(const std::string& file_path) :
+    summary_file(file_path)
+  {
+    Setup();
+  }
+
+  void Update(
+    size_t update,
+    const community_set_t& world_communities,
+    const community_set_t& assembly_communities,
+    const community_set_t& adaptive_communities
+  ) {
+    // Capture given community sets in member variables (giving data file functions access)
+    cur_world_communities = &world_communities;
+    cur_assembly_communities = &assembly_communities;
+    cur_adaptive_communities = &adaptive_communities;
+    cur_update = update;
+
+    // Update summary file for every recorded world community
+    for (community_id = 0; community_id < world_communities.GetSize(); ++community_id) {
+      summary_file.Update();
+    }
+
+    // Null out unowned pointers
+    cur_world_communities = nullptr;
+    cur_assembly_communities = nullptr;
+    cur_adaptive_communities = nullptr;
+  }
+};
+
 // A class to handle running the simple ecology
 class AEcoWorld {
 public:
@@ -91,8 +256,10 @@ private:
   // copies for efficiency in accessing their values
   size_t N_TYPES;
   double MAX_POP;
-  int curr_update;
-  int curr_update2;  // NOTE (@AML): if not using negative values, switch to size_t, rename to be more informative
+  size_t world_update;
+  size_t analysis_update; // Update inside of "analysis"
+  // int curr_update;
+  // int curr_update2;  // NOTE (@AML): if not using negative values, switch to size_t, rename to be more informative
 
   // Initialize vector that keeps track of grid
   world_t world;
@@ -107,10 +274,19 @@ private:
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_raw;         // Uses raw species counts.
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_pwip;        // Keeps all species present with valid interaction paths to other present species
 
+  RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_raw;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_raw;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_pwip;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_pwip;
+
+
   // Set up data tracking
   std::string output_dir;
   emp::Ptr<emp::DataFile> data_file = nullptr;
   emp::Ptr<emp::DataFile> stochastic_data_file = nullptr;
+
+  emp::Ptr<WorldCommunitySummaryFile> world_community_summary_pwip_file = nullptr; // Summarizes results from world community analysis
 
   world_t worldState;
   world_t stochasticWorldState;
@@ -129,10 +305,7 @@ private:
   void SetupCommunitySummarizers();
 
   void AnalyzeWorldCommunities(
-    const std::string& output_file_path,
-    const RecordedCommunitySet<emp::vector<double>>& world_communities,
-    const RecordedCommunitySet<emp::vector<double>>& assembly_communities,
-    const RecordedCommunitySet<emp::vector<double>>& adaptive_communities
+    bool output_snapshots = false
   );
 
   // Output a snapshot of how the world is configured
@@ -157,6 +330,12 @@ public:
     if (stochastic_data_file != nullptr) stochastic_data_file.Delete();
     if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
     if (community_summarizer_pwip != nullptr) community_summarizer_pwip.Delete();
+    if (world_community_summary_pwip_file != nullptr) world_community_summary_pwip_file.Delete();
+
+    if (recorded_communities_assembly_raw != nullptr) recorded_communities_assembly_raw.Delete();
+    if (recorded_communities_adaptive_raw != nullptr) recorded_communities_adaptive_raw.Delete();
+    if (recorded_communities_assembly_pwip != nullptr) recorded_communities_assembly_pwip.Delete();
+    if (recorded_communities_adaptive_pwip != nullptr) recorded_communities_adaptive_pwip.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -244,18 +423,35 @@ public:
 
     // NOTE (@AML): Could merge data_file and stochastic_data_file => same information being printed for each
     data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_data.csv");
-    data_file->AddVar(curr_update, "Time", "Time");
-    data_file->AddFun((std::function<std::string()>)[this](){return emp::to_string(worldState);}, "worldState", "world state");
+    data_file->AddVar(world_update, "Time", "Time");
+    data_file->AddFun<std::string>(
+      [this]() -> std::string { return emp::to_string(worldState); },
+      "worldState",
+      "world state"
+    );
     data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
     data_file->PrintHeaderKeys();
 
     stochastic_data_file = emp::NewPtr<emp::DataFile>(output_dir + "a-eco_model_data.csv");
-    stochastic_data_file->AddVar(curr_update2, "Time", "Time");
+    stochastic_data_file->AddVar(world_update, "world_update", "World update");
+    stochastic_data_file->AddVar(analysis_update, "Time", "Time");
     // Takes all communities in the current world, and prints them to a file along with their stochastic world proportions
-    stochastic_data_file->AddFun((std::function<std::string()>)[this](){return emp::to_string(stochasticWorldState);}, "stochasticWorldState", "stochastic world state");
+    stochastic_data_file->AddFun<std::string>(
+      [this]() -> std::string { return emp::to_string(stochasticWorldState); },
+      "stochasticWorldState",
+      "stochastic world state"
+    );
     stochastic_data_file->AddVar(worldType, "worldType", "world type");
     stochastic_data_file->SetTimingRepeat(config->OUTPUT_RESOLUTION());
     stochastic_data_file->PrintHeaderKeys();
+
+    // Setup world summary file
+    // NOTE (@AML): This should happen wherever we decide to configure the set of
+    //              community summary methods. We might want different summary files
+    //              for each summary method.
+    world_community_summary_pwip_file = emp::NewPtr<WorldCommunitySummaryFile>(
+      output_dir + "world_summary_pwip.csv"
+    );
 
     // Output a snapshot of identified subcommunities
     SnapshotSubCommunities();
@@ -268,102 +464,38 @@ public:
   // all time steps
   void Run() {
 
-    // Call update the specified number of times
-    for (size_t i = 0; i < config->UPDATES(); i++) {
-      Update(i);
-    }
-
-    // Run world forward without diffusion
-    world_t stable_world(GenStabilizedWorld(world, config->CELL_STABILIZATION_UPDATES()));
-
-    // NOTE (@AML): Not in total love with this; could possibly use another iteration after chatting
-    //   about future functionality that would be useful to have
-    RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun = [](
-      const RecordedCommunitySummary& summary
-    ) -> const auto& {
-      return summary.counts;
-    };
-
-    // Set of recorded communities with "raw" counts
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_raw(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_raw(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
-
-    // Set of recorded communities with counts that have had PNI-species zeroed-out
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_pwip(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
-    RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
-
-    // Add world summaries
-    recorded_communities_world_raw.Add(
-      community_summarizer_raw->SummarizeAll(stable_world)
-    );
-    recorded_communities_world_pwip.Add(
-      community_summarizer_pwip->SummarizeAll(stable_world)
-    );
-
-    // Run n stochastic worlds
+    // Run N replicates of the adaptive model and assembly model.
+    // Save recorded summaries to use when summarizing the world.
     for (size_t i = 0; i < config->STOCHASTIC_ANALYSIS_REPS(); ++i) {
-      const bool record_analysis_state = (i == 0); // NOTE: any reason to not output all?
       // Run stochastic assembly model
       // - NOTE (@AML): I'd be tempted to splitting the adaptive and assembly models into their own function.
       //   con: repeated code; pro: simpler parameters, can then have separate implementations down the line if necessary
-      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
+      world_t assemblyModel = StochasticModel(config->UPDATES(), false, config->PROB_CLEAR(), config->SEEDING_PROB());
       world_t stableAssemblyModel = GenStabilizedWorld(assemblyModel, config->CELL_STABILIZATION_UPDATES());
 
       // Run stochastic adaptive model
-      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB(), record_analysis_state);
+      world_t adaptiveModel = StochasticModel(config->UPDATES(), true, config->PROB_CLEAR(), config->SEEDING_PROB());
       world_t stableAdaptiveModel = GenStabilizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
 
       // Add summarized recorded communities to sets
-      recorded_communities_assembly_raw.Add(
+      recorded_communities_assembly_raw->Add(
         community_summarizer_raw->SummarizeAll(stableAssemblyModel)
       );
-      recorded_communities_assembly_pwip.Add(
+      recorded_communities_assembly_pwip->Add(
         community_summarizer_pwip->SummarizeAll(stableAssemblyModel)
       );
-      recorded_communities_adaptive_raw.Add(
+      recorded_communities_adaptive_raw->Add(
         community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
       );
-      recorded_communities_adaptive_pwip.Add(
+      recorded_communities_adaptive_pwip->Add(
         community_summarizer_pwip->SummarizeAll(stableAdaptiveModel)
       );
-
     }
 
-    // NOTE (@AML): Slightly clunky way to tie together things
-    // Snapshot raw recorded community summaries
-    SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
-      output_dir + "recorded_communities_raw.csv",
-      {
-        {recorded_communities_world_raw, "world", true, config->UPDATES()},
-        {recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
-        {recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
-      }
-    );
-
-    // Snapshot summaries where "present-no-interactions" species have been removed
-    SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
-      output_dir + "recorded_communities_pwip.csv",
-      {
-        {recorded_communities_world_pwip, "world", true, config->UPDATES()},
-        {recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
-        {recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
-      }
-    );
-
-    // Summarize world
-    AnalyzeWorldCommunities(
-      output_dir + "world_summary_pwip.csv",
-      recorded_communities_world_pwip,
-      recorded_communities_assembly_pwip,
-      recorded_communities_adaptive_pwip
-    );
-
-    // ---- Commandline summary output ---
-    // NOTE (@AML): Can add updated commandline output back if folks want!
-    //               - Didn't add it because it can be unweildy for many model
-    //                 paramterizations and looking at the output files is easy enough
+    // Call update the specified number of times
+    for (world_update = 0; world_update <= config->UPDATES(); ++world_update) {
+      Update();
+    }
 
     //Print out final state if in verbose mode
     if (config->V()) {
@@ -371,17 +503,12 @@ public:
       for (const auto& v : world) {
         std::cout << emp::to_string(v) << std::endl;
       }
-      std::cout << "Stable World Vectors:" << std::endl;
-      for (const auto& v : stable_world) {
-        std::cout << emp::to_string(v) << std::endl;
-      }
     }
   }
 
   // Handle an individual time step
   // ud = which time step we're on
-  void Update(size_t ud) {
-
+  void Update() {
     // Create a new world object to store the values
     // for the next time step
     world_t next_world(
@@ -391,7 +518,7 @@ public:
 
     // Handle population growth for each cell
     for (size_t pos = 0; pos < world.size(); pos++) {
-      DoGrowth(pos, world, next_world); // @AML: BOOKMARK
+      DoGrowth(pos, world, next_world);
     }
 
     // We need to handle cell updates in a random order
@@ -419,17 +546,26 @@ public:
 
     }
 
-    // Update our time tracker
-    curr_update = ud;
-
     // Give data_file the opportunity to write to the file
+    // TODO - can we eliminate worldState variable?
+    // E.g., if we move after swap, world should be up-to-date
     worldState = next_world;
-    data_file->Update(curr_update);
+    data_file->Update(world_update);
 
     // We're done calculating the type counts for the next
     // time step. We can now swap our counts for the next
     // time step into the main world variable
     std::swap(world, next_world);
+
+    // NOTE - world member variable should be accurate for end of update
+    // On final update if next update would equal or exceed updates param
+    const bool is_final_update = world_update >= config->UPDATES();
+    const bool world_comm_analysis_interval = ((world_update % config->OUTPUT_RESOLUTION()) == 0) || is_final_update;
+    if (world_comm_analysis_interval) {
+      AnalyzeWorldCommunities(
+        /*output_snapshots = */ is_final_update
+      );
+    }
 
     // Clean-up data trackers
     worldState.clear();
@@ -562,7 +698,7 @@ public:
   }
 
   // This function should be called to create a stable copy of the world
-  world_t GenStabilizedWorld(const world_t& custom_world, size_t max_updates=10000){
+  world_t GenStabilizedWorld(const world_t& custom_world, size_t max_updates=10000) {
 
     // Track current and next state of world
     world_t stable_world(
@@ -655,10 +791,10 @@ public:
       }
 
       // Record world state
-      const bool final_update = ((i + 1) == num_updates);
+      const bool final_update = (i == num_updates);
       const bool res_update =  !(bool)(i % config->OUTPUT_RESOLUTION());
       if (record_world_state && (final_update || res_update)) {
-        curr_update2 = i;
+        analysis_update = i;
         stochasticWorldState = next_model_world;
         stochastic_data_file->Update(); // Don't need to call with update #, already performing timing check.
       }
@@ -703,8 +839,8 @@ public:
   }
 
   // Getter for current update/time step
-  int GetTime() {
-    return curr_update;
+  int GetWorldTime() {
+    return world_update;
   }
 
   // Getter for interaction matrix
@@ -817,6 +953,10 @@ void AEcoWorld::SetupSpatialStructure_Load(
 void AEcoWorld::SetupCommunitySummarizers() {
   emp_assert(community_summarizer_raw == nullptr);
   emp_assert(community_summarizer_pwip == nullptr);
+  emp_assert(recorded_communities_assembly_raw == nullptr);
+  emp_assert(recorded_communities_adaptive_raw == nullptr);
+  emp_assert(recorded_communities_assembly_pwip == nullptr);
+  emp_assert(recorded_communities_adaptive_pwip == nullptr);
 
   // Reports raw counts (with decimal components truncated)
   community_summarizer_raw = emp::NewPtr<RecordedCommunitySummarizer>(
@@ -832,139 +972,85 @@ void AEcoWorld::SetupCommunitySummarizers() {
       KeepPresentWithInteractionPath
     }
   );
+
+  // Configure recorded community sets for adaptive / assembly models
+  recorded_comm_key_fun = [](
+    const RecordedCommunitySummary& summary
+  ) -> const auto& {
+    return summary.counts;
+  };
+
+  recorded_communities_assembly_raw = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_raw = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_assembly_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
 }
 
 void AEcoWorld::AnalyzeWorldCommunities(
-  const std::string& output_file_path,
-  const RecordedCommunitySet<emp::vector<double>>& world_communities,
-  const RecordedCommunitySet<emp::vector<double>>& assembly_communities,
-  const RecordedCommunitySet<emp::vector<double>>& adaptive_communities
+  bool output_snapshots
 ) {
-  // For each community in the world:
-  // - summary information (some repeated in snapshot)
-  // - community
-  // - found in adaptive
-  // - found in assembly
-  // - prop(adaptive) / prop(assembly)
-  size_t community_id = 0;
-  emp::DataFile community_summary_file(output_file_path);
+    // Run world forward without diffusion
+    world_t stable_world(
+      GenStabilizedWorld(world, config->CELL_STABILIZATION_UPDATES())
+    );
 
-  // proportion
-  community_summary_file.AddFun<double>(
-    [&community_id, &world_communities]() -> double {
-      emp_assert(emp::Sum(world_communities.GetCommunityCounts()) > 0);
-      return (double)world_communities.GetCommunityCount(community_id) / (double)emp::Sum(world_communities.GetCommunityCounts());
-    },
-    "proportion",
-    "Proportion of cells where this particular community was found"
-  );
+    // NOTE (@AML): Not in total love with this; could possibly use another iteration after chatting
+    //   about future functionality that would be useful to have
+    // - Should all be managed together (to make it easier to add different summary strategies)
+    // RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun = [](
+    //   const RecordedCommunitySummary& summary
+    // ) -> const auto& {
+    //   return summary.counts;
+    // };
 
-  // num_present_species
-  community_summary_file.AddFun<size_t>(
-    [&community_id, &world_communities]() -> size_t {
-      const auto& summary = world_communities.GetCommunitySummary(community_id);
-      return summary.GetNumSpeciesPresent();
-    },
-    "num_present_species"
-  );
+    // Set of recorded communities with "raw" counts
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_raw(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_raw(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
 
-  // num_possible_species
-  community_summary_file.AddFun<size_t>(
-    [&community_id, &world_communities]() -> size_t {
-      const auto& summary = world_communities.GetCommunitySummary(community_id);
-      return summary.counts.size();
-    },
-    "num_possible_species"
-  );
+    // Set of recorded communities with counts that have had PNI-species zeroed-out
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_pwip(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
+    // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
 
+    // Add world summaries
+    recorded_communities_world_raw.Add(
+      community_summarizer_raw->SummarizeAll(stable_world)
+    );
+    recorded_communities_world_pwip.Add(
+      community_summarizer_pwip->SummarizeAll(stable_world)
+    );
 
-  // species_counts
-  community_summary_file.AddFun<std::string>(
-    [&community_id, &world_communities]() -> std::string {
-      const auto& summary = world_communities.GetCommunitySummary(community_id);
-      return emp::to_string(summary.counts);
-    },
-    "species_counts"
-  );
+    // Update world community file
+    world_community_summary_pwip_file->Update(
+      world_update,
+      recorded_communities_world_pwip,
+      *recorded_communities_assembly_pwip,
+      *recorded_communities_adaptive_pwip
+    );
 
-  // present_species_ids
-  community_summary_file.AddFun<std::string>(
-    [&community_id, &world_communities]() -> std::string {
-      const auto& summary = world_communities.GetCommunitySummary(community_id);
-      return emp::to_string(summary.present_species_ids);
-    },
-    "present_species_ids"
-  );
+    if (output_snapshots) {
+      // NOTE (@AML): Slightly clunky way to tie together things
+      // Snapshot raw recorded community summaries
+      SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "recorded_communities_raw_" + emp::to_string(world_update) + ".csv",
+        {
+          {recorded_communities_world_raw, "world", true, config->UPDATES()},
+          {*recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
+          {*recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
+        }
+      );
 
-  // present_species
-  community_summary_file.AddFun<std::string>(
-    [&community_id, &world_communities]() -> std::string {
-      const auto& summary = world_communities.GetCommunitySummary(community_id);
-      return emp::to_string(summary.present);
-    },
-    "present_species"
-  );
-
-  // found in assembly
-  community_summary_file.AddFun<bool>(
-    [&community_id, &world_communities, &assembly_communities]() -> bool {
-      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
-      return assembly_communities.Has(world_summary);
-    },
-    "found_in_assembly"
-  );
-
-  community_summary_file.AddFun<bool>(
-    [&community_id, &world_communities, &adaptive_communities]() -> bool {
-      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
-      return adaptive_communities.Has(world_summary);
-    },
-    "found_in_adaptive"
-  );
-
-  community_summary_file.AddFun<double>(
-    [&community_id, &world_communities, &adaptive_communities]() -> double {
-      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
-      emp_assert(emp::Sum(adaptive_communities.GetCommunityCounts()) > 0);
-      const auto adaptive_id = adaptive_communities.GetCommunityID(world_summary);
-      return (adaptive_id) ? adaptive_communities.GetCommunityProportion(adaptive_id.value()) : 0.0;
-
-    },
-    "adaptive_proportion"
-  );
-
-  community_summary_file.AddFun<double>(
-    [&community_id, &world_communities, &assembly_communities]() -> double {
-      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
-      emp_assert(emp::Sum(assembly_communities.GetCommunityCounts()) > 0);
-      const auto assembly_id = assembly_communities.GetCommunityID(world_summary);
-      return (assembly_id) ? assembly_communities.GetCommunityProportion(assembly_id.value()) : 0.0;
-    },
-    "assembly_proportion"
-  );
-
-  community_summary_file.AddFun<std::string>(
-    [&community_id, &world_communities, &assembly_communities, &adaptive_communities]() -> std::string {
-      const auto& world_summary = world_communities.GetCommunitySummary(community_id);
-      emp_assert(emp::Sum(assembly_communities.GetCommunityCounts()) > 0);
-      emp_assert(emp::Sum(adaptive_communities.GetCommunityCounts()) > 0);
-      const auto assembly_id = assembly_communities.GetCommunityID(world_summary);
-      const auto adaptive_id = adaptive_communities.GetCommunityID(world_summary);
-      const double assembly_prop = (assembly_id) ? assembly_communities.GetCommunityProportion(assembly_id.value()) : 0.0;
-      const double adaptive_prop = (adaptive_id) ? adaptive_communities.GetCommunityProportion(adaptive_id.value()) : 0.0;
-      return (assembly_prop != 0) ?
-        emp::to_string(adaptive_prop / assembly_prop) :
-        "ERR";
-    },
-    "adaptive_assembly_ratio"
-  );
-
-  community_summary_file.PrintHeaderKeys();
-  for (community_id = 0; community_id < world_communities.GetSize(); ++community_id) {
-    community_summary_file.Update();
-  }
-
-
+      // Snapshot summaries where "present-no-interactions" species have been removed
+      SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "recorded_communities_pwip_" + emp::to_string(world_update) + ".csv",
+        {
+          {recorded_communities_world_pwip, "world", true, config->UPDATES()},
+          {*recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
+          {*recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
+        }
+      );
+    }
 }
 
 void AEcoWorld::SnapshotConfig() {
