@@ -70,8 +70,19 @@ public:
     emp::File infile(filename);
     emp::vector<emp::vector<double>> interaction_data = infile.ToData<double>();
 
-    const size_t num_types = (expected_size) ? expected_size.value() : interaction_data.size();
+    if (interaction_data.empty()) {
+      std::cout << "Interaction matrix not found (or empty)." << std::endl;
+      abort();
+    }
 
+    if (expected_size) {
+      if (expected_size.value() != interaction_data.size()) {
+        std::cout << "Interaction matrix size does not match N_TYPES." << std::endl;
+        abort();
+      }
+    }
+
+    const size_t num_types = interaction_data.size();
     interactions.resize(num_types, emp::vector<double>(num_types, 0.0));
 
     // NOTE (@AML): this doesn't look like it does anything extra to "interaction_data" ==> could just return interaction data?
