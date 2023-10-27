@@ -75,6 +75,10 @@ public:
       abort();
     }
 
+    if (interaction_data[interaction_data.size()-1].size() == 0) {
+      interaction_data.erase(interaction_data.end());
+    }
+
     if (expected_size) {
       if (expected_size.value() != interaction_data.size()) {
         std::cout << "Interaction matrix size does not match N_TYPES." << std::endl;

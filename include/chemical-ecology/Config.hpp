@@ -12,7 +12,7 @@ namespace chemical_ecology {
     VALUE(N_TYPES, size_t, 9, "Number of types"),
     VALUE(UPDATES, size_t, 1000, "Number of time steps to run for"),
     VALUE(MAX_POP, int, 10000, "Maximum population size for one type in one cell"),
-    VALUE(DIFFUSION, double, 1, "Proportion of each population that diffuses to adjacent cells"),
+    VALUE(DIFFUSION, double, .25, "Proportion of each population that diffuses to adjacent cells"),
     VALUE(SEEDING_PROB, double, .25, "Probability that a member of a given species will randomly be introduced to a cell"),
     VALUE(PROB_CLEAR, double, .1, "Probability of cell being cleared out"),
     VALUE(REPRO_DILUTION, double, .1, "Proportion of contents to propogate on reproduction"),
