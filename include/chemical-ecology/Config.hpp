@@ -21,7 +21,7 @@ namespace chemical_ecology {
     VALUE(V, bool, false, "True if running in verbose mode (Will print out all world vectors)"),
 
     GROUP(INTERACTION_SETTINGS, "Interaction Sources"),
-    VALUE(INTERACTION_SOURCE, std::string, "config/proof_of_concept_interaction_matrix.dat", "Where to load interaction matrix from; empty string will generate randomly"),
+    VALUE(INTERACTION_SOURCE, std::string, "", "Where to load interaction matrix from; empty string will generate randomly"),
     VALUE(INTERACTION_MAGNITUDE, double, 1, "Range of interaction intensities (from negative of this value to positive of this value"),
     VALUE(PROB_INTERACTION, double, .1, "Probability of there being an interaction between any given pair of species"),
 
