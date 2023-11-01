@@ -23,7 +23,7 @@ namespace chemical_ecology {
     GROUP(INTERACTION_SETTINGS, "Interaction Sources"),
     VALUE(INTERACTION_SOURCE, std::string, "", "Where to load interaction matrix from; empty string will generate randomly"),
     VALUE(INTERACTION_MAGNITUDE, double, 1, "Range of interaction intensities (from negative of this value to positive of this value"),
-    VALUE(PROB_INTERACTION, double, .1, "Probability of there being an interaction between any given pair of species"),
+    VALUE(PROB_INTERACTION, double, .75, "Probability of there being an interaction between any given pair of species"),
 
     GROUP(SPATIAL_STRUCTURE_SETTINGS, "Settings related to connectivity of communities in the world"),
     VALUE(DIFFUSION_SPATIAL_STRUCTURE, std::string, "toroidal-grid", "Specifies spatial structure to use. Options:\n  'toroidal-grid' (2D toroidal grid)\n  'well-mixed' (all connected to all)\n  'load' (loads spatial structure from specified file)"),
