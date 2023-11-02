@@ -16,7 +16,7 @@
 ## Memory requirement in megabytes. You might need to make this bigger.
 #SBATCH --mem-per-cpu=4gb
 
-#SBATCH --array=0-3
+#SBATCH --array=0-2
 
 module load GNU/8.2.0-2.31.1
 
@@ -36,6 +36,8 @@ cp /mnt/home/$USER/grant/chemical-ecology/chemical-ecology .
 
 # Get scripts
 cp /mnt/home/$USER/grant/chemical-ecology/scripts/run_matrix_scheme.py .
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/common.py .
+cp /mnt/home/$USER/grant/chemical-ecology/scripts/matrix_functions.py .
 
 # Run script
 python3 run_matrix_scheme.py $1 ${SLURM_ARRAY_TASK_ID} > outfile.txt

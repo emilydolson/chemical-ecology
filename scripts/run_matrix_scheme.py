@@ -1,3 +1,6 @@
+from common import get_matrix_function, get_common_columns
+from matrix_functions import random_matrix
+from scipy.stats import qmc
 import networkx as nx
 import pandas as pd
 import numpy as np
@@ -7,7 +10,6 @@ import random
 import csv
 import sys
 import os
-from scipy.stats import qmc
 
 
 def sample_params(num_samples, lower_bounds, upper_bounds, ints, seed):
@@ -50,11 +52,6 @@ def get_scheme_bounds(scheme_name):
     return bounds[scheme_name]
 
 
-def random_matrix(ntypes, prob_edge, seed):
-    random.seed(seed)
-    return [[round(random.uniform(-1, 1), 3) if random.random() < prob_edge else 0 for _ in range(ntypes)] for _ in range(ntypes)]
-
-
 def is_connected(matrix):
     graph = nx.DiGraph.reverse(nx.DiGraph(np.array(matrix)))
     return nx.is_weakly_connected(graph)
@@ -72,7 +69,7 @@ def search_params(scheme, rep):
 
     scheme_name = scheme.__name__
     scheme_args = inspect.getfullargspec(scheme)[0]
-    header = ['scheme', 'replicate', 'score', 'ntypes', 'diffusion', 'seeding', 'clear'] + scheme_args[:-1] #remove seed
+    header = get_common_columns() + scheme_args[1:-1] #remove ntypes and seed
     with open('results.txt', 'w') as f:
         f.write(f"{','.join(header)}\n")
 
@@ -94,8 +91,7 @@ def search_params(scheme, rep):
 
         matrix = scheme(*matrix_params)
         if not is_connected(matrix):
-            result = [scheme_name, rep, 'NA', ntypes] + sample
-            results.append(result)
+            results.append([scheme_name, rep, 'NA', ntypes] + sample)
             continue
         write_matrix(matrix, matrix_file_name)
 
@@ -124,8 +120,7 @@ def search_params(scheme, rep):
         df = df.loc[df['num_present_species'] > 0]
         score = np.prod(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio']))
 
-        result = [scheme_name, rep, score, ntypes] + sample
-        results.append(result)
+        results.append([scheme_name, rep, score, ntypes] + sample)
 
         if (i+1) % 100 == 0 or (i+1) == num_samples:
             with open('results.txt', 'a') as f:
@@ -134,17 +129,12 @@ def search_params(scheme, rep):
 
 
 def main():
-    schemes = {'random_matrix':random_matrix}
-
     if len(sys.argv) == 3:
         try:
-            scheme = schemes[sys.argv[1]]
+            scheme = get_matrix_function(sys.argv[1])
             rep = int(sys.argv[2])
         except:
             print('Please give the valid arguments (scheme, replicate).')
-            print('Scheme options:')
-            for s in schemes.keys():
-                print(f'\t{s}')
             exit()
         search_params(scheme, rep)
     else:
