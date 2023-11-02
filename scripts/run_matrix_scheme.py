@@ -1,3 +1,4 @@
+import networkx as nx
 import pandas as pd
 import numpy as np
 import subprocess
@@ -49,11 +50,16 @@ def get_scheme_bounds(scheme_name):
     return bounds[scheme_name]
 
 
-def random_matrix(ntypes, prob_edge, seed=0):
+def random_matrix(ntypes, prob_edge, seed):
     random.seed(seed)
     return [[round(random.uniform(-1, 1), 3) if random.random() < prob_edge else 0 for _ in range(ntypes)] for _ in range(ntypes)]
 
 
+def is_connected(matrix):
+    graph = nx.DiGraph.reverse(nx.DiGraph(np.array(matrix)))
+    return nx.is_weakly_connected(graph)
+
+    
 def write_matrix(interactions, output_name):
     with open(output_name, 'w') as f:
         wr = csv.writer(f)
@@ -66,14 +72,14 @@ def search_params(scheme, rep):
 
     scheme_name = scheme.__name__
     scheme_args = inspect.getfullargspec(scheme)[0]
-    header = ['scheme', 'replicate', 'score', 'diffusion', 'seeding', 'clear'] + scheme_args[:-1] #remove seed
+    header = ['scheme', 'replicate', 'score', 'ntypes', 'diffusion', 'seeding', 'clear'] + scheme_args[:-1] #remove seed
     with open('results.txt', 'w') as f:
         f.write(f"{','.join(header)}\n")
 
     scheme_param_bounds = get_scheme_bounds(scheme_name)
-    lower_bounds = [0, 0, 0] + [9] + scheme_param_bounds[0] #abiotic + ntypes + matrix
-    upper_bounds = [1, 1, 1] + [10] + scheme_param_bounds[1]
-    ints = [False, False, False] + [True] + scheme_param_bounds[2]
+    lower_bounds = [0, 0, 0] + scheme_param_bounds[0] #abiotic + matrix
+    upper_bounds = [1, 1, 0.5] + scheme_param_bounds[1]
+    ints = [False, False, False] + scheme_param_bounds[2]
 
     samples = sample_params(num_samples, lower_bounds, upper_bounds, ints, rep)
     results = []
@@ -83,10 +89,14 @@ def search_params(scheme, rep):
         diffusion = sample[0]
         seeding = sample[1]
         clear = sample[2]
-        ntypes = sample[3]
-        matrix_params = sample[3:] + [rep]
-        
+        ntypes = 9
+        matrix_params = [ntypes] + sample[3:] + [rep]
+
         matrix = scheme(*matrix_params)
+        if not is_connected(matrix):
+            result = [scheme_name, rep, 'NA', ntypes] + sample
+            results.append(result)
+            continue
         write_matrix(matrix, matrix_file_name)
 
         chem_eco = subprocess.Popen(
@@ -107,13 +117,14 @@ def search_params(scheme, rep):
         if return_code != 0:
             print("Error in a-eco, return code:", return_code)
             sys.stdout.flush()
+            continue
         
         df = pd.read_csv('output/world_summary_pwip.csv')
         df = df.loc[df['update'] == 1000]
-        df = df.replace('ERR', 0)
-        score = np.prod(df['proportion']*pd.to_numeric(df['adaptive_assembly_ratio']))
+        df = df.loc[df['num_present_species'] > 0]
+        score = np.prod(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio']))
 
-        result = [scheme_name, rep, score] + sample
+        result = [scheme_name, rep, score, ntypes] + sample
         results.append(result)
 
         if (i+1) % 100 == 0 or (i+1) == num_samples:
@@ -123,21 +134,21 @@ def search_params(scheme, rep):
 
 
 def main():
-    schemes = [random_matrix]
+    schemes = {'random_matrix':random_matrix}
 
     if len(sys.argv) == 3:
         try:
-            scheme = schemes[int(sys.argv[1])]
+            scheme = schemes[sys.argv[1]]
             rep = int(sys.argv[2])
         except:
-            print('Please give the valid arguments (scheme id, replicate).')
-            print('Scheme id options:')
-            for i in range(len(schemes)):
-                print(f'\t{i}: {schemes[i]}')
+            print('Please give the valid arguments (scheme, replicate).')
+            print('Scheme options:')
+            for s in schemes.keys():
+                print(f'\t{s}')
             exit()
         search_params(scheme, rep)
     else:
-        print('Please give the valid arguments (scheme id, replicate).')
+        print('Please give the valid arguments (scheme, replicate).')
         exit()
 
 
