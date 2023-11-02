@@ -81,6 +81,11 @@ public:
       true
     );
 
+    if (subcommunities.size() > 1) {
+      std::cout << "Only one subcommunity allowed." << std::endl;
+      abort();
+    }
+
     // Extract subcommunity presence/absence fingerprints and
     //   map each species to its subcommunity id
     subcommunity_fingerprints.resize(subcommunities.size(), {num_species, false});

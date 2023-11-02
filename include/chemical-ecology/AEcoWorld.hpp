@@ -168,6 +168,30 @@ protected:
       "adaptive_assembly_ratio"
     );
 
+    summary_file.AddFun<std::string>(
+      [this]() -> std::string {
+        const auto& world_summary = cur_world_communities->GetCommunitySummary(community_id);
+        emp_assert(emp::Sum(cur_assembly_communities->GetCommunityCounts()) > 0);
+        emp_assert(emp::Sum(cur_adaptive_communities->GetCommunityCounts()) > 0);
+        const auto assembly_id = cur_assembly_communities->GetCommunityID(world_summary);
+        const auto adaptive_id = cur_adaptive_communities->GetCommunityID(world_summary);
+        double assembly_prop = (assembly_id) ?
+          cur_assembly_communities->GetSmoothedCommunityProportion(assembly_id.value()) :
+          0.0;
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(cur_assembly_communities->GetCommunityCounts())+cur_assembly_communities->GetCommunityCounts().size());
+        double adaptive_prop = (adaptive_id) ?
+          cur_adaptive_communities->GetSmoothedCommunityProportion(adaptive_id.value()) :
+          0.0;
+        if (adaptive_prop == 0) 
+          adaptive_prop = 1/((double)emp::Sum(cur_adaptive_communities->GetCommunityCounts())+cur_adaptive_communities->GetCommunityCounts().size());
+        return (assembly_prop != 0) ?
+          emp::to_string(adaptive_prop / assembly_prop) :
+          "error";
+      },
+      "smooth_adaptive_assembly_ratio"
+    );
+
     summary_file.PrintHeaderKeys();
   }
 
@@ -192,6 +216,7 @@ public:
 
     // Update summary file for every recorded world community
     for (community_id = 0; community_id < world_communities.GetSize(); ++community_id) {
+      
       summary_file.Update();
     }
 
@@ -389,6 +414,7 @@ public:
     );
     if (config->INTERACTION_SOURCE() == "") {
       SetupRandomInteractions();
+      interactions.WriteInteractionMatrix("interaction_matrix.dat");
     } else {
       interactions.LoadInteractions(
         config->INTERACTION_SOURCE(),
