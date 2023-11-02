@@ -102,6 +102,11 @@ public:
     return (double)community_counts[id] / (double)emp::Sum(community_counts);
   }
 
+  double GetSmoothedCommunityProportion(size_t id) const {
+    emp_assert(emp::Sum(community_counts) > 0);
+    return ((double)community_counts[id]+1) / ((double)emp::Sum(community_counts)+community_counts.size());
+  }
+
   const RecordedCommunitySummary& GetCommunitySummary(size_t id) const {
     return summary_set[id];
   }

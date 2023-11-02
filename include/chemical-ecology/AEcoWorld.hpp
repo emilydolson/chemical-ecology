@@ -176,18 +176,20 @@ protected:
         const auto assembly_id = cur_assembly_communities->GetCommunityID(world_summary);
         const auto adaptive_id = cur_adaptive_communities->GetCommunityID(world_summary);
         double assembly_prop = (assembly_id) ?
-          cur_assembly_communities->GetCommunityProportion(assembly_id.value()) :
+          cur_assembly_communities->GetSmoothedCommunityProportion(assembly_id.value()) :
           0.0;
-        if (assembly_prop == 0) assembly_prop = 1/(double)emp::Sum(cur_assembly_communities->GetCommunityCounts());
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(cur_assembly_communities->GetCommunityCounts())+cur_assembly_communities->GetCommunityCounts().size());
         double adaptive_prop = (adaptive_id) ?
-          cur_adaptive_communities->GetCommunityProportion(adaptive_id.value()) :
+          cur_adaptive_communities->GetSmoothedCommunityProportion(adaptive_id.value()) :
           0.0;
-        if (adaptive_prop == 0) adaptive_prop = 1/(double)emp::Sum(cur_adaptive_communities->GetCommunityCounts());
+        if (adaptive_prop == 0) 
+          adaptive_prop = 1/((double)emp::Sum(cur_adaptive_communities->GetCommunityCounts())+cur_adaptive_communities->GetCommunityCounts().size());
         return (assembly_prop != 0) ?
           emp::to_string(adaptive_prop / assembly_prop) :
           "error";
       },
-      "transformed_adaptive_assembly_ratio"
+      "smooth_adaptive_assembly_ratio"
     );
 
     summary_file.PrintHeaderKeys();
