@@ -1,15 +1,12 @@
 from common import get_matrix_function, get_common_columns
-from matrix_functions import random_matrix
 from scipy.stats import qmc
 import networkx as nx
 import pandas as pd
 import numpy as np
 import subprocess
 import inspect
-import random
 import csv
 import sys
-import os
 
 
 def sample_params(num_samples, lower_bounds, upper_bounds, ints, seed):

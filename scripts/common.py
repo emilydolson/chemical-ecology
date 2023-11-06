@@ -1,7 +1,15 @@
 from matrix_functions import random_matrix
 
+
+def get_plots_path():
+    return '/mnt/home/leithers/grant/chemical-ecology/scripts/output/plots/'
+
+
+def get_processed_data_path():
+    return '/mnt/home/leithers/grant/chemical-ecology/scripts/output/data/'
+
    
-def get_file_path():
+def get_raw_data_path():
     return '/mnt/scratch/leithers/chemical-ecology/data/matrix_schemes/'
 
 
