@@ -35,7 +35,7 @@ def get_topological_properties(row, matrix_scheme):
     row['neg_proportion'] = num_negative / num_interactions
     row['avg_pos_strength'] = sum_positive / num_positive if num_positive > 0 else 0
     row['avg_neg_strength'] = sum_negative / num_negative if num_negative > 0 else 0
-    row['strength_diff'] = sum_positive - sum_negative
+    row['avg_strength_diff'] = row['avg_pos_strength'] - row['avg_neg_strength']
 
     return row
 
@@ -50,7 +50,7 @@ def read_data(file_path, matrix_scheme):
             print(f'Results not found for {matrix_scheme} replicate {replicate}.')
     scheme_df = pd.concat(scheme_dfs)
     return scheme_df
-        
+
 
 def main():
     file_path = get_raw_data_path()

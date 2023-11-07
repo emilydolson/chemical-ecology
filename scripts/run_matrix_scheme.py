@@ -1,4 +1,4 @@
-from common import get_matrix_function, get_common_columns
+from common import get_matrix_function, get_common_columns, get_scheme_bounds
 from scipy.stats import qmc
 import networkx as nx
 import pandas as pd
@@ -34,24 +34,9 @@ def sample_params(num_samples, lower_bounds, upper_bounds, ints, seed):
     return params
 
 
-def get_scheme_bounds(scheme_name):
-    ''' Record and access the bounds of parameters/arguments for each matrix generation scheme
-    Arguments:
-        scheme_name (string): the name of the matrix scheme function
-    Returns:
-        a list consisting of a list of lower_bounds, a list of upper_bounds, and a list of bools
-        list of bools marks if the param should be sampled as an int or float
-    '''
-
-    bounds = {
-        'random_matrix': [[0], [1], [False]]
-    }
-    return bounds[scheme_name]
-
-
-def is_connected(matrix):
+def is_valid(matrix):
     graph = nx.DiGraph.reverse(nx.DiGraph(np.array(matrix)))
-    return nx.is_weakly_connected(graph)
+    return nx.is_weakly_connected(graph) and not nx.is_empty(graph)
 
     
 def write_matrix(interactions, output_name):
@@ -62,7 +47,7 @@ def write_matrix(interactions, output_name):
 
 def search_params(scheme, rep):
     matrix_file_name = 'interaction_matrix.dat'
-    num_samples = 10
+    num_samples = 100
 
     scheme_name = scheme.__name__
     scheme_args = inspect.getfullargspec(scheme)[0]
@@ -87,37 +72,38 @@ def search_params(scheme, rep):
         matrix_params = [ntypes] + sample[3:] + [rep]
 
         matrix = scheme(*matrix_params)
-        if not is_connected(matrix):
+        if is_valid(matrix):
+            write_matrix(matrix, matrix_file_name)
+
+            chem_eco = subprocess.Popen(
+                [(f'./chemical-ecology '
+                f'-DIFFUSION {diffusion} '
+                f'-SEEDING_PROB {seeding} '
+                f'-PROB_CLEAR {clear} '
+                f'-INTERACTION_SOURCE {matrix_file_name} '
+                f'-SEED {rep} '
+                f'-MAX_POP {10000} '
+                f'-WORLD_WIDTH {10} '
+                f'-WORLD_HEIGHT {10} '
+                f'-UPDATES {1000} '
+                f'-N_TYPES {ntypes}')],
+                shell=True, 
+                stdout=subprocess.DEVNULL)
+            return_code = chem_eco.wait()
+            if return_code != 0:
+                print("Error in a-eco, return code:", return_code)
+                sys.stdout.flush()
+                continue
+            
+            df = pd.read_csv('output/world_summary_pwip.csv')
+            df = df.loc[df['update'] == 1000]
+            df = df.loc[df['num_present_species'] > 0]
+            #score = np.prod(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio']))
+            score = np.sum(np.log(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio'])))
+
+            results.append([scheme_name, rep, score, ntypes] + sample)
+        else:
             results.append([scheme_name, rep, 'NA', ntypes] + sample)
-            continue
-        write_matrix(matrix, matrix_file_name)
-
-        chem_eco = subprocess.Popen(
-            [(f'./chemical-ecology '
-            f'-DIFFUSION {diffusion} '
-            f'-SEEDING_PROB {seeding} '
-            f'-PROB_CLEAR {clear} '
-            f'-INTERACTION_SOURCE {matrix_file_name} '
-            f'-SEED {rep} '
-            f'-MAX_POP {10000} '
-            f'-WORLD_WIDTH {10} '
-            f'-WORLD_HEIGHT {10} '
-            f'-UPDATES {1000} '
-            f'-N_TYPES {ntypes}')],
-            shell=True, 
-            stdout=subprocess.DEVNULL)
-        return_code = chem_eco.wait()
-        if return_code != 0:
-            print("Error in a-eco, return code:", return_code)
-            sys.stdout.flush()
-            continue
-        
-        df = pd.read_csv('output/world_summary_pwip.csv')
-        df = df.loc[df['update'] == 1000]
-        df = df.loc[df['num_present_species'] > 0]
-        score = np.prod(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio']))
-
-        results.append([scheme_name, rep, score, ntypes] + sample)
 
         if (i+1) % 100 == 0 or (i+1) == num_samples:
             with open('results.txt', 'a') as f:
