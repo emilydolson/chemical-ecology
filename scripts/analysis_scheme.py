@@ -1,5 +1,5 @@
 from common import get_processed_data_path, get_plots_path, get_common_columns, get_common_param_columns, get_schemes
-from analysis import histograms, fitness_correlation, param_correlation_heatmap
+from analysis import histograms, fitness_correlation, param_correlation_heatmap, summary_statistics
 import pandas as pd
 import numpy as np
 import sys
@@ -32,6 +32,7 @@ def scheme_analysis(scheme):
     fitness_correlation(df, param_names, scheme)
     histograms(df, param_names, scheme)
     param_correlation_heatmap(df, param_names, scheme)
+    summary_statistics(df, scheme)
 
 
 def main():

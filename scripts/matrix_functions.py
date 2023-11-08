@@ -13,7 +13,7 @@ def scale_free(ntypes, split1, split2, delta_in, delta_out, seed):
     for row in range(len(matrix)):
         for col in range(len(matrix)):
             if matrix[row][col] != 0:
-                matrix[row][col] = random.uniform(-1, 1)
+                matrix[row][col] = round(random.uniform(-1, 1), 3)
     return matrix
 
 
@@ -23,7 +23,7 @@ def erdos_renyi(ntypes, prob_edge, seed):
     for row in range(len(matrix)):
         for col in range(len(matrix)):
             if matrix[row][col] != 0:
-                matrix[row][col] = random.uniform(-1, 1)
+                matrix[row][col] = round(random.uniform(-1, 1), 3)
     return matrix
 
 

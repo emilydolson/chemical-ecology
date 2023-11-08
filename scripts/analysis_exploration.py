@@ -6,9 +6,9 @@ import seaborn as sns
 import sys
 
 
-def individual_scatter(df, x, y, scheme):
+def individual_scatter(df, x, y, hue, scheme):
     plt.figure()
-    sns.scatterplot(x=x, y=y, data=df, hue='adaptive')
+    sns.scatterplot(x=x, y=y, data=df, hue=hue)
     plt.xlabel(x)
     plt.ylabel(y)
     plt.savefig(f'{get_plots_path()}{scheme}/scatter_{x}_{y}.png')
@@ -22,7 +22,7 @@ def main():
     else:
         scheme = 'combined'
         df, param_names = read_data()
-    individual_scatter(df, 'connectance', 'clear', scheme)
+    individual_scatter(df, 'connectance', 'score', 'adaptive', scheme)
 
 
 if __name__ == '__main__':

@@ -84,6 +84,16 @@ def score_boxplot(df):
 '''
 Other analysis
 '''
+def summary_statistics(df, scheme):
+    num_samples = len(df)
+    num_adaptive = len(df.loc[df["adaptive"] == True])
+
+    print(scheme)
+    print(f'\tCount: {num_samples}')
+    print(f'\tNum Adaptive: {num_adaptive}')
+    print(f'\tProportion Adaptive: {num_adaptive/num_samples}')
+
+
 def significance(df):
     scheme_combos = list(combinations(df['scheme'].unique(), 2))
     for rep in df['replicate'].unique():
@@ -132,6 +142,7 @@ def main():
     param_correlation_heatmap(df, param_names, 'combined')
     score_boxplot(df)
     significance(df)
+    summary_statistics(df, 'combined')
 
 
 if __name__ == '__main__':

@@ -36,6 +36,8 @@ def get_topological_properties(row, matrix_scheme):
     row['avg_pos_strength'] = sum_positive / num_positive if num_positive > 0 else 0
     row['avg_neg_strength'] = sum_negative / num_negative if num_negative > 0 else 0
     row['avg_strength_diff'] = row['avg_pos_strength'] - row['avg_neg_strength']
+    row['mutualistic_pairs'] = sum([sum([1 for j in range(i+1, num_nodes) if matrix[i][j] > 0 and matrix[j][i] > 0]) for i in range(num_nodes)]) / num_interactions
+    row['pos_self_strength'] = sum([1 for i in range(num_nodes) if matrix[i][i] > 0]) / num_nodes
 
     return row
 
