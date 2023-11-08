@@ -1,29 +1,8 @@
 from matrix_functions import random_matrix, erdos_renyi, scale_free
 
 
-def get_plots_path():
-    return '/mnt/home/leithers/grant/chemical-ecology/scripts/output/plots/'
-
-
-def get_processed_data_path():
-    return '/mnt/home/leithers/grant/chemical-ecology/scripts/output/data/'
-
-   
-def get_raw_data_path():
-    return '/mnt/scratch/leithers/chemical-ecology/data/matrix_schemes/'
-
-
-def get_common_param_columns():
-    return ['ntypes', 'diffusion', 'seeding', 'clear']
-
-
-def get_common_columns():
-    return ['scheme', 'replicate', 'score'] + get_common_param_columns()
-
-
-def get_matrix_function(scheme_name):
-    schemes = {'random_matrix':random_matrix, 'erdos_renyi':erdos_renyi, 'scale_free':scale_free}
-    return schemes[scheme_name]
+schemes = {'random_matrix':random_matrix, 'erdos_renyi':erdos_renyi, 'scale_free':scale_free}
+code_location = '/mnt/home/leithers/grant/chemical-ecology/'
 
 
 def get_scheme_bounds(scheme_name):
@@ -41,3 +20,31 @@ def get_scheme_bounds(scheme_name):
         'scale_free': [[0, 0, 0, 0], [1, 1, 1, 1], [False, False, False, False]]
     }
     return bounds[scheme_name]
+
+
+def get_plots_path():
+    return code_location+'scripts/output/plots/'
+
+
+def get_processed_data_path():
+    return code_location+'scripts/output/data/'
+
+
+def get_raw_data_path():
+    return '/mnt/scratch/leithers/chemical-ecology/data/matrix_schemes/'
+
+
+def get_common_param_columns():
+    return ['diffusion', 'seeding', 'clear']
+
+
+def get_common_columns():
+    return ['scheme', 'replicate', 'score', 'ntypes'] + get_common_param_columns()
+
+
+def get_schemes():
+    return list(schemes.keys())
+
+
+def get_matrix_function(scheme_name):
+    return schemes[scheme_name]

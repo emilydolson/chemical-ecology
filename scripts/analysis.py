@@ -11,8 +11,25 @@ import os
 '''
 Plots for either individual schemes or all combined
 '''
+def histograms(df, param_names, scheme):
+    figure, axis = plt.subplots(5, 4, figsize=(15,15))
+    row = 0
+    col = 0
+    for param in param_names:
+        sns.histplot(data=df, x=param, hue='adaptive', multiple='stack', stat='proportion', ax=axis[row][col])
+        axis[row][col].set_title(param)
+        row += 1
+        if row % 5 == 0:
+            col += 1
+            row = 0
+    figure.tight_layout(rect=[0, 0.03, 1, 0.95])
+    figure.suptitle(f'{scheme} parameter histograms')
+    plt.savefig(f'{get_plots_path()}{scheme}/histogram_param.png')
+    plt.close()
+
+
 def boxplots(df, param_names, scheme):
-    figure, axis = plt.subplots(5, 3, figsize=(15,15))
+    figure, axis = plt.subplots(5, 4, figsize=(15,15))
     row = 0
     col = 0
     for param in param_names:
@@ -41,6 +58,16 @@ def fitness_correlation(df, param_names, scheme):
     figure.supxlabel('Correlation with score')
     plt.grid(axis='y')
     plt.savefig(f'{get_plots_path()}{scheme}/correlation_score.png')
+    plt.close()
+
+
+def param_correlation_heatmap(df, param_names, scheme):
+    figure = plt.figure()
+    df_params = df[param_names]
+    corr = df_params.corr()
+    sns.heatmap(corr, center=0, vmin=-1, vmax=1, cmap='coolwarm')
+    figure.tight_layout()
+    plt.savefig(f'{get_plots_path()}{scheme}/correlation_param.png')
     plt.close()
 
 
@@ -81,13 +108,8 @@ def significance(df):
 '''
 Main functions
 '''
-def create_folder_structure(scheme):
-    path = f'{get_plots_path()}{scheme}'
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-
-def read_data(file_path):
+def read_data():
+    file_path = get_processed_data_path()
     dfs = []
     for scheme_df_file in os.listdir(file_path):
         scheme_df = pd.read_pickle(file_path+scheme_df_file)
@@ -97,22 +119,17 @@ def read_data(file_path):
         dfs = [x[overlapping_cols] for x in dfs]
     df = pd.concat(dfs)
     param_names = list(set(df.columns) - set(get_common_columns())) + get_common_param_columns()
+    df = df.reset_index()
     df['adaptive'] = np.where(df['score'] > 0.5, True, False)
     return df, param_names
 
 
 def main():
-    file_path = get_processed_data_path()
-    df, param_names = read_data(file_path)
+    df, param_names = read_data()
 
-    for scheme in list(df['scheme'].unique())+['combined']:
-        if scheme == 'combined':
-            df_scheme = df
-        else:
-            df_scheme = df.loc[df['scheme'] == scheme]
-        boxplots(df_scheme, param_names, scheme)
-        fitness_correlation(df_scheme, param_names, scheme)
-
+    fitness_correlation(df, param_names, 'combined')
+    histograms(df, param_names, 'combined')
+    param_correlation_heatmap(df, param_names, 'combined')
     score_boxplot(df)
     significance(df)
 
