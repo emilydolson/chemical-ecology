@@ -181,7 +181,7 @@ public:
 
       bool interacts = false;
       for (size_t other_id : subcommunity) {
-        // if (!summary.present[other_id]) continue; // <- This line wasn't in the original logic, but otherwise, everything will be counted as present with interactions
+        if (!summary.present[other_id]) continue; // <- This line wasn't in the original logic, but otherwise, everything will be counted as present with interactions
         // indirect + direct interactions
         interacts = community_structure.SpeciesInteractsWith(species_id, other_id);
         if (interacts) break;
