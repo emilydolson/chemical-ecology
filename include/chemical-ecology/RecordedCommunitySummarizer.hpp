@@ -31,11 +31,12 @@ struct RecordedCommunitySummary {
 
   emp::BitVector present_with_other_subcommunity_members; // Species present with at least one other members of their subcommunity
   emp::BitVector present_with_interaction_path;   // Species present with at least one valid interaction path to another species present
+  emp::BitVector present_with_interaction;        // Species present with at least one interaction
 
   emp::vector<size_t> complete_subcommunities_present; // IDs of complete subcommunity structures present in this recorded community
-                                                       //   IDs come from given CommunityStructure instance
+                                                       // IDs come from given CommunityStructure instance
   emp::vector<size_t> partial_subcommunities_present;  // IDs of partial subcommunity structures present in this recorded community
-                                                       //   IDs come from given CommunityStructure instance
+                                                       // IDs come from given CommunityStructure instance
   emp::vector<double> proportion_subcommunity_present; // Proportion of each subcommunity structure present in recorded community
 
   bool operator<(const RecordedCommunitySummary& other) const {
@@ -46,6 +47,7 @@ struct RecordedCommunitySummary {
     (present.Resize(num_members)).Clear();
     (present_with_other_subcommunity_members.Resize(num_members)).Clear();
     (present_with_interaction_path.Resize(num_members)).Clear();
+    (present_with_interaction.Resize(num_members)).Clear();
     present_species_ids.clear();
     counts.clear();
     counts.resize(num_members, 0);
@@ -164,21 +166,27 @@ public:
       // We can limit our search to this species' subcommunity
       const auto& subcommunity = community_structure.GetSubCommunity(community_id);
       bool has_path = false;
-      // // is there a path from species_id to each other present species, only going through other present species?
+      // is there a path from species_id to each other present species, only going through other present species?
       for (size_t other_id : subcommunity) {
         // direct interactions only
-        // has_path = PathExists(
-        //   community_structure,
-        //   species_id,
-        //   other_id,
-        //   summary.present
-        // );
-
-        // indirect + direct interactions
-        has_path = community_structure.SpeciesInteractsWith(species_id, other_id);
+        has_path = PathExists(
+          community_structure,
+          species_id,
+          other_id,
+          summary.present
+        );
         if (has_path) break;
       }
       summary.present_with_interaction_path[species_id] = has_path;
+
+      bool interacts = false;
+      for (size_t other_id : subcommunity) {
+        // if (!summary.present[other_id]) continue; // <- This line wasn't in the original logic, but otherwise, everything will be counted as present with interactions
+        // indirect + direct interactions
+        interacts = community_structure.SpeciesInteractsWith(species_id, other_id);
+        if (interacts) break;
+      }
+      summary.present_with_interaction[species_id] = interacts;
     }
 
     // Identify number of complete and partial subcommunities present
@@ -233,6 +241,20 @@ RecordedCommunitySummary KeepPresentWithInteractionPath(
   emp::vector<double> new_counts(in_summary.counts);
   for (size_t species_i = 0; species_i < new_counts.size(); ++species_i) {
     new_counts[species_i] = (in_summary.present_with_interaction_path[species_i]) ? new_counts[species_i] : 0;
+  }
+  return summarizer.Summarize(new_counts, false);
+}
+
+RecordedCommunitySummary KeepPresentWithInteraction(
+  const RecordedCommunitySummarizer& summarizer,
+  const RecordedCommunitySummary& in_summary
+) {
+  // Create new counts vector from given counts. Zero out all species with no interactions.
+  emp::vector<double> new_counts(in_summary.counts);
+  for (size_t species_i = 0; species_i < new_counts.size(); ++species_i) {
+    new_counts[species_i] = (in_summary.present_with_interaction[species_i]) ?
+      new_counts[species_i] :
+      0;
   }
   return summarizer.Summarize(new_counts, false);
 }

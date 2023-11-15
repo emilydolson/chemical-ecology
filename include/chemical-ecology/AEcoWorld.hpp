@@ -178,12 +178,12 @@ protected:
         double assembly_prop = (assembly_id) ?
           cur_assembly_communities->GetSmoothedCommunityProportion(assembly_id.value()) :
           0.0;
-        if (assembly_prop == 0) 
+        if (assembly_prop == 0)
           assembly_prop = 1/((double)emp::Sum(cur_assembly_communities->GetCommunityCounts())+cur_assembly_communities->GetCommunityCounts().size());
         double adaptive_prop = (adaptive_id) ?
           cur_adaptive_communities->GetSmoothedCommunityProportion(adaptive_id.value()) :
           0.0;
-        if (adaptive_prop == 0) 
+        if (adaptive_prop == 0)
           adaptive_prop = 1/((double)emp::Sum(cur_adaptive_communities->GetCommunityCounts())+cur_adaptive_communities->GetCommunityCounts().size());
         return (assembly_prop != 0) ?
           emp::to_string(adaptive_prop / assembly_prop) :
@@ -216,7 +216,7 @@ public:
 
     // Update summary file for every recorded world community
     for (community_id = 0; community_id < world_communities.GetSize(); ++community_id) {
-      
+
       summary_file.Update();
     }
 
@@ -298,12 +298,15 @@ private:
 
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_raw;         // Uses raw species counts.
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_pwip;        // Keeps all species present with valid interaction paths to other present species
+  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_pwint;
 
   RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_raw;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_raw;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_pwip;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_pwip;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_pwint;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_pwint;
 
   // Set up data tracking
   std::string output_dir;
@@ -311,7 +314,8 @@ private:
   emp::Ptr<emp::DataFile> assembly_data_file = nullptr;
   emp::Ptr<emp::DataFile> adaptive_data_file = nullptr;
 
-  emp::Ptr<WorldCommunitySummaryFile> world_community_summary_pwip_file = nullptr; // Summarizes results from world community analysis
+  emp::Ptr<WorldCommunitySummaryFile> world_community_summary_pwip_file = nullptr;  // Summarizes results from world community analysis
+  emp::Ptr<WorldCommunitySummaryFile> world_community_summary_pwint_file = nullptr;
 
   world_t worldState;
   world_t assemblyWorldState;
@@ -356,12 +360,16 @@ public:
     if (adaptive_data_file != nullptr) adaptive_data_file.Delete();
     if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
     if (community_summarizer_pwip != nullptr) community_summarizer_pwip.Delete();
+    if (community_summarizer_pwint != nullptr) community_summarizer_pwint.Delete();
     if (world_community_summary_pwip_file != nullptr) world_community_summary_pwip_file.Delete();
+    if (world_community_summary_pwint_file != nullptr) world_community_summary_pwint_file.Delete();
 
     if (recorded_communities_assembly_raw != nullptr) recorded_communities_assembly_raw.Delete();
     if (recorded_communities_adaptive_raw != nullptr) recorded_communities_adaptive_raw.Delete();
     if (recorded_communities_assembly_pwip != nullptr) recorded_communities_assembly_pwip.Delete();
     if (recorded_communities_adaptive_pwip != nullptr) recorded_communities_adaptive_pwip.Delete();
+    if (recorded_communities_assembly_pwint != nullptr) recorded_communities_assembly_pwint.Delete();
+    if (recorded_communities_adaptive_pwint != nullptr) recorded_communities_adaptive_pwint.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -491,6 +499,10 @@ public:
       output_dir + "world_summary_pwip.csv"
     );
 
+    world_community_summary_pwint_file = emp::NewPtr<WorldCommunitySummaryFile>(
+      output_dir + "world_summary_pwint.csv"
+    );
+
     // Output a snapshot of identified subcommunities
     SnapshotSubCommunities();
 
@@ -523,12 +535,20 @@ public:
       recorded_communities_assembly_pwip->Add(
         community_summarizer_pwip->SummarizeAll(stableAssemblyModel)
       );
+      recorded_communities_assembly_pwint->Add(
+        community_summarizer_pwint->SummarizeAll(stableAssemblyModel)
+      );
+
       recorded_communities_adaptive_raw->Add(
         community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
       );
       recorded_communities_adaptive_pwip->Add(
         community_summarizer_pwip->SummarizeAll(stableAdaptiveModel)
       );
+      recorded_communities_adaptive_pwint->Add(
+        community_summarizer_pwint->SummarizeAll(stableAdaptiveModel)
+      );
+
     }
 
     // Call update the specified number of times
@@ -1030,10 +1050,13 @@ void AEcoWorld::SetupSpatialStructure_Load(
 void AEcoWorld::SetupCommunitySummarizers() {
   emp_assert(community_summarizer_raw == nullptr);
   emp_assert(community_summarizer_pwip == nullptr);
+  emp_assert(community_summarizer_pwint == nullptr);
   emp_assert(recorded_communities_assembly_raw == nullptr);
   emp_assert(recorded_communities_adaptive_raw == nullptr);
   emp_assert(recorded_communities_assembly_pwip == nullptr);
   emp_assert(recorded_communities_adaptive_pwip == nullptr);
+  emp_assert(recorded_communities_assembly_pwint == nullptr);
+  emp_assert(recorded_communities_adaptive_pwint == nullptr);
 
   // Reports raw counts (with decimal components truncated)
   community_summarizer_raw = emp::NewPtr<RecordedCommunitySummarizer>(
@@ -1050,6 +1073,15 @@ void AEcoWorld::SetupCommunitySummarizers() {
     }
   );
 
+  // Removes species present that have no interactions with other present species
+  community_summarizer_pwint = emp::NewPtr<RecordedCommunitySummarizer>(
+    community_structure,
+    [](double count) -> bool { return count >= 1.0; },
+    emp::vector<RecordedCommunitySummarizer::summary_update_fun_t>{
+      KeepPresentWithInteraction
+    }
+  );
+
   // Configure recorded community sets for adaptive / assembly models
   recorded_comm_key_fun = [](
     const RecordedCommunitySummary& summary
@@ -1061,6 +1093,8 @@ void AEcoWorld::SetupCommunitySummarizers() {
   recorded_communities_adaptive_raw = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
   recorded_communities_assembly_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
   recorded_communities_adaptive_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_assembly_pwint = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_pwint = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
 }
 
 void AEcoWorld::AnalyzeWorldCommunities(
@@ -1082,13 +1116,12 @@ void AEcoWorld::AnalyzeWorldCommunities(
 
     // Set of recorded communities with "raw" counts
     RecordedCommunitySet<emp::vector<double>> recorded_communities_world_raw(recorded_comm_key_fun);
-    // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_raw(recorded_comm_key_fun);
-    // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_raw(recorded_comm_key_fun);
 
     // Set of recorded communities with counts that have had PNI-species zeroed-out
     RecordedCommunitySet<emp::vector<double>> recorded_communities_world_pwip(recorded_comm_key_fun);
-    // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
-    // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
+
+    // Set of recorded communities with counts that have had non-interacting species zeroed-out
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_world_pwint(recorded_comm_key_fun);
 
     // Add world summaries
     recorded_communities_world_raw.Add(
@@ -1097,6 +1130,9 @@ void AEcoWorld::AnalyzeWorldCommunities(
     recorded_communities_world_pwip.Add(
       community_summarizer_pwip->SummarizeAll(stable_world)
     );
+    recorded_communities_world_pwint.Add(
+      community_summarizer_pwint->SummarizeAll(stable_world)
+    );
 
     // Update world community file
     world_community_summary_pwip_file->Update(
@@ -1104,6 +1140,13 @@ void AEcoWorld::AnalyzeWorldCommunities(
       recorded_communities_world_pwip,
       *recorded_communities_assembly_pwip,
       *recorded_communities_adaptive_pwip
+    );
+
+    world_community_summary_pwint_file->Update(
+      world_update,
+      recorded_communities_world_pwint,
+      *recorded_communities_assembly_pwint,
+      *recorded_communities_adaptive_pwint
     );
 
     if (output_snapshots) {
@@ -1127,6 +1170,17 @@ void AEcoWorld::AnalyzeWorldCommunities(
           {*recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
         }
       );
+
+      // Snapshot summaries where "present-no-interactions" species have been removed
+      SnapshotRecordedCommunitySets</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "recorded_communities_pwint_" + emp::to_string(world_update) + ".csv",
+        {
+          {recorded_communities_world_pwint, "world", true, config->UPDATES()},
+          {*recorded_communities_assembly_pwint, "assembly", true, config->UPDATES()},
+          {*recorded_communities_adaptive_pwint, "adaptive", true, config->UPDATES()}
+        }
+      );
+
     }
 }
 
