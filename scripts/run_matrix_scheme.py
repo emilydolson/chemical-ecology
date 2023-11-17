@@ -62,9 +62,9 @@ def search_params(scheme, rep):
 
     samples = sample_params(num_samples, lower_bounds, upper_bounds, ints, rep)
     results = []
-    for i in range(len(samples)):
-        for ntypes in [10, 20, 30, 40, 50]:
-            for world_size in [10]:
+    for ntypes in [10, 20, 30, 40, 50]:
+        for world_size in [10, 20, 30, 40, 50]:
+            for i in range(len(samples)):
                 sample = samples[i]
 
                 diffusion = sample[0]
@@ -96,10 +96,8 @@ def search_params(scheme, rep):
                         sys.stdout.flush()
                         continue
                     
-                    df = pd.read_csv('output/world_summary_pwip.csv')
-                    df = df.loc[df['update'] == 1000]
-                    df = df.loc[df['num_present_species'] > 0]
-                    score = np.sum(np.log(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio'])))
+                    df = pd.read_csv('output/recorded_communities_scores_pwip.csv')
+                    score = df['logscore'][0]
                     num_communities = len(df)
 
                     results.append([scheme_name, rep, score, num_communities, world_size, ntypes] + sample)
