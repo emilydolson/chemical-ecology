@@ -44,6 +44,7 @@ namespace chemical_ecology {
     VALUE(OUTPUT_DIR, std::string, "./output/", "What directory are we dumping data?"),
     VALUE(OUTPUT_RESOLUTION, size_t, 10, "How often should we output data?"),
     VALUE(RECORD_ASSEMBLY_MODEL, bool, false, "Should we output the assembly model updating over time?"),
-    VALUE(RECORD_ADAPTIVE_MODEL, bool, false, "Should we output the adaptive model updating over time?")
+    VALUE(RECORD_ADAPTIVE_MODEL, bool, false, "Should we output the adaptive model updating over time?"),
+    VALUE(RECORD_A_ECO_DATA, bool, false, "Should we output a-eco_data?")
   );
 }

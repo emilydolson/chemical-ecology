@@ -337,13 +337,22 @@ private:
   void SnapshotConfig();
 
   // Output a snapshot of the community structure identified from interaction matrix
-  void SnapshotSubCommunities();
+  void SnapshotSubCommunities(); 
 
   // Output a snapshot of the community structure
   template<typename SUMMARY_SET_KEY_T>
   void SnapshotRecordedCommunitySets(
     const std::string& file_path,
     const emp::vector<RecordedCommunitySetInfo<SUMMARY_SET_KEY_T>>& community_sets
+  );
+
+  // Output snapshot scores
+  template<typename SUMMARY_SET_KEY_T>
+  void SnapshotCommunitySetScores(
+    const std::string& file_path,
+    const RecordedCommunitySetInfo<SUMMARY_SET_KEY_T> world_community_set,
+    const RecordedCommunitySetInfo<SUMMARY_SET_KEY_T> assembly_community_set,
+    const RecordedCommunitySetInfo<SUMMARY_SET_KEY_T> adaptive_community_set
   );
 
 public:
@@ -589,7 +598,9 @@ public:
     // TODO - can we eliminate worldState variable?
     // E.g., if we move after swap, world should be up-to-date
     worldState = next_world;
-    data_file->Update(world_update);
+    if (config->RECORD_A_ECO_DATA()) {
+      data_file->Update(world_update);
+    }
 
     // We're done calculating the type counts for the next
     // time step. We can now swap our counts for the next
@@ -1127,6 +1138,20 @@ void AEcoWorld::AnalyzeWorldCommunities(
           {*recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
         }
       );
+
+      SnapshotCommunitySetScores</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "recorded_communities_scores_pwip.csv",
+        {recorded_communities_world_pwip, "world", true, config->UPDATES()},
+        {*recorded_communities_assembly_pwip, "assembly", true, config->UPDATES()},
+        {*recorded_communities_adaptive_pwip, "adaptive", true, config->UPDATES()}
+      );
+
+      SnapshotCommunitySetScores</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "recorded_communities_scores_raw.csv",
+        {recorded_communities_world_raw, "world", true, config->UPDATES()},
+        {*recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
+        {*recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
+      );
     }
 }
 
@@ -1247,7 +1272,6 @@ void AEcoWorld::SnapshotSubCommunities() {
     subcommunities_file.Update();
   }
 }
-
 
 template<typename SUMMARY_SET_KEY_T>
 void AEcoWorld::SnapshotRecordedCommunitySets(
@@ -1422,6 +1446,188 @@ void AEcoWorld::SnapshotRecordedCommunitySets(
     for (cur_summary_id = 0; cur_summary_id < summary_set.GetSize(); ++cur_summary_id) {
       recorded_community_file.Update();
     }
+  }
+
+}
+
+template<typename SUMMARY_SET_KEY_T>
+void AEcoWorld::SnapshotCommunitySetScores(
+  const std::string& file_path,
+  const RecordedCommunitySetInfo<SUMMARY_SET_KEY_T> world_community_set,
+  const RecordedCommunitySetInfo<SUMMARY_SET_KEY_T> assembly_community_set,
+  const RecordedCommunitySetInfo<SUMMARY_SET_KEY_T> adaptive_community_set
+) {
+  emp::DataFile recorded_community_file(file_path);
+  size_t cur_summary_id = 0;
+
+  recorded_community_file.AddFun<double>(
+    [&world_community_set, &cur_summary_id]() -> double {
+      const auto& community_set = world_community_set.summary_set;
+      return (double)community_set.GetCommunityCount(cur_summary_id) / (double)emp::Sum(community_set.GetCommunityCounts());
+    },
+    "proportion",
+    "Proportion of cells where this particular community was found"
+  );
+
+  recorded_community_file.AddFun<size_t>(
+    [&world_community_set, &cur_summary_id, this]() -> size_t {
+      const auto& summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      return summary.GetNumSpeciesPresent();
+    },
+    "num_present_species"
+  );
+
+  recorded_community_file.AddFun<std::string>(
+    [&world_community_set, &cur_summary_id, this]() -> std::string {
+      const auto& summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.counts);
+    },
+    "species_counts"
+  );
+
+  recorded_community_file.AddFun<std::string>(
+    [&world_community_set, &cur_summary_id, this]() -> std::string {
+      const auto& summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      return emp::to_string(summary.present_species_ids);
+    },
+    "present_species_ids"
+  );
+
+  recorded_community_file.AddFun<bool>(
+    [&world_community_set, &assembly_community_set, &cur_summary_id, this]() -> bool {
+      const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      return assembly_community_set.summary_set.Has(world_summary);
+    },
+    "found_in_assembly"
+  );
+
+  recorded_community_file.AddFun<bool>(
+    [&world_community_set, &adaptive_community_set, &cur_summary_id, this]() -> bool {
+      const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      return adaptive_community_set.summary_set.Has(world_summary);
+    },
+    "found_in_adaptive"
+  );
+
+  recorded_community_file.AddFun<double>(
+    [&world_community_set, &adaptive_community_set, &cur_summary_id, this]() -> double {
+      const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      const auto adaptive_id = adaptive_community_set.summary_set.GetCommunityID(world_summary);
+      return (adaptive_id) ? adaptive_community_set.summary_set.GetCommunityProportion(adaptive_id.value()) : 0.0;
+    },
+    "adaptive_proportion"
+  );
+
+  recorded_community_file.AddFun<double>(
+    [&world_community_set, &assembly_community_set, &cur_summary_id, this]() -> double {
+      const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      const auto assembly_id = assembly_community_set.summary_set.GetCommunityID(world_summary);
+      return (assembly_id) ? assembly_community_set.summary_set.GetCommunityProportion(assembly_id.value()) : 0.0;
+    },
+    "assembly_proportion"
+  );
+
+  recorded_community_file.AddFun<std::string>(
+    [&world_community_set, &assembly_community_set, &adaptive_community_set, &cur_summary_id, this]() -> std::string {
+      const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      const auto assembly_id = assembly_community_set.summary_set.GetCommunityID(world_summary);
+      const double assembly_prop = (assembly_id) ? assembly_community_set.summary_set.GetCommunityProportion(assembly_id.value()) : 0.0;
+      const auto adaptive_id = adaptive_community_set.summary_set.GetCommunityID(world_summary);
+      const double adaptive_prop = (adaptive_id) ? adaptive_community_set.summary_set.GetCommunityProportion(adaptive_id.value()) : 0.0;
+      return (assembly_prop != 0) ?
+        emp::to_string(adaptive_prop / assembly_prop) :
+        "ERR";
+    },
+    "adaptive_assembly_ratio"
+  );
+
+  recorded_community_file.AddFun<std::string>(
+    [&world_community_set, &assembly_community_set, &adaptive_community_set, &cur_summary_id, this]() -> std::string {
+      const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
+      const auto assembly_id = assembly_community_set.summary_set.GetCommunityID(world_summary);
+      const auto adaptive_id = adaptive_community_set.summary_set.GetCommunityID(world_summary);
+      double assembly_prop = (assembly_id) ?
+        assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
+        0.0;
+      if (assembly_prop == 0) 
+        assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
+      double adaptive_prop = (adaptive_id) ?
+        adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
+        0.0;
+      if (adaptive_prop == 0) 
+        adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
+      return (assembly_prop != 0) ?
+        emp::to_string(adaptive_prop / assembly_prop) :
+        "error";
+    },
+    "smooth_adaptive_assembly_ratio"
+  );
+
+  recorded_community_file.AddFun<std::string>(
+    [&world_community_set, &assembly_community_set, &adaptive_community_set, &cur_summary_id, this]() -> std::string {
+      emp::vector<double> community_scores;
+      for (size_t i = 0; i < world_community_set.summary_set.GetSize(); ++i) {
+        const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(i);
+        const double world_prop = (double)world_community_set.summary_set.GetCommunityCount(i) / (double)emp::Sum(world_community_set.summary_set.GetCommunityCounts());
+        const auto assembly_id = assembly_community_set.summary_set.GetCommunityID(world_summary);
+        const auto adaptive_id = adaptive_community_set.summary_set.GetCommunityID(world_summary);
+        double assembly_prop = (assembly_id) ?
+          assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
+          0.0;
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
+        double adaptive_prop = (adaptive_id) ?
+          adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
+          0.0;
+        if (adaptive_prop == 0) 
+          adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
+        const double ratio = adaptive_prop / assembly_prop;
+        community_scores.push_back(world_prop*ratio);
+      }
+      double score = 1;
+      for (double s : community_scores) {
+        score *= s;
+      }
+      return emp::to_string(score);
+    },
+    "score"
+  );
+
+  recorded_community_file.AddFun<std::string>(
+    [&world_community_set, &assembly_community_set, &adaptive_community_set, &cur_summary_id, this]() -> std::string {
+      emp::vector<double> community_scores;
+      for (size_t i = 0; i < world_community_set.summary_set.GetSize(); ++i) {
+        const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(i);
+        const double world_prop = (double)world_community_set.summary_set.GetCommunityCount(i) / (double)emp::Sum(world_community_set.summary_set.GetCommunityCounts());
+        const auto assembly_id = assembly_community_set.summary_set.GetCommunityID(world_summary);
+        const auto adaptive_id = adaptive_community_set.summary_set.GetCommunityID(world_summary);
+        double assembly_prop = (assembly_id) ?
+          assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
+          0.0;
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
+        double adaptive_prop = (adaptive_id) ?
+          adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
+          0.0;
+        if (adaptive_prop == 0) 
+          adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
+        const double ratio = adaptive_prop / assembly_prop;
+        community_scores.push_back(std::log(world_prop*ratio));
+      }
+      double logscore = 0;
+      for (double s : community_scores) {
+        logscore += s;
+      }
+      return emp::to_string(logscore);
+    },
+    "logscore"
+  );
+
+  recorded_community_file.PrintHeaderKeys();
+  // Write one line per summary, per community set
+  const auto& summary_set = world_community_set.summary_set;
+  for (cur_summary_id = 0; cur_summary_id < summary_set.GetSize(); ++cur_summary_id) {
+    recorded_community_file.Update();
   }
 
 }
