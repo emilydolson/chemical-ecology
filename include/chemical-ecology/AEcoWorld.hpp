@@ -337,7 +337,7 @@ private:
   void SnapshotConfig();
 
   // Output a snapshot of the community structure identified from interaction matrix
-  void SnapshotSubCommunities();
+  void SnapshotSubCommunities(); 
 
   // Output a snapshot of the community structure
   template<typename SUMMARY_SET_KEY_T>
@@ -598,7 +598,9 @@ public:
     // TODO - can we eliminate worldState variable?
     // E.g., if we move after swap, world should be up-to-date
     worldState = next_world;
-    data_file->Update(world_update);
+    if (config->RECORD_A_ECO_DATA()) {
+      data_file->Update(world_update);
+    }
 
     // We're done calculating the type counts for the next
     // time step. We can now swap our counts for the next
