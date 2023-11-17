@@ -167,15 +167,12 @@ public:
       // // is there a path from species_id to each other present species, only going through other present species?
       for (size_t other_id : subcommunity) {
         // direct interactions only
-        // has_path = PathExists(
-        //   community_structure,
-        //   species_id,
-        //   other_id,
-        //   summary.present
-        // );
-
-        // indirect + direct interactions
-        has_path = community_structure.SpeciesInteractsWith(species_id, other_id);
+        has_path = PathExists(
+          community_structure,
+          species_id,
+          other_id,
+          summary.present
+        );
         if (has_path) break;
       }
       summary.present_with_interaction_path[species_id] = has_path;
