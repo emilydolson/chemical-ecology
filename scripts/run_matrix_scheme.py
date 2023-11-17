@@ -56,59 +56,60 @@ def search_params(scheme, rep):
         f.write(f"{','.join(header)}\n")
 
     scheme_param_bounds = get_scheme_bounds(scheme_name)
-    lower_bounds = [0, 0, 0] + scheme_param_bounds[0] #abiotic + matrix
+    lower_bounds = [0, 0, 0] + scheme_param_bounds[0] #abiotic + ntypes + matrix
     upper_bounds = [1, 1, 0.5] + scheme_param_bounds[1]
     ints = [False, False, False] + scheme_param_bounds[2]
 
     samples = sample_params(num_samples, lower_bounds, upper_bounds, ints, rep)
     results = []
     for i in range(len(samples)):
-        sample = samples[i]
+        for ntypes in [10, 20, 30, 40, 50]:
+            for world_size in [10]:
+                sample = samples[i]
 
-        diffusion = sample[0]
-        seeding = sample[1]
-        clear = sample[2]
-        ntypes = 9
-        matrix_params = [ntypes] + sample[3:] + [rep]
+                diffusion = sample[0]
+                seeding = sample[1]
+                clear = sample[2]
+                matrix_params = [ntypes] + sample[3:] + [rep]
 
-        matrix = scheme(*matrix_params)
-        if is_valid(matrix):
-            write_matrix(matrix, matrix_file_name)
+                matrix = scheme(*matrix_params)
+                if is_valid(matrix):
+                    write_matrix(matrix, matrix_file_name)
 
-            chem_eco = subprocess.Popen(
-                [(f'./chemical-ecology '
-                f'-DIFFUSION {diffusion} '
-                f'-SEEDING_PROB {seeding} '
-                f'-PROB_CLEAR {clear} '
-                f'-INTERACTION_SOURCE {matrix_file_name} '
-                f'-SEED {rep} '
-                f'-MAX_POP {10000} '
-                f'-WORLD_WIDTH {10} '
-                f'-WORLD_HEIGHT {10} '
-                f'-UPDATES {1000} '
-                f'-N_TYPES {ntypes}')],
-                shell=True, 
-                stdout=subprocess.DEVNULL)
-            return_code = chem_eco.wait()
-            if return_code != 0:
-                print("Error in a-eco, return code:", return_code)
-                sys.stdout.flush()
-                continue
-            
-            df = pd.read_csv('output/world_summary_pwip.csv')
-            df = df.loc[df['update'] == 1000]
-            df = df.loc[df['num_present_species'] > 0]
-            #score = np.prod(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio']))
-            score = np.sum(np.log(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio'])))
+                    chem_eco = subprocess.Popen(
+                        [(f'./chemical-ecology '
+                        f'-DIFFUSION {diffusion} '
+                        f'-SEEDING_PROB {seeding} '
+                        f'-PROB_CLEAR {clear} '
+                        f'-INTERACTION_SOURCE {matrix_file_name} '
+                        f'-SEED {rep} '
+                        f'-MAX_POP {10000} '
+                        f'-WORLD_WIDTH {world_size} '
+                        f'-WORLD_HEIGHT {world_size} '
+                        f'-UPDATES {1000} '
+                        f'-N_TYPES {ntypes}')],
+                        shell=True, 
+                        stdout=subprocess.DEVNULL)
+                    return_code = chem_eco.wait()
+                    if return_code != 0:
+                        print("Error in a-eco, return code:", return_code)
+                        sys.stdout.flush()
+                        continue
+                    
+                    df = pd.read_csv('output/world_summary_pwip.csv')
+                    df = df.loc[df['update'] == 1000]
+                    df = df.loc[df['num_present_species'] > 0]
+                    score = np.sum(np.log(df['proportion']*pd.to_numeric(df['smooth_adaptive_assembly_ratio'])))
+                    num_communities = len(df)
 
-            results.append([scheme_name, rep, score, ntypes] + sample)
-        else:
-            results.append([scheme_name, rep, 'NA', ntypes] + sample)
+                    results.append([scheme_name, rep, score, num_communities, world_size, ntypes] + sample)
+                else:
+                    results.append([scheme_name, rep, 'NA', 0, world_size, ntypes] + sample)
 
-        if (i+1) % 100 == 0 or (i+1) == num_samples:
-            with open('results.txt', 'a') as f:
-                [f.write(f"{','.join(map(str, x))}\n") for x in results]
-            results = []
+                if (i+1) % 100 == 0 or (i+1) == num_samples:
+                    with open('results.txt', 'a') as f:
+                        [f.write(f"{','.join(map(str, x))}\n") for x in results]
+                    results = []
 
 
 def main():

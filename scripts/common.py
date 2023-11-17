@@ -1,7 +1,7 @@
-from matrix_functions import random_matrix, erdos_renyi, scale_free
+from matrix_functions import random_matrix, erdos_renyi_uniform, scale_free, erdos_renyi_normal
 
 
-schemes = {'random_matrix':random_matrix, 'erdos_renyi':erdos_renyi, 'scale_free':scale_free}
+schemes = {'random_matrix':random_matrix, 'erdos_renyi_uniform':erdos_renyi_uniform, 'scale_free':scale_free, 'erdos_renyi_normal':erdos_renyi_normal}
 code_location = '/mnt/home/leithers/grant/chemical-ecology/'
 
 
@@ -16,8 +16,9 @@ def get_scheme_bounds(scheme_name):
 
     bounds = {
         'random_matrix': [[0], [1], [False]],
-        'erdos_renyi': [[0], [1], [False]],
-        'scale_free': [[0, 0, 0, 0], [1, 1, 1, 1], [False, False, False, False]]
+        'erdos_renyi_uniform': [[0], [1], [False]],
+        'erdos_renyi_normal': [[0, -0.5, 0], [1, 0.5, 0.5], [False, False, False]],
+        'scale_free': [[0.001, 0, 0, 0], [1, 1, 1, 1], [False, False, False, False]]
     }
     return bounds[scheme_name]
 
@@ -35,11 +36,11 @@ def get_raw_data_path():
 
 
 def get_common_param_columns():
-    return ['diffusion', 'seeding', 'clear']
+    return ['num_communities', 'world_size', 'ntypes', 'diffusion', 'seeding', 'clear']
 
 
 def get_common_columns():
-    return ['scheme', 'replicate', 'score', 'ntypes'] + get_common_param_columns()
+    return ['scheme', 'replicate', 'score'] + get_common_param_columns()
 
 
 def get_schemes():

@@ -23,6 +23,9 @@ def get_topological_properties(row, matrix_scheme):
     #structural properties
     row['connectance'] = num_interactions / num_nodes**2
     row['cluster_coeff'] = sum(dict(nx.clustering(graph)).values()) / num_nodes
+    row['density'] = nx.density(graph)
+    shortest_path = dict(nx.shortest_path_length(graph))
+    row['diameter'] = max([max(shortest_path[i].values()) for i in range(len(shortest_path))])
 
     #weight properties
     num_positive = sum([sum([1 for y in x if y > 0]) for x in matrix])
@@ -35,7 +38,7 @@ def get_topological_properties(row, matrix_scheme):
     row['neg_proportion'] = num_negative / num_interactions
     row['avg_pos_strength'] = sum_positive / num_positive if num_positive > 0 else 0
     row['avg_neg_strength'] = sum_negative / num_negative if num_negative > 0 else 0
-    row['avg_strength_diff'] = row['avg_pos_strength'] - row['avg_neg_strength']
+    row['avg_strength_diff'] = row['avg_pos_strength'] + row['avg_neg_strength']
     row['mutualistic_pairs'] = sum([sum([1 for j in range(i+1, num_nodes) if matrix[i][j] > 0 and matrix[j][i] > 0]) for i in range(num_nodes)]) / num_interactions
     row['pos_self_strength'] = sum([1 for i in range(num_nodes) if matrix[i][i] > 0]) / num_nodes
 

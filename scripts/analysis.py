@@ -12,7 +12,7 @@ import os
 Plots for either individual schemes or all combined
 '''
 def histograms(df, param_names, scheme):
-    figure, axis = plt.subplots(5, 4, figsize=(15,15))
+    figure, axis = plt.subplots(5, 5, figsize=(15,15))
     row = 0
     col = 0
     for param in param_names:

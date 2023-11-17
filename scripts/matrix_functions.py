@@ -17,7 +17,20 @@ def scale_free(ntypes, split1, split2, delta_in, delta_out, seed):
     return matrix
 
 
-def erdos_renyi(ntypes, prob_edge, seed):
+def erdos_renyi_normal(ntypes, prob_edge, mean, var, seed):
+    structure_nx = nx.erdos_renyi_graph(n=ntypes, p=prob_edge, seed=seed, directed=True)
+    matrix = nx.to_numpy_array(structure_nx).tolist()
+    for row in range(len(matrix)):
+        for col in range(len(matrix)):
+            if matrix[row][col] != 0:
+                val = round(random.gauss(mean, var), 3)
+                val = 1 if val > 1 else val
+                val = -1 if val < -1 else val
+                matrix[row][col] = val
+    return matrix
+
+
+def erdos_renyi_uniform(ntypes, prob_edge, seed):
     structure_nx = nx.erdos_renyi_graph(n=ntypes, p=prob_edge, seed=seed, directed=True)
     matrix = nx.to_numpy_array(structure_nx).tolist()
     for row in range(len(matrix)):
