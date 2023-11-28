@@ -18,7 +18,7 @@ def get_scheme_bounds(scheme_name):
         'random_matrix': [[0], [1], [False]],
         'erdos_renyi_uniform': [[0], [1], [False]],
         'erdos_renyi_normal': [[0, -0.5, 0], [1, 0.5, 0.5], [False, False, False]],
-        'scale_free': [[0.001, 0, 0, 0], [1, 1, 1, 1], [False, False, False, False]]
+        'scale_free': [[0.001, 0.001, 0, 0], [1, 1, 1, 1], [False, False, False, False]]
     }
     return bounds[scheme_name]
 

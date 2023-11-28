@@ -62,8 +62,8 @@ def search_params(scheme, rep):
 
     samples = sample_params(num_samples, lower_bounds, upper_bounds, ints, rep)
     results = []
-    for ntypes in [10, 20, 30, 40, 50]:
-        for world_size in [10, 20, 30, 40, 50]:
+    for ntypes in [5, 10, 15, 20, 25]:
+        for world_size in [10]:
             for i in range(len(samples)):
                 sample = samples[i]
 

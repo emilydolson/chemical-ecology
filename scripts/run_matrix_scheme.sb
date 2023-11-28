@@ -11,12 +11,12 @@
 #SBATCH -o ga_%A.out
 
 ## Time requirement in format "days-hours:minutes"
-#SBATCH --time=1-0:00
+#SBATCH --time=3-0:00
 
 ## Memory requirement in megabytes. You might need to make this bigger.
 #SBATCH --mem-per-cpu=4gb
 
-#SBATCH --array=0-2
+#SBATCH --array=1-5
 
 module load GNU/8.2.0-2.31.1
 
