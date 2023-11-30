@@ -782,9 +782,7 @@ public:
       if (delta < epsilon) {
         for (size_t pos = 0; pos < stable_world.size(); pos++) {
           for (size_t s = 0; s < stable_world[pos].size(); s++) {
-            if (stable_world[pos][s] < 1) {
-              stable_world[pos][s] = 0.0;
-            }
+            stable_world[pos][s] = round(stable_world[pos][s]);
           }
         }
         return stable_world;
@@ -794,9 +792,7 @@ public:
     std::cout << "\n Max number of stable updates reached" << std::endl;
     for (size_t pos = 0; pos < stable_world.size(); pos++) {
       for (size_t s = 0; s < stable_world[pos].size(); s++) {
-        if (stable_world[pos][s] < 1) {
-          stable_world[pos][s] = 0.0;
-        }
+        stable_world[pos][s] = round(stable_world[pos][s]);
       }
     }
     return stable_world;
