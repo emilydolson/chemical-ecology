@@ -192,6 +192,15 @@ protected:
       "smooth_adaptive_assembly_ratio"
     );
 
+    // Which species dominate 
+    summary_file.AddFun<std::string>(
+      [this]() -> std::string {
+        const auto& summary = cur_world_communities->GetCommunitySummary(community_id);
+        return "temp";
+      },
+      "Dom_map"
+    );
+
     summary_file.PrintHeaderKeys();
   }
 
@@ -298,12 +307,18 @@ private:
 
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_raw;         // Uses raw species counts.
   emp::Ptr<RecordedCommunitySummarizer> community_summarizer_pwip;        // Keeps all species present with valid interaction paths to other present species
+  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_ranked;      // Will keep sepcies as dominance rankings
+  emp::Ptr<RecordedCommunitySummarizer> community_summarizer_ranked_threshold;      // Will keep sepcies as rounded dominance rankings
 
   RecordedCommunitySet<emp::vector<double>>::summary_key_fun_t recorded_comm_key_fun;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_raw;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_raw;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_pwip;
   emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_pwip;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_ranked;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_ranked;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_assembly_ranked_threshold;
+  emp::Ptr<RecordedCommunitySet<emp::vector<double>>> recorded_communities_adaptive_ranked_threshold;
 
   // Set up data tracking
   std::string output_dir;
@@ -365,12 +380,18 @@ public:
     if (adaptive_data_file != nullptr) adaptive_data_file.Delete();
     if (community_summarizer_raw != nullptr) community_summarizer_raw.Delete();
     if (community_summarizer_pwip != nullptr) community_summarizer_pwip.Delete();
+    if (community_summarizer_ranked != nullptr) community_summarizer_ranked.Delete();
+    if (community_summarizer_ranked_threshold != nullptr) community_summarizer_ranked_threshold.Delete();
     if (world_community_summary_pwip_file != nullptr) world_community_summary_pwip_file.Delete();
 
     if (recorded_communities_assembly_raw != nullptr) recorded_communities_assembly_raw.Delete();
     if (recorded_communities_adaptive_raw != nullptr) recorded_communities_adaptive_raw.Delete();
     if (recorded_communities_assembly_pwip != nullptr) recorded_communities_assembly_pwip.Delete();
     if (recorded_communities_adaptive_pwip != nullptr) recorded_communities_adaptive_pwip.Delete();
+    if (recorded_communities_assembly_ranked != nullptr) recorded_communities_assembly_ranked.Delete();
+    if (recorded_communities_adaptive_ranked != nullptr) recorded_communities_adaptive_ranked.Delete();
+    if (recorded_communities_assembly_ranked_threshold != nullptr) recorded_communities_assembly_ranked_threshold.Delete();
+    if (recorded_communities_adaptive_ranked_threshold != nullptr) recorded_communities_adaptive_ranked_threshold.Delete();
   }
 
   // Setup the world according to the specified configuration
@@ -525,6 +546,11 @@ public:
       world_t adaptiveModel = AdaptiveModel(config->UPDATES(), config->PROB_CLEAR(), config->SEEDING_PROB());
       world_t stableAdaptiveModel = GenStabilizedWorld(adaptiveModel, config->CELL_STABILIZATION_UPDATES());
 
+      world_t rankedAssemblyModel = GenRankedWorld(stableAssemblyModel, false);
+      world_t rankedAdaptiveModel = GenRankedWorld(stableAdaptiveModel, false);
+      world_t rankedThresholdAssemblyModel = GenRankedWorld(stableAssemblyModel, true);
+      world_t rankedThresholdAdaptiveModel = GenRankedWorld(stableAdaptiveModel, true);
+
       // Add summarized recorded communities to sets
       recorded_communities_assembly_raw->Add(
         community_summarizer_raw->SummarizeAll(stableAssemblyModel)
@@ -532,11 +558,23 @@ public:
       recorded_communities_assembly_pwip->Add(
         community_summarizer_pwip->SummarizeAll(stableAssemblyModel)
       );
+      recorded_communities_assembly_ranked->Add(
+        community_summarizer_ranked->SummarizeAll(rankedAssemblyModel)
+      );
+      recorded_communities_assembly_ranked_threshold->Add(
+        community_summarizer_ranked_threshold->SummarizeAll(rankedThresholdAssemblyModel)
+      );
       recorded_communities_adaptive_raw->Add(
         community_summarizer_raw->SummarizeAll(stableAdaptiveModel)
       );
       recorded_communities_adaptive_pwip->Add(
         community_summarizer_pwip->SummarizeAll(stableAdaptiveModel)
+      );
+      recorded_communities_adaptive_ranked->Add(
+        community_summarizer_ranked_threshold->SummarizeAll(rankedAdaptiveModel)
+      );
+      recorded_communities_adaptive_ranked_threshold->Add(
+        community_summarizer_ranked_threshold->SummarizeAll(rankedThresholdAdaptiveModel)
       );
     }
 
@@ -798,6 +836,59 @@ public:
     return stable_world;
   }
 
+  // This function should be called to create a ranked copy of the world
+  world_t GenRankedWorld(const world_t& custom_world, bool threshold) {
+    world_t eval_world;
+    // To handle cases where sparse matricies disrput rankings with many 
+    // low magnitude species, we can round down species less than a threshold value
+    if(threshold){
+      world_t threshold_world(
+      world_size,
+      emp::vector<double>(N_TYPES, 0.0)
+      );
+      for (size_t pos = 0; pos < custom_world.size(); pos++) {
+          for (size_t s = 0; s < custom_world[pos].size(); s++) {
+            if(custom_world[pos][s] < config->THRESHOLD_VALUE()){
+              threshold_world[pos][s] = 0;
+            }
+            else{
+              threshold_world[pos][s] = custom_world[pos][s];
+            }
+          }
+        }
+      eval_world = threshold_world;
+    }
+    else{
+      eval_world = custom_world;
+    }
+
+    world_t ranked_world(
+      world_size,
+      emp::vector<double>(N_TYPES, 0.0)
+    );
+
+    for (size_t i = 0; i < eval_world.size(); i++) {
+
+      auto comparator = [i, &eval_world](int x, int y){
+        return eval_world[i][x] > eval_world[i][y];
+      };
+
+      emp::vector<int> sortedIndices(eval_world[i].size());
+      std::iota(sortedIndices.begin(), sortedIndices.end(), 0);
+      std::sort(sortedIndices.begin(), sortedIndices.end(), comparator);
+
+      int curr_rank = 1;
+      for(size_t j = 0; j < eval_world[i].size(); j++){
+        //ranked[sortedIndices[j]] = j + 1;
+        if (j > 0 && eval_world[i][sortedIndices[j]] != eval_world[i][sortedIndices[j - 1]]) {
+            curr_rank = j + 1;
+          }
+        ranked_world[i][sortedIndices[j]] = curr_rank;
+      }
+    }
+    return ranked_world;
+  }
+
   world_t AssemblyModel(
     int num_updates,
     double prob_clear,
@@ -1037,10 +1128,16 @@ void AEcoWorld::SetupSpatialStructure_Load(
 void AEcoWorld::SetupCommunitySummarizers() {
   emp_assert(community_summarizer_raw == nullptr);
   emp_assert(community_summarizer_pwip == nullptr);
+  emp_assert(community_summarizer_ranked == nullptr);
+  emp_assert(community_summarizer_ranked_threshold == nullptr);
   emp_assert(recorded_communities_assembly_raw == nullptr);
   emp_assert(recorded_communities_adaptive_raw == nullptr);
   emp_assert(recorded_communities_assembly_pwip == nullptr);
   emp_assert(recorded_communities_adaptive_pwip == nullptr);
+  emp_assert(recorded_communities_assembly_ranked == nullptr);
+  emp_assert(recorded_communities_adaptive_ranked == nullptr);
+  emp_assert(recorded_communities_assembly_ranked_threshold == nullptr);
+  emp_assert(recorded_communities_adaptive_ranked_threshold == nullptr);
 
   // Reports raw counts (with decimal components truncated)
   community_summarizer_raw = emp::NewPtr<RecordedCommunitySummarizer>(
@@ -1057,6 +1154,18 @@ void AEcoWorld::SetupCommunitySummarizers() {
     }
   );
 
+  // Reports rankings 
+  community_summarizer_ranked = emp::NewPtr<RecordedCommunitySummarizer>(
+    community_structure,
+    [](double count) -> bool { return true; }
+  );
+
+  // Reports rankings rounded
+  community_summarizer_ranked_threshold = emp::NewPtr<RecordedCommunitySummarizer>(
+    community_structure,
+    [](double count) -> bool { return true; }
+  );
+
   // Configure recorded community sets for adaptive / assembly models
   recorded_comm_key_fun = [](
     const RecordedCommunitySummary& summary
@@ -1068,6 +1177,10 @@ void AEcoWorld::SetupCommunitySummarizers() {
   recorded_communities_adaptive_raw = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
   recorded_communities_assembly_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
   recorded_communities_adaptive_pwip = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_assembly_ranked = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_ranked = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_assembly_ranked_threshold = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
+  recorded_communities_adaptive_ranked_threshold = emp::NewPtr<RecordedCommunitySet<emp::vector<double>>>(recorded_comm_key_fun);
 }
 
 void AEcoWorld::AnalyzeWorldCommunities(
@@ -1076,6 +1189,14 @@ void AEcoWorld::AnalyzeWorldCommunities(
     // Run world forward without diffusion
     world_t stable_world(
       GenStabilizedWorld(world, config->CELL_STABILIZATION_UPDATES())
+    );
+
+    world_t ranked_world(
+      GenRankedWorld(stable_world, false)
+    );
+
+    world_t ranked_threshold_world(
+      GenRankedWorld(stable_world, true)
     );
 
     // NOTE (@AML): Not in total love with this; could possibly use another iteration after chatting
@@ -1097,6 +1218,12 @@ void AEcoWorld::AnalyzeWorldCommunities(
     // RecordedCommunitySet<emp::vector<double>> recorded_communities_assembly_pwip(recorded_comm_key_fun);
     // RecordedCommunitySet<emp::vector<double>> recorded_communities_adaptive_pwip(recorded_comm_key_fun);
 
+    // Set of species ranked by dominance
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_ranked(recorded_comm_key_fun);
+
+    // Set of species ranked by dominance, with low numbers rounded down
+    RecordedCommunitySet<emp::vector<double>> recorded_communities_ranked_threshold(recorded_comm_key_fun);
+
     // Add world summaries
     recorded_communities_world_raw.Add(
       community_summarizer_raw->SummarizeAll(stable_world)
@@ -1104,6 +1231,14 @@ void AEcoWorld::AnalyzeWorldCommunities(
     recorded_communities_world_pwip.Add(
       community_summarizer_pwip->SummarizeAll(stable_world)
     );
+    recorded_communities_ranked.Add(
+      community_summarizer_ranked->SummarizeAll(ranked_world)
+    );
+    recorded_communities_ranked_threshold.Add(
+      community_summarizer_ranked_threshold->SummarizeAll(ranked_threshold_world)
+    );
+
+
 
     // Update world community file
     world_community_summary_pwip_file->Update(
@@ -1147,6 +1282,20 @@ void AEcoWorld::AnalyzeWorldCommunities(
         {recorded_communities_world_raw, "world", true, config->UPDATES()},
         {*recorded_communities_assembly_raw, "assembly", true, config->UPDATES()},
         {*recorded_communities_adaptive_raw, "adaptive", true, config->UPDATES()}
+      );
+
+      SnapshotCommunitySetScores</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "ranked_communities_scores.csv",
+        {recorded_communities_ranked, "world", true, config->UPDATES()},
+        {*recorded_communities_assembly_ranked, "assembly", true, config->UPDATES()},
+        {*recorded_communities_adaptive_ranked, "adaptive", true, config->UPDATES()}
+      );
+
+      SnapshotCommunitySetScores</*SUMMARY_SET_KEY_T=*/emp::vector<double>>(
+        output_dir + "ranked_threshold_communities_scores.csv",
+        {recorded_communities_ranked_threshold, "world", true, config->UPDATES()},
+        {*recorded_communities_assembly_ranked_threshold, "assembly", true, config->UPDATES()},
+        {*recorded_communities_adaptive_ranked_threshold, "adaptive", true, config->UPDATES()}
       );
     }
 }
