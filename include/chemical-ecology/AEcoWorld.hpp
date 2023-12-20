@@ -1731,16 +1731,19 @@ void AEcoWorld::SnapshotCommunitySetScores(
       }
       double score = 1;
       for (double s : community_scores) {
-        score *= s;
+        score += s;
       }
       return emp::to_string(score);
     },
-    "score"
+    "additive_score"
   );
+
 
   recorded_community_file.AddFun<std::string>(
     [&world_community_set, &assembly_community_set, &adaptive_community_set, &cur_summary_id, this]() -> std::string {
       emp::vector<double> community_scores;
+      double summed_adaptive = 0;
+      double summed_assembly = 0;
       for (size_t i = 0; i < world_community_set.summary_set.GetSize(); ++i) {
         const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(i);
         const double world_prop = (double)world_community_set.summary_set.GetCommunityCount(i) / (double)emp::Sum(world_community_set.summary_set.GetCommunityCounts());
@@ -1756,16 +1759,16 @@ void AEcoWorld::SnapshotCommunitySetScores(
           0.0;
         if (adaptive_prop == 0) 
           adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
-        const double ratio = adaptive_prop / assembly_prop;
-        community_scores.push_back(std::log(world_prop*ratio));
+        // For each cell in the world, add the corresponding assembly/adaptive scores that many times
+        for(double j = 0.0; j < world_prop; j += .01){
+          summed_adaptive += log(adaptive_prop);
+          summed_assembly += log(assembly_prop);
+        }
       }
-      double logscore = 0;
-      for (double s : community_scores) {
-        logscore += s;
-      }
-      return emp::to_string(logscore);
+      double score = summed_adaptive - summed_assembly;
+      return emp::to_string(score);
     },
-    "logscore"
+    "logged_mult_score"
   );
 
   recorded_community_file.PrintHeaderKeys();
