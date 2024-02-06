@@ -96,8 +96,8 @@ def search_params(scheme, rep):
                         sys.stdout.flush()
                         continue
                     
-                    df = pd.read_csv('output/recorded_communities_scores_pwip.csv')
-                    score = df['logscore'][0]
+                    df = pd.read_csv('output/ranked_threshold_communities_scores.csv')
+                    score = df['additive_score'][0]
                     num_communities = len(df)
 
                     results.append([scheme_name, rep, score, num_communities, world_size, ntypes] + sample)

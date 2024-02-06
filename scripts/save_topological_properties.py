@@ -8,7 +8,7 @@ import os
 def save_data(scheme, df):
     df.to_pickle(f'{get_processed_data_path()}{scheme}.pkl')
 
-    
+
 def get_topological_properties(row, matrix_scheme):
     create_matrix_func = get_matrix_function(matrix_scheme)
     scheme_specific_params = row[~row.index.isin(get_common_columns())].tolist()

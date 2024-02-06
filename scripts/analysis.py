@@ -75,7 +75,7 @@ def param_correlation_heatmap(df, param_names, scheme):
 Plots for all schemes combined
 '''
 def score_boxplot(df):
-    sns.violinplot(data=df, x='scheme', y='score', cut=0)
+    sns.violinplot(data=df, x='scheme', y='score', cut=0, order=sorted(df.scheme.unique()))
     plt.title(f'score box plots')
     plt.savefig(f'{get_plots_path()}boxplot_score.png')
     plt.close()
@@ -130,7 +130,7 @@ def read_data():
     df = pd.concat(dfs)
     param_names = list(set(df.columns) - set(get_common_columns())) + get_common_param_columns()
     df = df.reset_index()
-    df['adaptive'] = np.where(df['score'] > 0.5, True, False)
+    df['adaptive'] = np.where(df['score'] > 2, True, False)
     return df, param_names
 
 

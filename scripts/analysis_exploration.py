@@ -58,7 +58,7 @@ def write_matrix(interactions, output_name):
 
 
 def get_highest_scoring_matrices(df, n):
-    df_best = df.nsmallest(n, 'score')
+    df_best = df.nlargest(n, 'score')
     for index, row in df_best.iterrows():
         create_matrix_func = get_matrix_function(row['scheme'])
         scheme_args = inspect.getfullargspec(create_matrix_func)[0]
@@ -96,10 +96,12 @@ def main():
     if len(sys.argv) == 2:
         scheme = sys.argv[1]
         df, param_names = read_scheme_data(scheme)
-        #get_highest_scoring_matrices(df, 1)
+        get_highest_scoring_matrices(df.loc[df['ntypes'] == 10], 1)
     else:
         scheme = 'combined'
         df, param_names = read_data()
+    #individual_scatter(df.loc[df['ntypes'] == 10], 'score', 'num_communities', 'adaptive', scheme)
+    #print(len(df.loc[(df['ntypes'] == 10) & (df['num_communities'] >= 80)]))
 
 
 if __name__ == '__main__':
