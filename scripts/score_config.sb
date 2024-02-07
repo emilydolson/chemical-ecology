@@ -1,0 +1,38 @@
+#!/bin/sh
+
+#SBATCH -A ecode
+
+## Email settings
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=leithers@msu.edu
+
+## Job name settings
+#SBATCH --job-name=alife2024
+#SBATCH -o ga_%A.out
+
+## Time requirement in format "days-hours:minutes"
+#SBATCH --time=0-0:30
+
+## Memory requirement in megabytes. You might need to make this bigger.
+#SBATCH --mem-per-cpu=1gb
+
+#SBATCH --array=1-5
+
+module load GNU/8.2.0-2.31.1
+
+cd /mnt/scratch/leithers/chemical-ecology/alife2024
+
+mkdir ${1}
+cd ${1}
+
+mkdir ${2}
+cd ${2}
+
+mkdir ${SLURM_ARRAY_TASK_ID}
+cd ${SLURM_ARRAY_TASK_ID}
+
+cp /mnt/home/leithers/grant/chemical-ecology/chemical-ecology .
+cp /mnt/home/leithers/grant/chemical-ecology/scripts/common.py .
+cp /mnt/home/leithers/grant/chemical-ecology/scripts/score_config.py .
+
+python3 score_config.py ${1} ${2} ${SLURM_ARRAY_TASK_ID} > outfile.txt
