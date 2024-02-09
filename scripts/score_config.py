@@ -77,8 +77,6 @@ def main(exp_name, config_name, rep):
         score = df["logged_mult_score"][0]
         num_communities = len(df)
 
-        graph_fitnesses = {o:round(f[-1],5) for o,f in fitness_log.items()}
-
         result = {
             "experiment": exp_name,
             "config": config_name,
@@ -88,7 +86,6 @@ def main(exp_name, config_name, rep):
             "diffusion": diffusion,
             "clear": clear,
             "graph": org,
-            "graph_fitnesses": graph_fitnesses,
             "num_communities": num_communities,
             "score": score
         }
