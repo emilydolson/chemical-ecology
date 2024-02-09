@@ -20,7 +20,7 @@ def experiment_config(save_dir, exp_dir, exp_name, eval_funcs, network_size):
         "crossover_rate": 0.6,
         "weight_range": [-1,1],
         "network_size": network_size,
-        "num_generations": 500,
+        "num_generations": network_size*50,
         "eval_funcs": eval_funcs
     }
 
@@ -53,6 +53,22 @@ def topology_experiment(exp_dir):
     return config_names
 
 
+def test_experiment(exp_dir):
+    configs_path = get_configs_path()
+    if not os.path.exists(configs_path+exp_dir):
+        os.makedirs(configs_path+exp_dir)
+
+    eval_func = {"connectance":{"target":0.9}}
+
+    config_names = []
+    for network_size in [10, 25]:
+        exp_name = f"0_{network_size}"
+        experiment_config(configs_path, exp_dir, exp_name, eval_func, network_size)
+        config_names.append(exp_name)
+    
+    return config_names
+
+
 #https://stackoverflow.com/questions/312443/how-do-i-split-a-list-into-equally-sized-chunks
 def chunks(lst, n):
     for i in range(0, len(lst), n):
@@ -62,7 +78,6 @@ def chunks(lst, n):
 def generate_scripts(exp_dir, config_names):
     code_location = get_code_location()
     configs_path = get_configs_path()
-    raw_data_path = get_raw_data_path()
 
     config_chunks = chunks(config_names, 99)
     for i,chunk in enumerate(config_chunks):
@@ -73,7 +88,9 @@ def generate_scripts(exp_dir, config_names):
 
 if __name__ == "__main__":
     experiment_name = sys.argv[1]
-    if experiment_name == "topology":
+    if experiment_name == "test":
+        config_names = test_experiment(experiment_name)
+    elif experiment_name == "topology":
         config_names = topology_experiment(experiment_name)
     else:
         print("Invalid experiment name.")

@@ -1,17 +1,18 @@
 import csv
 import json
-import os
 import pickle
 import subprocess
 import sys
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 from scipy.stats import qmc
 
 from common import get_code_location
 sys.path.insert(0, f"{get_code_location()}third-party/graph-evolution")
 from ga import run
+from eval_functions import Evaluation
 
 
 def sample_abiotic_params(num_samples):
@@ -28,17 +29,24 @@ def write_matrix(interactions, output_name):
         wr.writerows(interactions)
 
 
-def is_valid(nx_graph):
-    return nx.is_weakly_connected(nx_graph) and not nx.is_empty(nx_graph)
+def is_properly_evolved(config, eval_obj, org):
+    eval_funcs = config["eval_funcs"]
+    for eval_func in eval_funcs.keys():
+        target_val = eval_funcs[eval_func]["target"]
+        if abs(org.getProperty(eval_func, eval_obj) - target_val) > 0.1:
+            return False
+    return True
 
 
 def main(exp_name, config_name, rep):
     config = json.load(open(f"{get_code_location()}scripts/configs/{exp_name}/{config_name}.json"))
+    eval_obj = Evaluation(config)
+    config_num = config_name.split("_")[0]
     num_graphs = int(config["popsize"])
     ntypes = int(config["network_size"])
 
     abiotic_params = sample_abiotic_params(num_graphs)
-    final_pop, fitness_log = run(config)
+    final_pop, _ = run(config)
 
     results = []
     for i in range(num_graphs):
@@ -47,8 +55,7 @@ def main(exp_name, config_name, rep):
         seeding = abiotic_params[i][1]
         clear = abiotic_params[i][2]
 
-        nx_graph = org.getNetworkxObject()
-        if not is_valid(nx_graph):
+        if not is_properly_evolved(config, eval_obj, org):
             continue
         matrix = org.adjacencyMatrix
 
@@ -80,6 +87,7 @@ def main(exp_name, config_name, rep):
         result = {
             "experiment": exp_name,
             "config": config_name,
+            "config_num": config_num,
             "replicate": rep,
             "ntypes": ntypes,
             "seeding": seeding,

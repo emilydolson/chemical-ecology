@@ -19,3 +19,7 @@ def get_processed_data_path():
 
 def get_raw_data_path():
     return '/mnt/scratch/leithers/chemical-ecology/alife2024/'
+
+
+def get_non_property_column_names():
+    return ["experiment", "config", "config_num", "replicate", "score"]

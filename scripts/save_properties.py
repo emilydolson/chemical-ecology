@@ -5,22 +5,19 @@ import sys
 
 import pandas as pd
 
-from common import get_code_location, get_configs_path, get_processed_data_path, get_raw_data_path
+from common import get_code_location, get_processed_data_path, get_raw_data_path
 sys.path.insert(0, f"{get_code_location()}third-party/graph-evolution")
 from organism import Organism
 from eval_functions import Evaluation
 
 
-def abbreviate_property_names(property_names):
-    name_map = {}
-    for property_name in property_names:
-        split_name = property_name.split("_")
-        if len(split_name) == 1:
-            abbrv_name = split_name
-        else:
-            abbrv_name = [x[0:3] for x in split_name]
-        name_map[property_name] = "_".join(abbrv_name)
-    return name_map
+def abbreviate_property_name(property_name):
+    split_name = property_name.split("_")
+    if len(split_name) == 1:
+        abbrv_name = split_name
+    else:
+        abbrv_name = [x[0:3] for x in split_name]
+    return "_".join(abbrv_name)
 
 
 def calculate_properties(df):
@@ -28,11 +25,10 @@ def calculate_properties(df):
     property_names = [func for func in dir(Evaluation) 
                       if callable(getattr(Evaluation, func)) 
                       and not (func.startswith("__") or func.endswith("distribution"))]
-    name_map = abbreviate_property_names(property_names)
     
     for property_name in property_names:
         eval_func = getattr(eval_obj, property_name)
-        df[name_map[property_name]] = df["graph"].apply(eval_func)
+        df[abbreviate_property_name(property_name)] = df["graph"].apply(eval_func)
 
     return df
 
@@ -57,7 +53,10 @@ def read_raw_data(exp_name):
 def main(exp_name):
     df = read_raw_data(exp_name)
     df = calculate_properties(df)
+    df = df.drop("graph", axis=1)
     df.to_pickle(f"{get_processed_data_path()}{exp_name}.pkl")
+
+    print(df[["config", "replicate"]].groupby(["config"]).count())
 
 
 if __name__ == "__main__":
