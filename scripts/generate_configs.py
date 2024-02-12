@@ -2,10 +2,10 @@ import json
 import os
 import sys
 
-from common import get_code_location, get_configs_path, get_raw_data_path
+from common import get_code_location, get_configs_path
 
 
-def experiment_config(save_dir, exp_dir, exp_name, eval_funcs, network_size):
+def experiment_config(save_dir, exp_dir, exp_name, eval_funcs, network_size=10, num_generations=500, popsize=50):
     config = {
         "data_dir": exp_dir,
         "name": exp_name,
@@ -13,14 +13,14 @@ def experiment_config(save_dir, exp_dir, exp_name, eval_funcs, network_size):
         "save_data": 1,
         "plot_data": 0,
         "scheme": "NSGAII",
-        "popsize": 100,
         "mutation_rate": 0.005,
         "mutation_odds": [1,2,1],
         "crossover_odds": [1,2,2],
         "crossover_rate": 0.6,
         "weight_range": [-1,1],
+        "popsize": popsize,
         "network_size": network_size,
-        "num_generations": network_size*50,
+        "num_generations": num_generations,
         "eval_funcs": eval_funcs
     }
 
@@ -35,7 +35,7 @@ def topology_experiment(exp_dir):
         os.makedirs(configs_path+exp_dir)
 
     eval_funcs = []
-    for connectance in [0.25, 0.5, 0.75, 1]:
+    for connectance in [0.2, 0.4, 0.6, 0.8]:
         eval_funcs.append(
             {
             "weak_components": {"target": 1},
@@ -44,11 +44,24 @@ def topology_experiment(exp_dir):
         )
 
     config_names = []
-    for network_size in [10, 25, 50]:
-        for i,eval_func in enumerate(eval_funcs):
-            exp_name = f"{i}_{network_size}"
-            experiment_config(configs_path, exp_dir, exp_name, eval_func, network_size)
-            config_names.append(exp_name)
+    for i,eval_func in enumerate(eval_funcs):
+        exp_name = i
+        experiment_config(configs_path, exp_dir, exp_name, eval_func)
+        config_names.append(exp_name)
+    
+    return config_names
+
+
+def uniform_experiment(exp_dir):
+    configs_path = get_configs_path()
+    if not os.path.exists(configs_path+exp_dir):
+        os.makedirs(configs_path+exp_dir)
+
+    eval_func = {"weak_components": {"target": 1}}
+
+    exp_name = 0
+    experiment_config(configs_path, exp_dir, exp_name, eval_func, num_generations=0, popsize=500)
+    config_names = [exp_name]
     
     return config_names
 
@@ -60,11 +73,9 @@ def test_experiment(exp_dir):
 
     eval_func = {"connectance":{"target":0.9}}
 
-    config_names = []
-    for network_size in [10, 25]:
-        exp_name = f"0_{network_size}"
-        experiment_config(configs_path, exp_dir, exp_name, eval_func, network_size)
-        config_names.append(exp_name)
+    exp_name = 0
+    experiment_config(configs_path, exp_dir, exp_name, eval_func)
+    config_names = [exp_name]
     
     return config_names
 
@@ -90,6 +101,8 @@ if __name__ == "__main__":
     experiment_name = sys.argv[1]
     if experiment_name == "test":
         config_names = test_experiment(experiment_name)
+    elif experiment_name == "uniform":
+        config_names = uniform_experiment(experiment_name)
     elif experiment_name == "topology":
         config_names = topology_experiment(experiment_name)
     else:

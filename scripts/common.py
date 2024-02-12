@@ -22,4 +22,4 @@ def get_raw_data_path():
 
 
 def get_non_property_column_names():
-    return ["experiment", "config", "config_num", "replicate", "score"]
+    return ["experiment", "config", "config_num", "replicate", "score", "ntypes"]

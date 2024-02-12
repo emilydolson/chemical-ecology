@@ -8,23 +8,23 @@ import seaborn as sns
 
 from common import get_non_property_column_names, get_plots_path, get_processed_data_path
 
-'''
-Plots for either individual schemes or all combined
-'''
+"""
+Data Exploration Plots
+"""
 def histograms(df, param_names, exp_name):
     figure, axis = plt.subplots(5, 5, figsize=(15,15))
     row = 0
     col = 0
     for param in param_names:
-        sns.histplot(data=df, x=param, hue='adaptive', multiple='stack', stat='proportion', ax=axis[row][col])
+        sns.histplot(data=df, x=param, hue="adaptive", multiple="stack", stat="proportion", ax=axis[row][col])
         axis[row][col].set_title(param)
         row += 1
         if row % 5 == 0:
             col += 1
             row = 0
     figure.tight_layout(rect=[0, 0.03, 1, 0.95])
-    figure.suptitle(f'{exp_name} parameter histograms')
-    plt.savefig(f'{get_plots_path()}{exp_name}/histogram_param.png')
+    figure.suptitle(f"{exp_name} parameter histograms")
+    plt.savefig(f"{get_plots_path()}{exp_name}/histogram_param.png")
     plt.close()
 
 
@@ -33,15 +33,15 @@ def boxplots(df, param_names, exp_name):
     row = 0
     col = 0
     for param in param_names:
-        sns.boxplot(data=df, x='adaptive', y=param, ax=axis[row][col])
+        sns.boxplot(data=df, x="adaptive", y=param, ax=axis[row][col])
         axis[row][col].set_title(param)
         row += 1
         if row % 5 == 0:
             col += 1
             row = 0
     figure.tight_layout(rect=[0, 0.03, 1, 0.95])
-    figure.suptitle(f'{exp_name} parameter boxplots')
-    plt.savefig(f'{get_plots_path()}{exp_name}/boxplot_param.png')
+    figure.suptitle(f"{exp_name} parameter boxplots")
+    plt.savefig(f"{get_plots_path()}{exp_name}/boxplot_param.png")
     plt.close()
 
 
@@ -58,13 +58,26 @@ def fitness_correlation(df, param_names, exp_name, grouping):
     figure.supxlabel("Correlation with score")
     figure.legend()
     plt.grid(axis="y")
-    plt.savefig(f'{get_plots_path()}{exp_name}/correlation_score.png')
+    plt.savefig(f"{get_plots_path()}{exp_name}/correlation_score.png")
     plt.close()
 
 
-'''
+"""
+Other Figures
+"""
+def param_correlation_heatmap(df, param_names, exp_name):
+    figure = plt.figure()
+    df_params = df[param_names]
+    corr = df_params.corr()
+    sns.heatmap(corr, center=0, vmin=-1, vmax=1, cmap="coolwarm")
+    figure.tight_layout()
+    plt.savefig(f"{get_plots_path()}{exp_name}/correlation_param.png")
+    plt.close()
+
+
+"""
 Main functions
-'''
+"""
 def read_data(exp_name):
     file_path = get_processed_data_path()
     if exp_name == "combined":
@@ -97,15 +110,19 @@ def main(exp_name):
         fitness_correlation(df_exp, param_names, exp_name, "config_num")
         histograms(df_exp, param_names, exp_name)
         boxplots(df_exp, param_names, exp_name)
+        if exp_name == "uniform":
+            param_correlation_heatmap(df, param_names, exp_name)
 
-        for config_num in df_exp["config_num"].unique():
-            if not os.path.exists(f"{path}/{config_num}"):
-                os.makedirs(f"{path}/{config_num}")
-            cond_name = f"{exp_name}/{config_num}"
-            df_config = df_exp.loc[df_exp["config_num"] == config_num]
-            fitness_correlation(df_config, param_names, cond_name, "replicate")
-            histograms(df_config, param_names, cond_name)
-            boxplots(df_config, param_names, cond_name)
+        config_nums = df_exp["config_num"].unique()
+        if len(config_nums) > 1:
+            for config_num in config_nums:
+                if not os.path.exists(f"{path}/{config_num}"):
+                    os.makedirs(f"{path}/{config_num}")
+                cond_name = f"{exp_name}/{config_num}"
+                df_config = df_exp.loc[df_exp["config_num"] == config_num]
+                fitness_correlation(df_config, param_names, cond_name, "replicate")
+                histograms(df_config, param_names, cond_name)
+                boxplots(df_config, param_names, cond_name)
 
 
 if __name__ == "__main__":
