@@ -30,20 +30,12 @@ def histograms(df, param_names, exp_name):
     plt.close()
 
 
-def parameter_boxplots(df, param_names, exp_name):
-    figure, axis = plt.subplots(5, 4, figsize=(15,15))
-    row = 0
-    col = 0
-    for param in param_names:
-        sns.boxplot(data=df, x="adaptive", y=param, ax=axis[row][col])
-        axis[row][col].set_title(param)
-        row += 1
-        if row % 5 == 0:
-            col += 1
-            row = 0
+def config_score_boxplots(df, exp_name):
+    figure, axis = plt.subplots(1, 1, figsize=(15,15))
+    sns.boxplot(data=df, x="config_num", y="score")
     figure.tight_layout(rect=[0, 0.03, 1, 0.95])
-    figure.suptitle(f"{exp_name} parameter boxplots")
-    plt.savefig(f"{get_plots_path()}{exp_name}/boxplot_param.png")
+    figure.suptitle(f"{exp_name} config boxplots")
+    plt.savefig(f"{get_plots_path()}{exp_name}/boxplot_configs.png")
     plt.close()
 
 
@@ -60,7 +52,7 @@ def adaptive_parameter_boxplots(df, param_names, exp_name):
             row = 0
     figure.tight_layout(rect=[0, 0.03, 1, 0.95])
     figure.suptitle(f"{exp_name} adaptive parameter boxplots")
-    plt.savefig(f"{get_plots_path()}{exp_name}/adaptive_boxplot_param.png")
+    plt.savefig(f"{get_plots_path()}{exp_name}/boxplot_param.png")
     plt.close()
 
 
@@ -134,7 +126,7 @@ def plot_score_correlated_properties(df, param_names, exp_name):
         figure.suptitle(f"{exp_name} scatter plots")
         figure.supylabel("Score")
         figure.supxlabel(p)
-        plt.savefig(f"{get_plots_path()}{exp_name}/score_{p}_scatter.png")
+        plt.savefig(f"{get_plots_path()}{exp_name}/score_{p}.png")
         plt.close()
 
 
@@ -161,6 +153,7 @@ def main(exp_name, config_level_analysis=False):
     histograms(df, param_names, exp_name)
     adaptive_parameter_boxplots(df, param_names, exp_name)
     plot_score_correlated_properties(df, param_names, exp_name)
+    config_score_boxplots(df, exp_name)
 
     if exp_name == "uniform":
         param_correlation_heatmap(df, param_names, exp_name)
@@ -174,7 +167,6 @@ def main(exp_name, config_level_analysis=False):
             df_config = df.loc[df["config_num"] == config_num]
             fitness_correlation(df_config, param_names, cond_name, "replicate")
             histograms(df_config, param_names, cond_name)
-            parameter_boxplots(df_config, param_names, cond_name)
 
 
 if __name__ == "__main__":

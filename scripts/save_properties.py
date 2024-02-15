@@ -52,6 +52,7 @@ def read_raw_data(exp_name):
 def main(exp_name):
     df = read_raw_data(exp_name)
     df = calculate_properties(df)
+    df["matrix"] = df["graph"].apply(lambda x: x.adjacencyMatrix)
     df = df.drop("graph", axis=1)
     df.to_pickle(f"{get_processed_data_path()}{exp_name}.pkl")
 
