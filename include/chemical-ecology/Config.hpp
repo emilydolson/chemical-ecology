@@ -19,7 +19,7 @@ namespace chemical_ecology {
     //Group repro enabled for all adaptive stochastic worlds under current architecture
     VALUE(GROUP_REPRO, bool, false, "True if proportional group level reproduction is enabled this run"),
     VALUE(V, bool, false, "True if running in verbose mode (Will print out all world vectors)"),
-    VALUE(THRESHOLD_VALUE, double, 5.0, "Anything below threshold value will be rounded down for ranked threshold analysis"),
+    VALUE(THRESHOLD_VALUE, double, 10.0, "Anything below threshold value will be rounded down for ranked threshold analysis"),
 
     GROUP(INTERACTION_SETTINGS, "Interaction Sources"),
     VALUE(INTERACTION_SOURCE, std::string, "", "Where to load interaction matrix from; empty string will generate randomly"),
