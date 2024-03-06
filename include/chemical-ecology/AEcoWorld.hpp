@@ -776,12 +776,12 @@ public:
   }
 
   void DoSeeding(size_t pos, const world_t& curr_world, world_t& next_world, double seed_prob) {
-    // Seed in
-    if (rnd.P(seed_prob)) {
-      size_t species = rnd.GetUInt(N_TYPES);
-      next_world[pos][species]++;
-      // NOTE (@AML): want to respect max pop here?
-      next_world[pos][species] = std::min(next_world[pos][species], MAX_POP);
+    // Seed in  (every species has an individual prob to seed in)
+    for (size_t i = 0; i < N_TYPES; i++){
+      if (rnd.P(seed_prob)) {
+        next_world[pos][i]++;
+        next_world[pos][i] = std::min(next_world[pos][i], MAX_POP);
+      }
     }
   }
 
@@ -909,8 +909,8 @@ public:
       // Handle abiotic parameters and group repro
       // There is no spatial structure / no diffusion.
       for (size_t pos = 0; pos < model_world.size(); pos++) {
-        // (1) clearing
-        DoClearing(pos, model_world, next_model_world, prob_clear);
+        // (1) clearing - being removed?
+        // DoClearing(pos, model_world, next_model_world, prob_clear);
         // (2) seeding
         DoSeeding(pos, model_world, next_model_world, seeding_prob);
       }
