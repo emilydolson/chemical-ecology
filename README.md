@@ -1,28 +1,27 @@
+# The Ecology–Evolution Continuum and the Origin of Life
 
-# Artificial Ecology for Chemical Ecology Project
+A simple model of the early interactions of pre-biotic chemicals. In active development.
 
-
-[![version](https://img.shields.io/endpoint?url=https%3A%2F%2Femilydolson.github.io%2Fchemical-ecology%2Fversion-badge.json)](https://github.com/emilydolson/chemical-ecology/releases)
-[![](https://img.shields.io/travis/emilydolson/chemical-ecology.svg)](https://travis-ci.com/emilydolson/chemical-ecology)
-[![Documentation Status](https://readthedocs.org/projects/chemical-ecology/badge/?version=latest)](https://chemical-ecology.readthedocs.io/en/latest/?badge=latest)
-[![documentation coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Femilydolson.github.io%2Fchemical-ecology%2Fdocumentation-coverage-badge.json)](https://chemical-ecology.readthedocs.io/en/latest/)
-[![code coverage status](https://codecov.io/gh/emilydolson/chemical-ecology/branch/master/graph/badge.svg)](https://codecov.io/gh/emilydolson/chemical-ecology)
-[![dotos](https://img.shields.io/endpoint?url=https%3A%2F%2Femilydolson.com%2Fchemical-ecology%2Fdoto-badge.json)](https://github.com/emilydolson/chemical-ecology/search?q=todo+OR+fixme&type=)
-[![GitHub stars](https://img.shields.io/github/stars/emilydolson/chemical-ecology.svg?style=flat-square&logo=github&label=Stars&logoColor=white)](https://github.com/emilydolson/chemical-ecology)
-
-For playing with ideas about evolution and succession
-
-Check out the live in-browser web app at [https://emilydolson.github.io/chemical-ecology][].
-
+Check out the live in-browser web app of an early version of this project at [https://emilydolson.github.io/chemical-ecology/web/chemical-ecology.html][].
 
 -   Free software: MIT license
--   Documentation: <https://chemical-ecology.readthedocs.io>. 
 
-## Features
+## Install
 
--   TODO
+`git clone --recursive git@github.com:emilydolson/chemical-ecology.git`
 
-![cookie monster example](docs/assets/cookie.gif)
+## Run
+
+- Compile: `make`
+- Run: `./chemical-ecology`
+- View results in output/
+
+## As Seen In
+
+- Foreback, M., Leither, S., & Dolson, E. (2023, July). [Using evolutionary computation to find parameters that promote egalitarian major evolutionary transitions](https://dl.acm.org/doi/pdf/10.1145/3583133.3590704). In _Proceedings of the Companion Conference on Genetic and Evolutionary Computation_ (pp. 135-138).
+- Foreback, M., Leither, S., Baum, D. A., & Dolson, E. (2023, July). [The role of abiotic parameters in the promotion of egalitarian major evolutionary transitions](https://direct.mit.edu/isal/proceedings-abstract/isal/35/116809). In _ALIFE 2023: Ghost in the Machine: Proceedings of the 2023 Artificial Life Conference_. MIT Press.
+- Leither, S., Foreback, M., Baum, D. A., & Dolson, E. (2023, July). [Interaction strengths affect whether ecological networks promote the initiation of egalitarian major transitions](https://direct.mit.edu/isal/proceedings/isal2023/35/73/116913). In _ALIFE 2023: Ghost in the Machine: Proceedings of the 2023 Artificial Life Conference_. MIT Press.
+- J. Shea, S. Leither, M. Foreback, E. Dolson, and A. Lalejini, “[Environmental connectivity influences the origination of adaptive processes](https://ecoevorxiv.org/repository/view/6994/),” in ALIFE 2024: Proceedings of the 2023 Artificial Life Conference, MIT Press, 2024
 
 ## Credits
 
