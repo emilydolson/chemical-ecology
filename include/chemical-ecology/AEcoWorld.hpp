@@ -1691,16 +1691,18 @@ void AEcoWorld::SnapshotCommunitySetScores(
       const auto& world_summary = world_community_set.summary_set.GetCommunitySummary(cur_summary_id);
       const auto assembly_id = assembly_community_set.summary_set.GetCommunityID(world_summary);
       const auto adaptive_id = adaptive_community_set.summary_set.GetCommunityID(world_summary);
-      double assembly_prop = (assembly_id) ?
-        assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
-        0.0;
-      if (assembly_prop == 0) 
-        assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
-      double adaptive_prop = (adaptive_id) ?
-        adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
-        0.0;
-      if (adaptive_prop == 0) 
-        adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
+        double assembly_prop = (assembly_id) ?
+          assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
+          0.0;
+        double adaptive_prop = (adaptive_id) ?
+          adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
+          0.0;
+        if (assembly_prop == 0 && adaptive_prop == 0)
+          return "0";
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
+        if (adaptive_prop == 0) 
+          adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
       return (assembly_prop != 0) ?
         emp::to_string(adaptive_prop / assembly_prop) :
         "error";
@@ -1719,11 +1721,13 @@ void AEcoWorld::SnapshotCommunitySetScores(
         double assembly_prop = (assembly_id) ?
           assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
           0.0;
-        if (assembly_prop == 0) 
-          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
         double adaptive_prop = (adaptive_id) ?
           adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
           0.0;
+        if (assembly_prop == 0 && adaptive_prop == 0)
+          return "0";
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
         if (adaptive_prop == 0) 
           adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
         const double ratio = adaptive_prop / assembly_prop;
@@ -1752,11 +1756,13 @@ void AEcoWorld::SnapshotCommunitySetScores(
         double assembly_prop = (assembly_id) ?
           assembly_community_set.summary_set.GetSmoothedCommunityProportion(assembly_id.value()) :
           0.0;
-        if (assembly_prop == 0) 
-          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
         double adaptive_prop = (adaptive_id) ?
           adaptive_community_set.summary_set.GetSmoothedCommunityProportion(adaptive_id.value()) :
           0.0;
+        if (assembly_prop == 0 && adaptive_prop == 0)
+          return "0";
+        if (assembly_prop == 0) 
+          assembly_prop = 1/((double)emp::Sum(assembly_community_set.summary_set.GetCommunityCounts())+assembly_community_set.summary_set.GetCommunityCounts().size());
         if (adaptive_prop == 0) 
           adaptive_prop = 1/((double)emp::Sum(adaptive_community_set.summary_set.GetCommunityCounts())+adaptive_community_set.summary_set.GetCommunityCounts().size());
         // For each cell in the world, add the corresponding assembly/adaptive scores that many times
